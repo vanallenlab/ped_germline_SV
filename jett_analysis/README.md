@@ -4,7 +4,7 @@ This folder serves as a place to document Jett's analysis in collaboration on Ri
 
 ## Layout
 
-* `lib`: top-level scripts used by various notebooks.
+* `scripts`: top-level scripts used by various notebooks.
 * `ref`: reference files used by various notebooks, with purposes documented in a `README.md`.
 * `info`: files containing useful notes. Notably includes `methods.md` and `style.md`, which explain the methods and a style guide for code.
 
