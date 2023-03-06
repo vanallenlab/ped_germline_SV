@@ -53,12 +53,20 @@ def main():
     hl.import_vcf(args.vcf_in, force_bgz=True).write(mt_fname, overwrite=True)
     mt = hl.read_matrix_table(mt_fname)
 
-    # Subset to passing, biallelic, autosomal variants
-    mt = mt.filter_rows(mt.filters.size() > 0, keep=False)
-    mt = hl.filter_intervals(mt, [hl.parse_locus_interval(x, reference_genome='GRCh38') for x in autosomes])
-
     # Compute allele frequencies
     mt = hl.variant_qc(mt)
+
+    # Subset to  high-quality, biallelic, well-genotyped, autosomal variants
+    mt = mt.filter_rows((mt.filters.size() == 0) & \
+                        (mt.qual > 100) & \
+                        (mt.variant_qc.call_rate > 0.99) & \
+                        (mt.variant_qc.p_value_hwe > 10e-6) & \
+                        (mt.info.PESR_GT_OVERDISPERSION == False) & \
+                        (mt.info.BOTHSIDES_SUPPORT == True) & \
+                        (mt.info.HIGH_SR_BACKGROUND == False) & \
+                        (mt.variant_qc.AF[1] >= 0.001), 
+                        keep=True)
+    mt = hl.filter_intervals(mt, [hl.parse_locus_interval(x, reference_genome='GRCh38') for x in autosomes])
 
     # Generate top 20 PCs based on common variants
     common = mt.filter_rows(mt.variant_qc.AF[1] >= 0.01, keep=True)
@@ -68,9 +76,8 @@ def main():
     write_pcs(scores, args.pcs_out)
 
     # Generate kinship coefficients with PC-relate
-    mt_thresh = mt.filter_rows(mt.variant_qc.AF[1] >= 0.001, keep=True)
-    rel = hl.pc_relate(mt_thresh.GT, min_individual_maf=0.001, 
-                       scores_expr=scores[mt_thresh.col_key].scores,
+    rel = hl.pc_relate(mt.GT, min_individual_maf=0.001, 
+                       scores_expr=scores[mt.col_key].scores,
                        min_kinship=1/16)
 
     # Write kinship coefficients to output file

@@ -20,9 +20,9 @@ gcloud config set project vanallen-nih-ped
 # Deploy Hail dataproc cluster
 hailctl dataproc start \
   --region us-east1 \
-  --num-secondary-workers 20 \
+  --num-secondary-workers 25 \
   --packages pandas \
-  --max-idle 6h \
+  --max-idle 60m \
   pedsv
 
 # Generate PCs and kinship metrics using Hail
@@ -39,3 +39,40 @@ hailctl dataproc stop pedsv
 
 # Switch back to old billing project
 gcloud config set project $old_gcloud_project
+
+# Download outputs
+for subdir in data data/ancestry_and_relatedness; do
+  if [ ! -e $WRKDIR/$subdir ]; then
+    mkdir $WRKDIR/$subdir
+  fi
+done
+for vcf in $trio_vcf $validation_vcf; do
+  echo "$( echo $vcf | gsed 's/.vcf.gz$/.PCs.tsv.gz/g' )"
+  echo "$( echo $vcf | gsed 's/.vcf.gz$/.kinship.tsv.gz/g' )"
+done | gsutil -m cp -I $WRKDIR/data/ancestry_and_relatedness/
+
+# Assign ancestries using top 4 PCs
+for cohort in trio validation; do
+  if [ -e $WRKDIR/data/ancestry_and_relatedness/$cohort ]; then
+    rm -rf $WRKDIR/data/ancestry_and_relatedness/$cohort
+  fi
+  mkdir $WRKDIR/data/ancestry_and_relatedness/$cohort
+done
+${CODEDIR}/gatksv_scripts/assign_ancestry.R \
+  --PCs $WRKDIR/data/ancestry_and_relatedness/minGQ_v7_FDR2pct_NCR10pct.no_outliers.cleaned.PCs.tsv.gz \
+  --training-labels $WRKDIR/data/ancestry_and_relatedness/1000G_HGDP_training_labels.tsv.gz \
+  --out-prefix $WRKDIR/data/ancestry_and_relatedness/trio/PedSV.trio_cohort \
+  --use-N-PCs 4 \
+  --min-probability 0.5 \
+  --plot
+${CODEDIR}/gatksv_scripts/assign_ancestry.R \
+  --PCs $WRKDIR/data/ancestry_and_relatedness/minGQ_v1_trioCutoffs_FDR2pct_NCR10pct.no_outliers.cleaned.PCs.tsv.gz \
+  --training-labels $WRKDIR/data/ancestry_and_relatedness/1000G_HGDP_training_labels.tsv.gz \
+  --out-prefix $WRKDIR/data/ancestry_and_relatedness/validation/PedSV.validation_cohort \
+  --use-N-PCs 4 \
+  --min-probability 0.5 \
+  --plot
+
+
+# Assign pairwise relationships
+# TODO: implement this
