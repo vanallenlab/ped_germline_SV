@@ -11,3 +11,11 @@ Distributed under terms of the [GNU GPL v2.0 License](/LICENSE) (see `LICENSE`).
 ## Synopsis    
 
 This repository contains the working code and scripts used to discover, genotype, filter, annotate, and analyze germline structural variants (SVs) from WGS across various pediatric cancer and cancer-free control cohorts  
+
+---  
+
+### Helper R package  
+
+The `src/` directly contains the pre-compiled source for a helper library of R functions, `PedSV`.  
+
+For more documentation, see the `README` within the `src/` subdirectory.  

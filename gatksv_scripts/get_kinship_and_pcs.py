@@ -61,9 +61,6 @@ def main():
                         (mt.qual > 100) & \
                         (mt.variant_qc.call_rate > 0.99) & \
                         (mt.variant_qc.p_value_hwe > 10e-6) & \
-                        (mt.info.PESR_GT_OVERDISPERSION == False) & \
-                        (mt.info.BOTHSIDES_SUPPORT == True) & \
-                        (mt.info.HIGH_SR_BACKGROUND == False) & \
                         (mt.variant_qc.AF[1] >= 0.001), 
                         keep=True)
     mt = hl.filter_intervals(mt, [hl.parse_locus_interval(x, reference_genome='GRCh38') for x in autosomes])
