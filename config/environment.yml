@@ -17,6 +17,7 @@ dependencies:
   - certifi=2022.12.7=pyhd8ed1ab_0
   - cffi=1.15.0=py37hd667e15_1
   - cycler=0.11.0=pyhd3eb1b0_0
+  - cython=0.29.32=py37hd23a5d3_0
   - dbus=1.13.18=hb2f20db_0
   - expat=2.4.4=h295c915_0
   - fontconfig=2.13.1=h6c09931_0

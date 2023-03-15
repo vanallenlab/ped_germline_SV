@@ -176,7 +176,7 @@ task ClusterSites {
     File clustered_vcf = "~{prefix}.clustered.sites.vcf.gz"
     File clustered_vcf_idx = "~{prefix}.clustered.sites.vcf.gz.tbi"
     File vid_pairs = "~{prefix}.VID_pairs.tsv"
-    File vid_map = "~{prefix}.vid_remap.sed"
+    File vid_map = "~{prefix}.vid_remap.tsv"
     File vid_list = "~{prefix}.all_VIDs.list"
   }
   

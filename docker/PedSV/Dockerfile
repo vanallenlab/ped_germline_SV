@@ -36,11 +36,11 @@ RUN mamba install conda-pack && \
 FROM ubuntu:focal-20230301 AS runtime
 MAINTAINER "Ryan Collins <Ryan_Collins@dfci.harvard.edu>"
 
-# Copy /venv and git repo from the build stage
+# Copy /venv, git repo, and GATK-SV from the build stage
 COPY --from=build /venv /venv
 COPY --from=build /opt/ped_germline_SV /opt/ped_germline_SV
 
-# Make bash default shell & load Olympus on container startup
+# Make bash default shell & load conda environment on container startup
 RUN rm /bin/sh && ln -s /bin/bash /bin/sh
 RUN echo "source /venv/bin/activate" >> ~/.bashrc
 ENV VIRTUAL_ENV=/venv
@@ -61,6 +61,10 @@ RUN apt-get clean && \
 # Install gcloud
 ARG DEBIAN_FRONTEND=noninteractive
 RUN /opt/ped_germline_SV/config/install_gcloud.sh
+
+# Copy GATK-SV (must be in build context)
+ADD gatk-sv /opt/gatk-sv
+RUN source activate pedsv && pip install -e /opt/gatk-sv/src/svtk
 
 # Developer aliases, etc (for convenience)
 RUN echo 'alias l="ls -ltrha"' >> ~/.bashrc && \

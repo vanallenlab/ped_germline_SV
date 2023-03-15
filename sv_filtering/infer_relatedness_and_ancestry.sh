@@ -41,7 +41,7 @@ hailctl dataproc submit \
   $CODEDIR/gatksv_scripts/get_kinship_and_pcs.py \
   --vcf-in $merged_vcf \
   --pcs-out gs://val-ped-nonterra-hail/PedSV.merged.PCs.tsv.gz \
-  --kinship-out gs://val-ped-nonterra-hail/PedSV.merged.PCs.tsv.gz
+  --kinship-out gs://val-ped-nonterra-hail/PedSV.merged.kinship.tsv.gz
 
 # Shut down Hail dataproc cluster
 hailctl dataproc stop pedsv --region us-central1 
@@ -60,23 +60,14 @@ gsutil -m cp \
   $WRKDIR/data/ancestry_and_relatedness/
 
 # Assign ancestries using top 4 PCs
-for cohort in trio validation; do
-  if [ -e $WRKDIR/data/ancestry_and_relatedness/$cohort ]; then
-    rm -rf $WRKDIR/data/ancestry_and_relatedness/$cohort
-  fi
-  mkdir $WRKDIR/data/ancestry_and_relatedness/$cohort
-done
+if [ -e $WRKDIR/data/ancestry_and_relatedness/merged ]; then
+  rm -rf $WRKDIR/data/ancestry_and_relatedness/merged
+fi
+mkdir $WRKDIR/data/ancestry_and_relatedness/merged
 ${CODEDIR}/gatksv_scripts/assign_ancestry.R \
-  --PCs $WRKDIR/data/ancestry_and_relatedness/minGQ_v7_FDR2pct_NCR10pct.no_outliers.cleaned.PCs.tsv.gz \
+  --PCs $WRKDIR/data/ancestry_and_relatedness/PedSV.merged.PCs.tsv.gz \
   --training-labels $WRKDIR/data/ancestry_and_relatedness/1000G_HGDP_training_labels.tsv.gz \
-  --out-prefix $WRKDIR/data/ancestry_and_relatedness/trio/PedSV.trio_cohort \
-  --use-N-PCs 4 \
-  --min-probability 0.5 \
-  --plot
-${CODEDIR}/gatksv_scripts/assign_ancestry.R \
-  --PCs $WRKDIR/data/ancestry_and_relatedness/minGQ_v1_trioCutoffs_FDR2pct_NCR10pct.no_outliers.cleaned.PCs.tsv.gz \
-  --training-labels $WRKDIR/data/ancestry_and_relatedness/1000G_HGDP_training_labels.tsv.gz \
-  --out-prefix $WRKDIR/data/ancestry_and_relatedness/validation/PedSV.validation_cohort \
+  --out-prefix $WRKDIR/data/ancestry_and_relatedness/merged/PedSV.merged \
   --use-N-PCs 4 \
   --min-probability 0.5 \
   --plot
