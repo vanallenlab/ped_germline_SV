@@ -40,7 +40,7 @@ train.classifier <- function(train, seed=2023){
   train$pop <- factor(train$pop)
   svm(pop ~ ., data=train,
       type="C-classification",
-      kernel="radial",
+      kernel="linear",
       cross=10,
       probability=T,
       na.action=na.omit)
@@ -69,6 +69,10 @@ parser$add_argument("--training-labels", metavar=".tsv", type="character",
                     help=paste("two-column .tsv linking sample IDs to asserted",
                                "ground truth ancestry labels. Used for training."),
                     required=TRUE)
+parser$add_argument("--testing-labels", metavar=".tsv", type="character",
+                    help=paste("two-column .tsv linking sample IDs to asserted",
+                               "ancestry labels to use for classifier validation.",
+                               "Optional."))
 parser$add_argument("--out-prefix", metavar="path", type="character", required=TRUE,
                     help="path/prefix for all output files")
 parser$add_argument("--use-N-PCs", default=10, metavar="integer", type="integer",
@@ -78,6 +82,16 @@ parser$add_argument("--min-probability", metavar="float", type="double", default
                                "a sample to an ancestry [default: 0.8]"))
 parser$add_argument("--plot", action="store_true", help="generate diagnostic plots")
 args <- parser$parse_args()
+
+# # DEV
+# setwd("/Users/collins/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/data/ancestry_and_relatedness")
+# args <- list("PCs" = "PedSV.merged.PCs.tsv.gz",
+#           "training_labels" = "1000G_HGDP_MESA_training_labels.tsv.gz",
+#           "testing_labels" = "PedSV.SNV_ancestry_labels.tsv.gz",
+#           "out_prefix" = "~/scratch/ancestry_test",
+#           "use_N_PCs" = 4,
+#           "min_probability" = 0,
+#           "plot" = TRUE)
 
 # Load PCs
 pcs <- load.pc.matrix(args$PCs, args$use_N_PCs)
@@ -95,9 +109,20 @@ classifier <- train.classifier(train)
 pred.labels <- assign.ancestries(pcs, classifier, args$min_probability)
 
 # Evaluate accuracy vs. training labels
-acc <- length(which(train$pop == pred.labels[rownames(train)])) / nrow(train)
+train.acc <- length(which(train$pop == pred.labels[rownames(train)])) / nrow(train)
 cat(paste("\nClassification accuracy vs. training labels: ",
-            formatC(round(100 * acc, 2), digits=4), "%\n\n", sep=""))
+            formatC(round(100 * train.acc, 2), digits=4), "%\n\n", sep=""))
+
+# Evaluate accuracy vs. testing labels (if provided)
+if(!is.null(args$testing_labels)){
+  test.labels <- load.training.labels(args$testing_labels)
+  test.unique <- setdiff(rownames(test.labels), rownames(train.labels))
+  test.labels <- test.labels[test.unique, , drop=FALSE]
+  test <- merge(test.labels, pred.labels, by="row.names", sort=F, all=F)
+  test.acc <- length(which(test$pop == test$y)) / nrow(test)
+  cat(paste("\nClassification accuracy vs. testing labels: ",
+            formatC(round(100 * test.acc, 2), digits=4), "%\n\n", sep=""))
+}
 
 # Write labels to file
 write.table(pred.labels,

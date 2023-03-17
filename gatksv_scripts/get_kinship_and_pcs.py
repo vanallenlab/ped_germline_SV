@@ -61,13 +61,15 @@ def main():
                         (mt.qual > 100) & \
                         (mt.variant_qc.call_rate > 0.99) & \
                         (mt.variant_qc.p_value_hwe > 10e-6) & \
-                        (mt.variant_qc.AF[1] >= 0.001), 
+                        (mt.variant_qc.AF[0] >= 0.001) & \
+                        (mt.variant_qc.AF[1] >= 0.001) & \
+                        (mt.variant_qc.AF[0] <= 0.999) & \
+                        (mt.variant_qc.AF[1] <= 0.999), 
                         keep=True)
     mt = hl.filter_intervals(mt, [hl.parse_locus_interval(x, reference_genome='GRCh38') for x in autosomes])
 
     # Generate top 20 PCs based on common variants
-    common = mt.filter_rows(mt.variant_qc.AF[1] >= 0.01, keep=True)
-    eigenvalues, scores, loadings = hl.hwe_normalized_pca(common.GT, k=20)
+    eigenvalues, scores, loadings = hl.hwe_normalized_pca(mt.GT, k=20)
 
     # Write PCs to outfile
     write_pcs(scores, args.pcs_out)
