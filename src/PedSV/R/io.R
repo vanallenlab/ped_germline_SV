@@ -31,3 +31,22 @@ load.pc.matrix <- function(tsv.in, keep.n=10e10){
   pc[, 1:keep.n]
 }
 
+
+#' Load relatedness metrics
+#'
+#' Load a .tsv of PC-Relate output metrics for pairs of samples
+#'
+#' @param tsv_in Path to input .tsv
+#'
+#' @returns data.frame
+#'
+#' @export load.kinship.metrics
+#' @export
+load.kinship.metrics <- function(tsv.in){
+  kdf <- read.table(tsv.in, header=T, comment.char="", sep="\t", check.names=F)
+  rownames(kdf) <- apply(kdf[, 1:2], 1,
+                         function(pair){paste(sort(pair), collapse="|")})
+  kdf[, 3:ncol(kdf)] <- apply(kdf[, 3:ncol(kdf)], 2, as.numeric)
+  kdf[, -c(1:2)]
+}
+

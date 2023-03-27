@@ -23,6 +23,8 @@
 #' @param pc.Y PC to be plotted on the Y-axis (see `Details`)
 #' @param colors Vector of colors. Must be supplied in the same order as rows in `pcs`
 #' @param title Main title for plot \[default: NULL\]
+#' @param x.title Title for X-axis
+#' @param x.title Title for Y-axis
 #' @param legend.vals Named vector mapping category names to colors \[default: NULL\]
 #' @param cex Character expansion factor for individual points \[default: 0.3\]
 #' @param parmar Numeric vector of values to pass to `par(mar)`
@@ -34,8 +36,9 @@
 #'
 #' @export pc.scatterplot
 #' @export
-pc.scatterplot <- function(pcs, pc.X, pc.Y, colors, title=NULL, legend.vals=NULL,
-                           cex=0.3, parmar=c(2.5, 2.5, 1, 1)){
+pc.scatterplot <- function(pcs, pc.X, pc.Y, colors, title=NULL, x.title=NULL,
+                           y.title=NULL, legend.vals=NULL, cex=0.3,
+                           parmar=c(2.5, 2.5, 1, 1)){
   if(!is.numeric(pc.X)){
     pc.X <- which(colnames(pcs) == pc.X)
   }
@@ -44,11 +47,21 @@ pc.scatterplot <- function(pcs, pc.X, pc.Y, colors, title=NULL, legend.vals=NULL
   }
   x <- pcs[, pc.X]
   y <- pcs[, pc.Y]
+
   prep.plot.area(xlims=range(x), ylims=range(y), parmar=parmar, xaxs="r", yaxs="r")
-  clean.axis(1, title=paste("Principal Component", pc.X), infinite=T)
-  clean.axis(2, title=paste("Principal Component", pc.Y), infinite=T)
-  points(x, y, pch=19, cex=0.3, col=colors, xpd=T)
   mtext(3, text=title, font=2)
+
+  if(is.null(x.title)){
+    x.title <- paste("Principal Component", pc.X)
+  }
+  clean.axis(1, title=x.title, infinite=T)
+
+  if(is.null(y.title)){
+    y.title <- paste("Principal Component", pc.Y)
+  }
+  clean.axis(2, title=y.title, infinite=T)
+
+  points(x, y, pch=19, cex=0.3, col=colors, xpd=T)
 
   # Add legend, if optioned
   if(!is.null(legend.vals)){

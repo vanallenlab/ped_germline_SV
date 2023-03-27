@@ -123,7 +123,11 @@ load.constants <- function(subset, envir=.GlobalEnv){
                        "1" = "#F8FAA7",
                        "2" = "#FFCC66",
                        "3" = "#FE8002",
-                       "4" = "#ED3823"))
+                       "4" = "#ED3823"),
+    "relative.colors" = c("duplicates" = "#9D1309",
+                          "parent-child" = "#FF6103",
+                          "siblings" = "#FFB14D",
+                          "unrelated" = "#AAAAAA"))
 
   # Define scales
   logscale.major <- 10^(-10:10)
@@ -169,7 +173,11 @@ load.constants <- function(subset, envir=.GlobalEnv){
                       "1" = "I",
                       "2" = "II",
                       "3" = "III",
-                      "4" = "IV")
+                      "4" = "IV"),
+    "relative.names" = c("duplicates" = "Identical",
+                         "parent-child" = "Parent-Child",
+                         "siblings" = "Siblings",
+                         "unrelated" = "Unrelated")
   )
 
   # Assign constants to global environment

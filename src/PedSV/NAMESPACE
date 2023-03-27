@@ -2,6 +2,7 @@
 
 export(clean.axis)
 export(load.constants)
+export(load.kinship.metrics)
 export(load.pc.matrix)
 export(pc.scatterplot)
 export(prep.plot.area)
