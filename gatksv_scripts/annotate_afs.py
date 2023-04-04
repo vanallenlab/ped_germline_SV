@@ -35,6 +35,12 @@ af_entries = {'AN' : '##INFO=<ID={}AN,Number=1,Type=Integer,Description="Total n
               'CN_FREQ' : '##INFO=<ID={}CN_FREQ,Number=.,Type=Float,Description="Frequency of {} samples observed at each copy state, starting from CN=0 (multiallelic CNVs only).">',
               'CN_NONDIPLOID_COUNT' : '##INFO=<ID={}CN_NONDIPLOID_COUNT,Number=1,Type=Integer,Description="Number of {} samples with non-diploid copy states (multiallelic CNVs only).">',
               'CN_NONDIPLOID_FREQ' : '##INFO=<ID={}CN_NONDIPLOID_FREQ,Number=1,Type=Float,Description="Frequency of {} samples with non-diploid copy states (multiallelic CNVs only).">'}
+popmax_entries = {'AF' : '##INFO=<ID=POPMAX_{}AF,Number=A,Type=Float,Description="Maximum allele frequency in {} samples across populations (biallelic sites only).">',
+                  'FREQ_HOMREF' : '##INFO=<ID=POPMAX_{}FREQ_HOMREF,Number=1,Type=Float,Description="Maximum frequency of homozygous reference genotypes in {} samples across populations (biallelic sites only).">',
+                  'FREQ_HET' : '##INFO=<ID=POPMAX_{}FREQ_HET,Number=1,Type=Float,Description="Maximum frequency of heterozygous genotypes in {} samples across populations (biallelic sites only).">',
+                  'FREQ_HOMALT' : '##INFO=<ID=POPMAX_{}FREQ_HOMALT,Number=1,Type=Float,Description="Maximum frequency of homozygous alternate genotype frequencies in {} samples across populations (biallelic sites only).">',
+                  'CN_FREQ' : '##INFO=<ID=POPMAX_{}CN_FREQ,Number=.,Type=Float,Description="Maximum frequency of each copy state in {} samples across populations, starting from CN=0 (multiallelic CNVs only).">',
+                  'CN_NONDIPLOID_FREQ' : '##INFO=<ID=POPMAX_{}CN_NONDIPLOID_FREQ,Number=1,Type=Float,Description="Maximum frequency of non-diploid copy states in {} across populations (multiallelic CNVs only).">'}
 
 
 def load_labels(sample_info, labels_in, key):
@@ -60,12 +66,14 @@ def expand_categories(svals):
     return product(*pd.DataFrame([svals, none_vals]).transpose().values.tolist())
 
 
-def enumerate_categories(sample_info):
+def enumerate_categories(sample_info, drop_pop=False):
     """
     Define all combinations of sample labels with at least one sample to be annotated
     """
 
     keys = list(sample_info[list(sample_info.keys())[0]].keys())
+    if drop_pop:
+        keys = [k for k in keys if k != 'ancestry']
 
     none_vals = tuple([None] * len(keys))
     
@@ -107,7 +115,7 @@ def get_combo_prefix(combo, prefix_type='info'):
         return descrip_filler
 
 
-def reformat_header(header_in, categories):
+def reformat_header(header_in, categories, categories_noPop):
     """
     Reformat the input VCF header for the output VCF
     """
@@ -119,6 +127,15 @@ def reformat_header(header_in, categories):
         descrip_filler = get_combo_prefix(combo, prefix_type='description')
         
         for key, descrip in af_entries.items():
+            header_in.add_line(descrip.format(key_prefix, descrip_filler))
+
+    # Add popmax values to header
+    for combo in categories_noPop:
+
+        key_prefix = get_combo_prefix(combo, prefix_type='info')
+        descrip_filler = get_combo_prefix(combo, prefix_type='description')
+        
+        for key, descrip in popmax_entries.items():
             header_in.add_line(descrip.format(key_prefix, descrip_filler))
 
 
@@ -146,7 +163,7 @@ def categorize_gt(gt):
         return 'HET'
 
 
-def annotate_freqs(record, sample_info, categories):
+def annotate_freqs(record, sample_info, categories, categories_noPop, pops=[]):
     """
     Add frequency annotations to a pysam.VariantRecord
     """
@@ -227,6 +244,23 @@ def annotate_freqs(record, sample_info, categories):
         for key, value in freqs[combo].items():
             record.info[prefix + key] = value
 
+    # Add POPMAX frequencies if optioned
+    for combo in categories_noPop:
+        prefixes = [get_combo_prefix(tuple([pop] + list(combo)), prefix_type='info') \
+                    for pop in pops]
+        if is_mcnv:
+            popmax_keys = 'CN_FREQ CN_NONDIPLOID_FREQ'.split()
+        else:
+            popmax_keys = 'AF FREQ_HOMREF FREQ_HET FREQ_HOMALT'.split()
+        for key in popmax_keys:
+            terms = [t for t in [p + key for p in prefixes] if t in record.info.keys()]
+            vals = np.array([record.info.get(t, 0) for t in terms])
+            if key == 'CN_FREQ':
+                val = np.apply_along_axis(np.nanmax, 0, vals)
+            else:
+                val = np.nanmax(vals)
+            record.info['POPMAX_' + get_combo_prefix(combo, prefix_type='info') + key] = val
+
     return record
 
 
@@ -268,6 +302,9 @@ def main():
     sample_info = {s : {} for s in out_samples}
     if args.ancestry_labels is not None:
         sample_info = load_labels(sample_info, args.ancestry_labels, 'ancestry')
+        pops = set([v['ancestry'] for v in sample_info.values()])
+    else:
+        pops = []
     if args.disease_labels is not None:
         sample_info = load_labels(sample_info, args.disease_labels, 'phenotype')
     if args.family_labels is not None:
@@ -275,9 +312,13 @@ def main():
 
     # Enumerate all categories to annotate
     categories = enumerate_categories(sample_info)
+    if args.ancestry_labels is not None:
+        categories_noPop = enumerate_categories(sample_info, drop_pop=True)
+    else:
+        categories_noPop = []
 
     # Reformat header
-    reformat_header(vcf_in.header, categories)
+    reformat_header(vcf_in.header, categories, categories_noPop)
 
     # Open connection to output VCF
     vcf_out = pysam.VariantFile(args.vcfout, 'w', header=vcf_in.header)
@@ -287,7 +328,8 @@ def main():
     start = time.time()
     prev = start
     for record in vcf_in.fetch():
-        record = annotate_freqs(record, sample_info, categories)
+        record = annotate_freqs(record, sample_info, categories, 
+                                categories_noPop, pops)
         vcf_out.write(record)
         k += 1
         if k % 10 == 0 and args.pace:
