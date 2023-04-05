@@ -172,7 +172,7 @@ def annotate_freqs(record, sample_info, categories, categories_noPop, pops=[]):
 
     if is_mcnv:
         empty_counter = {k : 0 for k in 'CN_NUMBER CN_NONDIPLOID_COUNT'.split()}
-        max_cn = np.nanmax([v['CN'] for s, v in record.samples.items()])
+        max_cn = np.nanmax([v['CN'] for s, v in record.samples.items() if v['CN'] is not None])
         empty_counter['CN_COUNT'] = [0] * (max_cn + 1)
     else:
         empty_counter = {k : 0 for k in 'AN AC N_BI_GENOS N_HOMREF N_HET N_HOMALT'.split()}
@@ -184,7 +184,9 @@ def annotate_freqs(record, sample_info, categories, categories_noPop, pops=[]):
 
         if is_mcnv:
             cn = svals['CN']
-            if np.isnan(cn) or cn is None:
+            if cn is None:
+                continue
+            if np.isnan(cn):
                 continue
             for combo in expand_categories(sample_info[sid].values()):
                 freqs[combo]['CN_NUMBER'] += 1
@@ -254,7 +256,7 @@ def annotate_freqs(record, sample_info, categories, categories_noPop, pops=[]):
             popmax_keys = 'AF FREQ_HOMREF FREQ_HET FREQ_HOMALT'.split()
         for key in popmax_keys:
             terms = [t for t in [p + key for p in prefixes] if t in record.info.keys()]
-            vals = np.array([record.info.get(t, 0) for t in terms])
+            vals = np.array([record.info.get(t, 0) for t in terms], dtype=float)
             if key == 'CN_FREQ':
                 val = tuple(np.apply_along_axis(np.nanmax, 0, vals).tolist())
             else:
