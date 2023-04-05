@@ -256,9 +256,9 @@ def annotate_freqs(record, sample_info, categories, categories_noPop, pops=[]):
             terms = [t for t in [p + key for p in prefixes] if t in record.info.keys()]
             vals = np.array([record.info.get(t, 0) for t in terms])
             if key == 'CN_FREQ':
-                val = np.apply_along_axis(np.nanmax, 0, vals)
+                val = tuple(np.apply_along_axis(np.nanmax, 0, vals).tolist())
             else:
-                val = np.nanmax(vals)
+                val = np.nanmax(vals[vals != np.array(None)])
             record.info['POPMAX_' + get_combo_prefix(combo, prefix_type='info') + key] = val
 
     return record

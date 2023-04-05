@@ -47,7 +47,7 @@ workflow AnnotateAfs {
         ancestry_labels = ancestry_labels,
         disease_labels = disease_labels,
         family_labels = family_labels,
-        prefix = basename(shard, ".vcf.gz"),
+        prefix = basename(shard, ".vcf.gz") + ".wAFs",
         docker = pedsv_docker
     }
   }
@@ -55,7 +55,7 @@ workflow AnnotateAfs {
   call MergeShards {
     input:
       vcfs = PruneAndAddAfs.vcf_out,
-      prefix = prefix,
+      prefix = select_first([prefix, basename(vcf, ".vcf.gz") + ".wAFs"]),
       docker = pedsv_docker
   }
 
@@ -89,15 +89,15 @@ task ShardVcf {
     tabix -H ~{vcf} > header.vcf
 
     # Shard VCF using GNU split
-    bcftools view --no-header ~{vcf} \
-    | split -n l/$n_splits -a $n_digits \
-      --numeric-suffixes $(printf "%0${N_DIGITS}d" 1) \
-      - ~{prefix}
+    bcftools view --no-header ~{vcf} > records.vcf
+    split -d -n l/$n_splits -a $n_digits \
+      --numeric-suffixes=$( printf "%0${n_digits}d" 1 ) \
+      records.vcf ~{prefix}
 
     # Add header to each split and compress
-    for records in $( find ./ -name "~{prefix}" ); do
+    for records in $( find ./ -name "~{prefix}*" ); do
       cat header.vcf $records | bgzip -c \
-      > ${prefix}.vcf.gz
+      > ${records}.vcf.gz
     done
 
   >>>
@@ -109,7 +109,7 @@ task ShardVcf {
   runtime {
     cpu: 1
     memory: "3.5 GiB"
-    disks: "local-disk " + ceil(20 * size(vcf, "GB")) + 20 + " HDD"
+    disks: "local-disk " + ceil(30 * size(vcf, "GB")) + 20 + " HDD"
     bootDiskSizeGb: 10
     docker: docker
     preemptible: 3
@@ -129,33 +129,45 @@ task PruneAndAddAfs {
     String docker
   }
 
+  String out_filename = prefix + ".vcf.gz"
+
   command <<<
 
     set -eu -o pipefail
 
     # Build command
     cmd="/opt/ped_germline_SV/gatksv_scripts/annotate_afs.py"
-    if [ ~{defined(keep_samples_list)} ]; then
+    if [ ~{defined(keep_samples_list)} == "true" ]; then
       cmd="$cmd --keep-samples ~{keep_samples_list}"
     fi
-    if [ ~{defined(ancestry_labels)} ]; then
+    if [ ~{defined(ancestry_labels)} == "true" ]; then
       cmd="$cmd --ancestry-labels ~{ancestry_labels}"
     fi
-    if [ ~{defined(disease_labels)} ]; then
+    if [ ~{defined(disease_labels)} == "true" ]; then
       cmd="$cmd --disease-labels ~{disease_labels}"
     fi
-    if [ ~{defined(family_labels)} ]; then
+    if [ ~{defined(family_labels)} == "true" ]; then
       cmd="$cmd --family-labels ~{family_labels}"
     fi
-    $CODEDIR/gatksv_scripts/annotate_afs.py \
-       $WRKDIR/data/ancestry_and_relatedness/PedSV.v1.trio_cohort_final_samples.list \
-      --ancestry-labels $WRKDIR/data/ancestry_and_relatedness/merged/PedSV.merged.ancestry_labels.tsv \
-      --disease-labels $WRKDIR/data/PedSV.all_samples.phenotype_labels.tsv \
-      --family-labels $WRKDIR/data/ancestry_and_relatedness/PedSV.v1.trio_membership_labels.from_RG.tsv \
-      ~/scratch/test.vcf.gz \
-      ~/scratch/test.wAFs.vcf.gz
+    cmd="$cmd --pace ~{vcf} ~{out_filename}"
+    echo -e "Annotating VCF with the following command:\n$cmd"
+    eval "$cmd"
 
   >>>
+
+  output {
+    File vcf_out = "~{out_filename}"
+  }
+
+  runtime {
+    cpu: 2
+    memory: "7.5 GiB"
+    disks: "local-disk " + ceil(4 * size(vcf, "GB")) + 20 + " HDD"
+    bootDiskSizeGb: 10
+    docker: docker
+    preemptible: 3
+    maxRetries: 1
+  }
 }
 
 
@@ -175,7 +187,7 @@ task MergeShards {
     bcftools concat \
       --no-version \
       --naive \
-      -Oz -o ~{output_filename} \
+      -Oz -o ~{out_filename} \
       --file-list ~{write_lines(vcfs)}
     tabix -f ~{out_filename}
 
@@ -187,7 +199,7 @@ task MergeShards {
   }
   
   runtime {
-    cpu: 1
+    cpu: 2
     memory: "3.5 GiB"
     disks: "local-disk " + ceil(4 * size(vcfs, "GB")) + 20 + " HDD"
     bootDiskSizeGb: 10
