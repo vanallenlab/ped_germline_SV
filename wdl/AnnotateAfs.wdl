@@ -59,9 +59,17 @@ workflow AnnotateAfs {
       docker = pedsv_docker
   }
 
+  call Vcf2Bed {
+    input:
+      vcf = MergeShards.merged_vcf,
+      docker = pedsv_docker
+  }
+
   output {
     File annotated_vcf = MergeShards.merged_vcf
     File annotated_vcf_idx = MergeShards.merged_vcf_idx
+    File annotated_bed = Vcf2Bed.bed
+    File annotated_bed_idx = Vcf2Bed.bed_idx
   }
 }
 
@@ -206,6 +214,46 @@ task MergeShards {
     docker: docker
     preemptible: 3
     maxRetries: 1
-  }  
+  }
+}
+
+
+task Vcf2Bed {
+  input {
+    File vcf
+    String docker
+  }
+
+  String out_filename = basename(vcf, ".vcf.gz") + ".bed.gz"
+
+  command <<<
+
+    set -eu -o pipefail
+
+    svtk vcf2bed \
+      --no-samples \
+      --info ALL \
+      --include-filters \
+      ~{vcf} - \
+    | bgzip -c > ~{out_filename}
+
+    tabix -p bed -f ~{out_filename}
+
+  >>>
+
+  output {
+    File bed = "~{out_filename}"
+    File bed_idx = "~{out_filename}.tbi"
+  }
+  
+  runtime {
+    cpu: 2
+    memory: "3.5 GiB"
+    disks: "local-disk " + ceil(3 * size(vcf, "GB")) + 20 + " HDD"
+    bootDiskSizeGb: 10
+    docker: docker
+    preemptible: 3
+    maxRetries: 1
+  }
 }
 
