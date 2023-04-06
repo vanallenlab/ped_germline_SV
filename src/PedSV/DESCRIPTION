@@ -1,0 +1,16 @@
+Package: PedSV
+Type: Package
+Title: Helper R functions for studies of germline SVs in pediatric cancers
+Version: 0.0.1
+Author: Ryan Collins <Ryan_Collins@dfci.harvard.edu>
+Maintainer: Ryan Collins <Ryan_Collins@dfci.harvard.edu>
+Description: This package contains various utility functions used in a DFCI study of germline structural variants in pediatric cancers.
+    Please refer to the project's GitHub repository for additional information: https://github.com/vanallenlab/ped_germline_SV
+    All code herein distributed under terms of the GNU GPL v2.0
+    Copyright: Ryan Collins, Riaz Gillani, and the Van Allen ;aboratory at Dana-Farber Cancer Institute
+License: GNU GPL v2.0
+Encoding: UTF-8
+LazyData: true
+Roxygen: list(markdown = TRUE)
+URL: https://github.com/vanallenlab/ped_germline_SV
+RoxygenNote: 7.1.2
