@@ -14,6 +14,19 @@ This repository contains the working code and scripts used to discover, genotype
 
 ---  
 
+## Table of Contents  
+
+| Directory | Description |  
+| :--- | :--- |  
+| [`config/`](https://github.com/vanallenlab/ped_germline_SV/tree/main/config) | Environment & Docker configuration files |  
+| [`docker/`](https://github.com/vanallenlab/ped_germline_SV/tree/main/docker) | Docker build files |  
+| [`gatksv_scripts/`](https://github.com/vanallenlab/ped_germline_SV/tree/main/gatksv_scripts) | Stand-alone scripts for _post hoc_ filtering and manipulation of GATK-SV callsets |  
+| [`src/`](https://github.com/vanallenlab/ped_germline_SV/tree/main/src) | Source code for helper packages (see below) |  
+| [`sv_filtering/`](https://github.com/vanallenlab/ped_germline_SV/tree/main/gatksv_scripts) | Bash code for filtering the GATK-SV callsets |  
+| [`wdl/`](https://github.com/vanallenlab/ped_germline_SV/tree/main/wdl) | Stand-alone WDL workflows |  
+
+---  
+
 ### Helper R package  
 
 The `src/` directly contains the pre-compiled source for a helper library of R functions, `PedSV`.  
