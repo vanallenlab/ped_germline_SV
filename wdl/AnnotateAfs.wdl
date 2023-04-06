@@ -248,7 +248,7 @@ task Vcf2Bed {
   
   runtime {
     cpu: 2
-    memory: "3.5 GiB"
+    memory: "7.5 GiB"
     disks: "local-disk " + ceil(3 * size(vcf, "GB")) + 20 + " HDD"
     bootDiskSizeGb: 10
     docker: docker

@@ -67,8 +67,7 @@ ADD gatk-sv /opt/gatk-sv
 RUN source activate pedsv && pip install -e /opt/gatk-sv/src/svtk
 
 # Developer aliases, etc (for convenience)
-RUN echo 'alias l="ls -ltrha"' >> ~/.bashrc && \
-    echo 'alias less="zless"' >> ~/.bashrc
+RUN echo 'alias l="ls -ltrha"' >> ~/.bashrc
 
 # Launch bash
 CMD ["/bin/bash"]
