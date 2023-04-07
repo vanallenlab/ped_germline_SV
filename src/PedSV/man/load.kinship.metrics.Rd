@@ -7,7 +7,7 @@
 load.kinship.metrics(tsv.in)
 }
 \arguments{
-\item{tsv_in}{Path to input .tsv}
+\item{tsv.in}{Path to input .tsv}
 }
 \value{
 data.frame

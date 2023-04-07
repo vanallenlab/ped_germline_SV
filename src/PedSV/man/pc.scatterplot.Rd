@@ -10,6 +10,8 @@ pc.scatterplot(
   pc.Y,
   colors,
   title = NULL,
+  x.title = NULL,
+  y.title = NULL,
   legend.vals = NULL,
   cex = 0.3,
   parmar = c(2.5, 2.5, 1, 1)
@@ -25,6 +27,8 @@ pc.scatterplot(
 \item{colors}{Vector of colors. Must be supplied in the same order as rows in \code{pcs}}
 
 \item{title}{Main title for plot [default: NULL]}
+
+\item{x.title}{Title for Y-axis}
 
 \item{legend.vals}{Named vector mapping category names to colors [default: NULL]}
 

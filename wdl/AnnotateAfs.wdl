@@ -25,6 +25,8 @@ workflow AnnotateAfs {
     File? disease_labels
     File? family_labels
     String? prefix
+    Boolean make_bed = false
+    Boolean make_ad_matrix = false
     String pedsv_docker
   }
 
@@ -59,17 +61,30 @@ workflow AnnotateAfs {
       docker = pedsv_docker
   }
 
-  call Vcf2Bed {
-    input:
-      vcf = MergeShards.merged_vcf,
-      docker = pedsv_docker
+  if ( make_bed ) {
+    call Vcf2Bed {
+      input:
+        vcf = MergeShards.merged_vcf,
+        docker = pedsv_docker
+    }
+  }
+
+  if ( make_ad_matrix ) {
+    call MakeAdMatrix {
+      input:
+        vcf = MergeShards.merged_vcf,
+        vcf_idx = MergeShards.merged_vcf_idx,
+        docker = pedsv_docker
+    }
   }
 
   output {
     File annotated_vcf = MergeShards.merged_vcf
     File annotated_vcf_idx = MergeShards.merged_vcf_idx
-    File annotated_bed = Vcf2Bed.bed
-    File annotated_bed_idx = Vcf2Bed.bed_idx
+    File? annotated_bed = Vcf2Bed.bed
+    File? annotated_bed_idx = Vcf2Bed.bed_idx
+    File? ad_matrix = MakeAdMatrix.ad_matrix
+    File? ad_matrix_idx = MakeAdMatrix.ad_matrix_idx
   }
 }
 
@@ -195,8 +210,10 @@ task MergeShards {
     bcftools concat \
       --no-version \
       --naive \
-      -Oz -o ~{out_filename} \
-      --file-list ~{write_lines(vcfs)}
+      --file-list ~{write_lines(vcfs)} \
+    | bcftools view \
+      --include 'INFO/SVTYPE == "CNV" | FILTER ~ "MULTIALLELIC" | INFO/AC > 0' \
+      -Oz -o ~{out_filename}
     tabix -f ~{out_filename}
 
   >>>
@@ -250,6 +267,67 @@ task Vcf2Bed {
     cpu: 2
     memory: "7.5 GiB"
     disks: "local-disk " + ceil(3 * size(vcf, "GB")) + 20 + " HDD"
+    bootDiskSizeGb: 10
+    docker: docker
+    preemptible: 3
+    maxRetries: 1
+  }
+}
+
+
+task MakeAdMatrix {
+  input {
+    File vcf
+    File vcf_idx
+    String docker
+  }
+
+  String out_filename = basename(vcf, ".vcf.gz") + "allele_dosages.bed.gz"
+
+  command <<<
+
+    set -eu -o pipefail
+
+    # Write header
+    tabix -H ~{vcf} | fgrep -v "##" | cut -f10- \
+    | paste <( echo -e "#chr\tstart\tend\tID" ) - \
+    > header.bed
+
+    # Convert AD matrix for biallelic variants
+    bcftools query \
+      --exclude 'FILTER ~ "MULTIALLELIC" | INFO/SVTYPE == "CNV"' \
+      --format '%CHROM\t%POS\t%INFO/END\t%ID\t[%GT\t]\n' \
+      ~{vcf} \
+    | sed -e 's/\.\/\./NA/g' -e 's/0\/0/0/g' -e 's/0\/1/1/g' -e 's/1\/1/2/g' \
+    > biallelic.ad.bed
+
+    # Convert AD matrix for mCNVs
+    bcftools query \
+      --include 'FILTER ~ "MULTIALLELIC" | INFO/SVTYPE == "CNV"' \
+      --format '%CHROM\t%POS\t%INFO/END\t%ID\t[%RD_CN\t]\n' \
+      ~{vcf} \
+    | sed -e 's/\t\./\tNA/g' \
+    > multiallelic.ad.bed
+
+    # Merge, sort, compress, and index
+    cat biallelic.ad.bed multiallelic.ad.bed \
+    | sort -Vk1,1 -k2,2n -k3,3n -k4,4V \
+    | cat header.bed - \
+    | bgzip -c \
+    > ~{out_filename}
+    tabix -p bed -f ~{out_filename}
+
+  >>>
+
+  output {
+    File ad_matrix = "~{out_filename}"
+    File ad_matrix_idx = "~{out_filename}.tbi"
+  }
+  
+  runtime {
+    cpu: 2
+    memory: "3.75 GiB"
+    disks: "local-disk " + ceil(10 * size(vcf, "GB")) + 20 + " HDD"
     bootDiskSizeGb: 10
     docker: docker
     preemptible: 3

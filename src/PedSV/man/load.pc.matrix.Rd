@@ -4,12 +4,12 @@
 \alias{load.pc.matrix}
 \title{Load a principal components matrix}
 \usage{
-load.pc.matrix(tsv.in, keep.n = 100000000000)
+load.pc.matrix(tsv.in, keep.n = 1e+11)
 }
 \arguments{
-\item{keep.n}{Keep top N PCs [default: keep all PCs]}
+\item{tsv.in}{Path to input PC matrix .tsv}
 
-\item{tsv_in}{Path to input PC matrix .tsv}
+\item{keep.n}{Keep top N PCs [default: keep all PCs]}
 }
 \value{
 data.frame
