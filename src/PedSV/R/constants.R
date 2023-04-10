@@ -94,6 +94,15 @@ load.constants <- function(subset, envir=.GlobalEnv){
                   "main" = "#995A9B",
                   "light1" = "#AD7BAF",
                   "light2" = "#C29CC3")
+  sv.colors <- c("DEL" = "#D43925",
+                 "DUP" = "#2376B2",
+                 "CNV" = "#7459B2",
+                 "INS" = "#D474E0",
+                 "INV" = "#FA931E",
+                 "CPX" = "#71E38C",
+                 "BND" = "#397246",
+                 "CTX" = "#397246",
+                 "OTH" = "#397246")
   colors <- list(
     "cancer.colors" = c("OS" = OS.colors[["main"]],
                         "NBL" = NBL.colors[["main"]],
@@ -119,6 +128,7 @@ load.constants <- function(subset, envir=.GlobalEnv){
     "EAS.colors" = EAS.colors,
     "EUR.colors" = EUR.colors,
     "SAS.colors" = SAS.colors,
+    "sv.colors" = sv.colors,
     "stage.colors" = c("0" = "white",
                        "1" = "#F8FAA7",
                        "2" = "#FFCC66",
@@ -177,7 +187,16 @@ load.constants <- function(subset, envir=.GlobalEnv){
     "relative.names" = c("duplicates" = "Identical",
                          "parent-child" = "Parent-Child",
                          "siblings" = "Siblings",
-                         "unrelated" = "Unrelated")
+                         "unrelated" = "Unrelated"),
+    "sv.names" = c("DEL" = "Deletion",
+                   "DUP" = "Duplication",
+                   "CNV" = "mCNV",
+                   "INS" = "Insertion",
+                   "INV" = "Inversion",
+                   "CPX" = "Complex SV",
+                   "BND" = "Breakend",
+                   "CTX" = "Translocation",
+                   "OTH" = "Other SV")
   )
 
   # Assign constants to global environment
