@@ -24,6 +24,7 @@ This repository contains the working code and scripts used to discover, genotype
 | [`src/`](https://github.com/vanallenlab/ped_germline_SV/tree/main/src) | Source code for helper packages (see below) |  
 | [`sv_filtering/`](https://github.com/vanallenlab/ped_germline_SV/tree/main/gatksv_scripts) | Bash code for filtering the GATK-SV callsets |  
 | [`wdl/`](https://github.com/vanallenlab/ped_germline_SV/tree/main/wdl) | Stand-alone WDL workflows |  
+| [`version_changelogs/`](https://github.com/vanallenlab/ped_germline_SV/tree/main/version_changelogs) | README for version changelogs |  
 
 ---  
 
