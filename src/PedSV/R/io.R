@@ -24,7 +24,8 @@
 #' @export load.pc.matrix
 #' @export
 load.pc.matrix <- function(tsv.in, keep.n=10e10){
-  pc <- read.table(tsv.in, header=T, comment.char="", sep="\t", check.names=F)
+  pc <- read.table(tsv.in, header=T, comment.char="", sep="\t", check.names=F,
+                   stringsAsFactors=F)
   rownames(pc) <- pc[, 1]
   pc[, 2:ncol(pc)] <- apply(pc[, 2:ncol(pc)], 2, as.numeric)
   pc[, 1] <- NULL
@@ -43,7 +44,8 @@ load.pc.matrix <- function(tsv.in, keep.n=10e10){
 #' @export load.kinship.metrics
 #' @export
 load.kinship.metrics <- function(tsv.in){
-  kdf <- read.table(tsv.in, header=T, comment.char="", sep="\t", check.names=F)
+  kdf <- read.table(tsv.in, header=T, comment.char="", sep="\t", check.names=F,
+                    stringsAsFactors=F)
   rownames(kdf) <- apply(kdf[, 1:2], 1,
                          function(pair){paste(sort(pair), collapse="|")})
   kdf[, 3:ncol(kdf)] <- apply(kdf[, 3:ncol(kdf)], 2, as.numeric)
@@ -66,7 +68,8 @@ load.kinship.metrics <- function(tsv.in){
 #' @export
 load.sample.metadata <- function(tsv.in, keep.samples=NULL){
   # Load data
-  df <- read.table(tsv.in, header=T, comment.char="", sep="\t", check.names=F)
+  df <- read.table(tsv.in, header=T, comment.char="", sep="\t", check.names=F,
+                   stringsAsFactors=F)
 
   # Set row names as sample IDs
   rownames(df) <- df[, 1]
@@ -104,6 +107,10 @@ load.sample.metadata <- function(tsv.in, keep.samples=NULL){
 #' @param bed.in Path to input .bed
 #' @param keep.coordinates Should coordinates be retained? [Default: TRUE]
 #' @param pass.only Should only PASS variants be included? [Default: TRUE]
+#' @param split.coding Should coding consequence annotations be split from
+#' comma-delimited strings to character vectors? [Default: TRUE]
+#' @param split.noncoding Should noncoding consequence annotations be split from
+#' comma-delimited strings to character vectors? [Default: FALSE]
 #'
 #' @returns data.frame
 #'
@@ -111,9 +118,11 @@ load.sample.metadata <- function(tsv.in, keep.samples=NULL){
 #'
 #' @export load.sv.bed
 #' @export
-load.sv.bed <- function(bed.in, keep.coords=TRUE, pass.only=TRUE){
+load.sv.bed <- function(bed.in, keep.coords=TRUE, pass.only=TRUE,
+                        split.coding=TRUE, split.noncoding=FALSE){
   # Load data
-  df <- read.table(bed.in, header=T, comment.char="", sep="\t", check.names=F)
+  df <- read.table(bed.in, header=T, comment.char="", sep="\t", check.names=F,
+                   stringsAsFactors=F)
   colnames(df)[1] <- gsub("#", "", colnames(df)[1])
 
   # Restrict to PASS-only, if optioned
@@ -125,25 +134,30 @@ load.sv.bed <- function(bed.in, keep.coords=TRUE, pass.only=TRUE){
   rownames(df) <- df$name
   df$name <- NULL
 
-  # Drop coordinates, if optioned
-  if(!keep.coordinates){
-    df <- df[, -c(1:3)]
-  }
-
   # Drop unnecessary columns
   drop.cols <- c("svtype", "STRANDS")
-  if(!keep.coordinates){
+  if(!keep.coords){
     drop.cols <- c(drop.cols, "chrom", "start", "end", "CHR2", "END", "END2",
                    "CPX_INTERVALS", "SOURCE")
   }
   df[, drop.cols] <- NULL
 
-  # Parse list-style columns
+  # Parse list-style columns, if optioned
+  list.cols <- setdiff(colnames(df)[grep("^PREDICTED_", colnames(df))], "PREDICTED_INTERGENIC")
+  if(!split.coding){
+    list.cols <- list.cols[grep("NONCODING", list.cols)]
+  }
+  if(!split.noncoding){
+    list.cols <- list.cols[grep("NONCODING", list.cols, invert=TRUE)]
+  }
+  df[, list.cols] <- apply(df[, list.cols], 2, function(col.vals){
+    sapply(as.character(col.vals), strsplit, split=",")
+  })
 
   # Ensure numeric frequency columns
   freq.suffixes <- c("AC", "AN", "AF", "N_BI_GENOS", "N_HOMREF", "N_HET", "N_HOMALT",
-                     "FREQ_HOMREF", "FREQ_HET", "FREQ_HOMALT", "CN_NUMBER", "CN_COUNT",
-                     "CN_FREQ", "CN_NONDIPLOID_COUNT", "CN_NONDIPLOID_FREQ")
+                     "FREQ_HOMREF", "FREQ_HET", "FREQ_HOMALT", "CN_NUMBER",
+                     "CN_NONDIPLOID_COUNT", "CN_NONDIPLOID_FREQ")
   for(suf in freq.suffixes){
     hits <- c(which(colnames(df) == suf),
               grep(paste("_", suf, "$", sep=""), colnames(df)))
@@ -152,6 +166,22 @@ load.sv.bed <- function(bed.in, keep.coords=TRUE, pass.only=TRUE){
     }
   }
 
+  # Special parsing for multiallelic frequency columns
+  mcnv.freq.suffixes <- c("CN_COUNT", "CN_FREQ")
+  for(suf in mcnv.freq.suffixes){
+    hits <- c(which(colnames(df) == suf),
+              grep(paste("_", suf, "$", sep=""), colnames(df)))
+    if(length(hits) > 0){
+      df[, hits] <- apply(df[, hits], 2, function(col.vals){
+        sapply(as.character(col.vals), function(x){
+          as.numeric(unlist(strsplit(as.character(x), split=",")))
+        })
+      })
+    }
+  }
+
+  # Return
+  return(df)
 }
 
 
@@ -190,32 +220,48 @@ query.ad.matrix <- function(ad, query.regions=NULL, query.ids=NULL,
   # Load region(s) of interest or whole matrix if query.regions is NULL
   if(inherits(ad, "character")){
     if(is.null(query.regions)){
-      ad <- read.table(ad, sep="\t", comment.char="", check.names=F)
+      ad <- read.table(ad, sep="\t", comment.char="", check.names=F,
+                       stringsAsFactors=F)
     }else{
       require(bedr, quietly=TRUE)
-      do.call("rbind", lapply(query.regions, function(coords){
-        bedr::tabix(paste(coords[1], ":", coords[2], "-", coords[3], sep=""),
-                    ad, verbose=FALSE)
-        }))
+      ad <- do.call("rbind", lapply(query.regions, function(coords){
+        coords <- as.character(coords)
+        interval <- paste(coords[1], ":", coords[2], "-", coords[3], sep="")
+        bedr::tabix(region=interval, file.name=ad)
+      }))
     }
+    ad <- as.data.frame(ad)
+    ad[, -c(1:4)] <- apply(ad[, -c(1:4)], 2, as.numeric)
     rownames(ad) <- ad[, 4]
     ad <- ad[, -c(1:4)]
   }
 
   # Subset to variants of interest and return directly if optioned
-  sub.df <- ad[which(rownames(ad) %in% vids), ]
+  if(is.null(query.ids)){
+    sub.df <- ad
+  }else{
+    sub.df <- ad[which(rownames(ad) %in% query.ids), ]
+  }
   if(action == "verbose"){
     return(sub.df)
   }
 
   # Otherwise, apply various compression strategies prior to returning
-  col.all.na <- apply(sub.df, 2, function(vals){all(is.na(vals))})
+  col.all.na <- apply(sub.df, 2, function(vals){
+    all(is.na(as.numeric(vals)))
+  })
   if(action == "any"){
-    query.res <- as.numeric(apply(sub.df, 2, function(vals){any(as.logical(vals), na.rm=T)}))
+    query.res <- as.numeric(apply(sub.df, 2, function(vals){
+      any(as.logical(as.numeric(vals)), na.rm=T)
+      }))
   }else if(action == "all"){
-    query.res <- as.numeric(apply(sub.df, 2, function(vals){all(as.logical(vals), na.rm=T)}))
+    query.res <- as.numeric(apply(sub.df, 2, function(vals){
+      all(as.logical(as.numeric(vals)), na.rm=T)
+      }))
   }else if(action == "sum"){
-    query.res <- apply(sub.df, 2, sum, na.rm=T)
+    query.res <- apply(sub.df, 2, function(vals){
+      sum(as.numeric(vals), na.rm=T)
+    })
   }
   query.res[col.all.na] <- NA
   names(query.res) <- colnames(sub.df)

@@ -282,7 +282,7 @@ task MakeAdMatrix {
     String docker
   }
 
-  String out_filename = basename(vcf, ".vcf.gz") + "allele_dosages.bed.gz"
+  String out_filename = basename(vcf, ".vcf.gz") + ".allele_dosages.bed.gz"
 
   command <<<
 
