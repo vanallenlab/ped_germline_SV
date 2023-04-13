@@ -24,8 +24,11 @@
 #' @param colors Vector of colors. Must be supplied in the same order as rows in `pcs`
 #' @param title Main title for plot \[default: NULL\]
 #' @param x.title Title for X-axis
-#' @param x.title Title for Y-axis
+#' @param x.title.line Line for X-axis title (`title.line` parameter for [PedSV::clean.axis])
+#' @param y.title Title for Y-axis
+#' @param y.title.line Line for axis titles (`title.line` parameter for [PedSV::clean.axis])
 #' @param legend.vals Named vector mapping category names to colors \[default: NULL\]
+#' @param legend.labels Optional vector to overwrite names of `legend.vals`
 #' @param cex Character expansion factor for individual points \[default: 0.3\]
 #' @param parmar Numeric vector of values to pass to `par(mar)`
 #'
@@ -37,8 +40,9 @@
 #' @export pc.scatterplot
 #' @export
 pc.scatterplot <- function(pcs, pc.X, pc.Y, colors, title=NULL, x.title=NULL,
-                           y.title=NULL, legend.vals=NULL, cex=0.3,
-                           parmar=c(2.5, 2.5, 1, 1)){
+                           x.title.line=0.5, y.title=NULL, y.title.line=0.5,
+                           legend.vals=NULL, legend.labels=NULL,
+                           cex=0.3, parmar=c(2.5, 2.5, 1, 1)){
   if(!is.numeric(pc.X)){
     pc.X <- which(colnames(pcs) == pc.X)
   }
@@ -54,17 +58,20 @@ pc.scatterplot <- function(pcs, pc.X, pc.Y, colors, title=NULL, x.title=NULL,
   if(is.null(x.title)){
     x.title <- paste("Principal Component", pc.X)
   }
-  clean.axis(1, title=x.title, infinite=T)
+  clean.axis(1, title=x.title, infinite=T, title.line=x.title.line)
 
   if(is.null(y.title)){
     y.title <- paste("Principal Component", pc.Y)
   }
-  clean.axis(2, title=y.title, infinite=T)
+  clean.axis(2, title=y.title, infinite=T, title.line=y.title.line)
 
   points(x, y, pch=19, cex=0.3, col=colors, xpd=T)
 
   # Add legend, if optioned
   if(!is.null(legend.vals)){
+    if(!is.null(legend.labels)){
+      names(legend.vals) <- legend.labels
+    }
     quad.counts <- table(x > mean(par("usr")[1:2]), y < mean(par("usr")[3:4]))
     least.dense.quad <- head(which(quad.counts == min(quad.counts)), 1)
     legend.pos <- if(least.dense.quad == 1){
