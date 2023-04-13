@@ -42,7 +42,8 @@ keepers <- NULL
 if(!is.null(args$subset_samples)){
   keepers <- read.table(args$subset_samples, header=F)[, 1]
 }
-meta <- PedSV::load.sample.metadata(args$metadata, keep.samples=keepers)
+meta <- PedSV::load.sample.metadata(args$metadata, keep.samples=keepers,
+                                    reassign.parents=FALSE)
 
 # Summarize
 for(dis in sort(unique(meta$disease))){

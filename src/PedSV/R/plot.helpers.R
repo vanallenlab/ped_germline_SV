@@ -82,3 +82,21 @@ clean.axis <- function(side, at=NULL, labels=NULL, title=NULL, tck=-0.025,
   }
 }
 
+
+#' Convert colors to greyscale
+#'
+#' Convert one or more HEX-encoded color(s) to its greyscale HEX equivalent(s)
+#'
+#' @param in.colors
+#'
+#' @return character vector of HEX color
+#'
+#' @examples
+#' hex2grey(c("#FF0000", "#00008B", "#ffffe0"))
+#'
+#' @export hex2grey
+#' @export
+hex2grey <- function(in.colors){
+  mean.rgbs <- round(apply(col2rgb(in.colors), 2, mean), 0)
+  sapply(mean.rgbs, function(k){rgb(k, k, k, maxColorValue=255)})
+}

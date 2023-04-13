@@ -47,8 +47,26 @@ if(!is.null(args$subset_samples)){
 }
 meta <- PedSV::load.sample.metadata(args$metadata, keep.samples=keepers)
 
+# Suffle order of samples to avoid control overplotting, and put controls first
+set.seed(2023)
+meta <- meta[sample(1:nrow(meta), nrow(meta), replace=F), ]
+meta <- meta[c(which(meta$disease == "control"),
+               which(meta$disease != "control")), ]
+
 # Plot PCs
-pdf.dim <- 3
+pdf.dim <- 3.5
+axis.title.line <- 0.65
+parmar <- c(2.65, 2.65, 0.5, 0.5)
+pop.legend.labels <- sapply(names(pop.colors), function(pop){
+  paste(pop.names.short[pop], " (",
+        round(100 * length(which(meta$inferred_ancestry == pop)) / nrow(meta), 0),
+        "%)", sep="")
+})
+disease.legend.labels <- sapply(names(cancer.colors), function(disease){
+  paste(cancer.names.short[disease], " (",
+        round(100 * length(which(metadata.cancer.label.map[meta$disease] == disease)) / nrow(meta), 0),
+        "%)", sep="")
+})
 sapply(list(c(1, 2), c(3, 4)), function(pc.idxs){
 
   # Colored by ancestry
@@ -60,30 +78,28 @@ sapply(list(c(1, 2), c(3, 4)), function(pc.idxs){
                  paste("PC", pc.idxs[2], sep=""),
                  colors=pop.colors[meta$inferred_ancestry],
                  x.title=paste("SV Principal Component", pc.idxs[1]),
-                 x.title.line=0.65,
+                 x.title.line=axis.title.line,
                  y.title=paste("SV Principal Component", pc.idxs[2]),
-                 y.title.line=0.65,
-                 legend.vals=pop.colors,
-                 legend.labels=pop.names.short[names(pop.colors)],
-                 parmar=c(2.5, 2.5, 0.5, 0.5))
+                 y.title.line=axis.title.line,
+                 legend.vals=pop.colors[which(names(pop.colors) != "OTH")],
+                 legend.labels=pop.legend.labels[which(names(pop.colors) != "OTH")],
+                 parmar=parmar)
   dev.off()
 
   # Colored by cancer type
   pdf(paste(args$out_prefix, ".pc", pc.idxs[1], "_vs_pc",
             pc.idxs[2], ".by_disease.pdf", sep=""),
       height=pdf.dim, width=pdf.dim)
-  set.seed(2023)
-  pc.scatterplot(meta[sample(1:nrow(meta), nrow(meta), replace=F), ],
+  pc.scatterplot(meta,
                  paste("PC", pc.idxs[1], sep=""),
                  paste("PC", pc.idxs[2], sep=""),
                  colors=cancer.colors[metadata.cancer.label.map[meta$disease]],
                  x.title=paste("SV Principal Component", pc.idxs[1]),
-                 x.title.line=0.65,
+                 x.title.line=axis.title.line,
                  y.title=paste("SV Principal Component", pc.idxs[2]),
-                 y.title.line=0.65,
+                 y.title.line=axis.title.line,
                  legend.vals=cancer.colors[which(names(cancer.colors) != "pancan")],
-                 legend.labels=cancer.names.short[setdiff(names(cancer.colors), "pancan")],
-                 parmar=c(2.5, 2.5, 0.5, 0.5))
+                 legend.labels=disease.legend.labels[setdiff(names(cancer.colors), "pancan")],
+                 parmar=parmar)
   dev.off()
 })
-

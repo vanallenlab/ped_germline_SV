@@ -59,6 +59,7 @@ load.kinship.metrics <- function(tsv.in){
 #'
 #' @param tsv.in Path to input .tsv
 #' @param keep.samples Vector of sample IDs to retain [default: keep all samples]
+#' @param reassign.parents Assign all parents to have `control` disease labels [default: TRUE]
 #'
 #' @returns data.frame
 #'
@@ -66,7 +67,7 @@ load.kinship.metrics <- function(tsv.in){
 #'
 #' @export load.sample.metadata
 #' @export
-load.sample.metadata <- function(tsv.in, keep.samples=NULL){
+load.sample.metadata <- function(tsv.in, keep.samples=NULL, reassign.parents=TRUE){
   # Load data
   df <- read.table(tsv.in, header=T, comment.char="", sep="\t", check.names=F,
                    stringsAsFactors=F)
@@ -89,6 +90,12 @@ load.sample.metadata <- function(tsv.in, keep.samples=NULL){
 
   # Convert types as necessary
   df$proband <- c("Yes" = TRUE, "No" = FALSE)[df$proband]
+
+  # Reassign parents as controls unless disabled
+  if(reassign.parents){
+    parent.idxs <- which(!is.na(df$family_id) & !df$proband)
+    df[parent.idxs, "disease"] <- "control"
+  }
 
   # Reorder columns and sort on sample ID before returning
   df[sort(rownames(df)),

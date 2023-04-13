@@ -55,6 +55,16 @@ workflow PedSvMainAnalysis {
       prefix = study_prefix,
       docker = pedsv_r_docker
   }
+
+  call CohortSummaryPlots as TrioCohortSummaryPlots {
+    input:
+      bed = trio_bed,
+      bed_idx = trio_bed_idx,
+      prefix = study_prefix + ".trio_cohort",
+      af_field = "parent_AF",
+      ac_field = "parent_AC",
+      docker = pedsv_r_docker
+  }
 }
 
 
@@ -97,6 +107,8 @@ task StudyWideSummaryPlots {
     String docker
   }
 
+  Int disk_gb = ceil(2 * size([samples_metadata_tsv], "GB")) + 10
+
   command <<<
     set -eu -o pipefail
 
@@ -111,5 +123,70 @@ task StudyWideSummaryPlots {
       --subset-samples ~{samples_list} \
       --out-prefix StudyWideSummaryPlots/pca/~{study_prefix} \
       ~{sample_metadata_tsv}
+
+    # Compress output
+    tar -czvf StudyWideSummaryPlots.tar.gz StudyWideSummaryPlots
   >>>
+
+  output {
+    File plots_tarball = "StudyWideSummaryPlots.tar.gz"
+  }
+
+  runtime {
+    docker: docker
+    memory: "15.5 GB"
+    cpu: 4
+    disks: "local-disk " + disk_gb + " HDD"
+    preemptible: 3
+  }
 }
+
+
+# Basic summary plots for a single cohort
+task CohortSummaryPlots {
+  input {
+    File bed
+    File bed_idx
+    String prefix
+    
+    String af_field = "AF"
+    String ac_field = "AC"
+
+    String docker
+  }
+
+  Int disk_gb = ceil(2 * size([bed], "GB")) + 10
+
+  command <<<
+    set -eu -o pipefail
+
+    # Prep output directory
+    mkdir ~{prefix}
+
+    # Plot SV counts
+    /opt/ped_germline_SV/analysis/landscape/plot_sv_counts.R \
+      --af-field ~{af_field} \
+      --ac-field ~{ac_field} \
+      --out-prefix ~{prefix}/~{prefix} \
+      ~{bed}
+
+    # Plot SV sizes
+    # TODO: implement this
+
+    # Compress output
+    tar -czvf ~{prefix}.tar.gz ~{prefix}
+  >>>
+
+  output {
+    File plots_tarball = "~{prefix}.tar.gz"
+  }
+
+  runtime {
+    docker: docker
+    memory: "15.5 GB"
+    cpu: 4
+    disks: "local-disk " + disk_gb + " HDD"
+    preemptible: 3
+  }
+}
+
