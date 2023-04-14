@@ -43,6 +43,7 @@ prep.plot.area <- function(xlims, ylims, parmar, xaxs="i", yaxs="i"){
 #' @param side Value passed to `axis()`. See `?axis` for details.
 #' @param at Positions where axis ticks should be plotted \[default: `axTicks(side)`\]
 #' @param labels Labels for axis ticks \[default: values of `at`\]
+#' @param labels.at Positions for axis labels \[default: values of `at`\]
 #' @param title Axis title
 #' @param tck Value passed to `axis()`. See `?axis` for details. \[default: -0.025\]
 #' @param cex.axis Value passed to `axis()`. See `?axis` for details. \[default: 5/6\]
@@ -54,12 +55,13 @@ prep.plot.area <- function(xlims, ylims, parmar, xaxs="i", yaxs="i"){
 #'
 #' @export clean.axis
 #' @export
-clean.axis <- function(side, at=NULL, labels=NULL, title=NULL, tck=-0.025,
-                       cex.axis=5/6, label.line=-0.65, title.line=0.5,
-                       infinite=FALSE){
+clean.axis <- function(side, at=NULL, labels=NULL, labels.at=NULL, title=NULL,
+                       tck=-0.025, cex.axis=5/6, label.line=-0.65,
+                       title.line=0.5, infinite=FALSE){
   if(infinite){axis(side, at=c(-10e10, 10e10), tck=0, labels=NA)}
   if(is.null(at)){at <- axTicks(side)}
   if(is.null(labels)){labels <- at}
+  if(is.null(labels.at)){labels.at <- at}
   if(side %in% c(1, 3)){
     las <- 1
     title.at <- mean(par("usr")[1:2])
@@ -68,13 +70,13 @@ clean.axis <- function(side, at=NULL, labels=NULL, title=NULL, tck=-0.025,
     title.at <- mean(par("usr")[3:4])
   }
   axis(side, at=at, labels=NA, tck=tck)
-  sapply(1:length(at), function(i){
+  sapply(1:length(labels.at), function(i){
     if(is.numeric(labels[i])){
       label <- prettyNum(labels[i], big.mark=",")
     }else{
       label <- labels[i]
     }
-    axis(side, at=at[i], labels=label, tick=F, cex.axis=cex.axis,
+    axis(side, at=labels.at[i], labels=label, tick=F, cex.axis=cex.axis,
          las=las, line=label.line)
   })
   if(!is.null(title)){

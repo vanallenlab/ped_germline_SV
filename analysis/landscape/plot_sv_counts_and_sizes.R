@@ -21,13 +21,22 @@ require(PedSV, quietly=TRUE)
 require(argparse, quietly=TRUE)
 PedSV::load.constants("all")
 
+# Declare local constants
+svtypes <- c("DEL", "DUP", "CNV", "INS", "INV", "CPX", "CTX")
+sv.dens.bw <- c("DEL" = 3/4,
+                "DUP" = 1,
+                "CNV" = 0.5,
+                "INS" = 10,
+                "INV" = 2/3,
+                "CPX" = 1/3)
+
 
 ##################
 # Data functions #
 ##################
 # Collect a table of counts per SV type stratified by frequency bins
 get.counts.table <- function(bed, af.field="AF", ac.field="AC"){
-  sapply(rev(c("DEL", "DUP", "CNV", "INS", "INV", "CPX", "CTX")), function(svtype){
+  sapply(rev(svtypes), function(svtype){
     if(svtype == "CNV"){
       rev(c(0, 0, length(which(bed$SVTYPE == svtype))))
     }else{
@@ -36,6 +45,16 @@ get.counts.table <- function(bed, af.field="AF", ac.field="AC"){
       length(which(bed$SVTYPE == svtype & bed[, af.field] >= 0.01))))
     }
   })
+}
+
+# Collect a list of log10-scaled SV size density functions for plotting
+get.svlen.densities <- function(bed){
+  svtypes.sub <- rev(setdiff(svtypes, "CTX"))
+  data <- lapply(svtypes.sub, function(svtype){
+    density(log10(bed$SVLEN[bed$SVTYPE == svtype]), adjust=sv.dens.bw[svtype])
+  })
+  names(data) <- sv.abbreviations[svtypes.sub]
+  return(data)
 }
 
 
@@ -120,3 +139,17 @@ pdf(paste(args$out_prefix, "sv_site_counts.pdf", sep="."),
     height=1.7, width=2)
 plot.count.bars(bed, args$af_field, args$ac_field)
 dev.off()
+
+# Cowplot of SV sizes
+pdf(paste(args$out_prefix, "sv_size_distribs.pdf", sep="."),
+    height=1.85, width=2.2)
+cowplot(get.svlen.densities(bed), xlims=log10(c(10, 5000000)), x.axis=FALSE,
+        fill=hex2grey(DEL.colors[["light2"]]),
+        border=hex2grey(DEL.colors[["dark1"]]), border.lwd=2/3,
+        parmar=c(2.2, 3.5, 0.1, 0.1))
+clean.axis(1, at=log10(logscale.major.bp),
+           labels=logscale.major.bp.labels[seq(1, length(logscale.major.bp), 2)],
+           labels.at=log10(logscale.major.bp)[seq(1, length(logscale.major.bp), 2)],
+           label.line=-0.9, title.line=0.2, title=bquote("SV Size" ~ (log[10])))
+dev.off()
+

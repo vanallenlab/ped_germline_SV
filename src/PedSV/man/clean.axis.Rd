@@ -8,6 +8,7 @@ clean.axis(
   side,
   at = NULL,
   labels = NULL,
+  labels.at = NULL,
   title = NULL,
   tck = -0.025,
   cex.axis = 5/6,
@@ -22,6 +23,8 @@ clean.axis(
 \item{at}{Positions where axis ticks should be plotted [default: \code{axTicks(side)}]}
 
 \item{labels}{Labels for axis ticks [default: values of \code{at}]}
+
+\item{labels.at}{Positions for axis labels [default: values of \code{at}]}
 
 \item{title}{Axis title}
 

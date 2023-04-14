@@ -87,3 +87,60 @@ pc.scatterplot <- function(pcs, pc.X, pc.Y, colors, title=NULL, x.title=NULL,
            pt.cex=1.5, bty="n", border=NA)
   }
 }
+
+
+#' Cowplot
+#'
+#' Generate a cowplot using base R syntax
+#'
+#' @param data list of [density] objects to plot
+#' @param names optional list of names for Y axis \[default: take names from data\]
+#' @param cow.overlap relative fraction of overlap bewtween adjacent cows \[default: 0.35\]
+#' @param xlims custom X axis limits
+#' @param ylims custom Y axis limits
+#' @param fill vector of polygon fill colors \[default: "grey70"\]
+#' @param border vector of cow border colors \[default: "grey35"\]
+#' @param border.lwd line width for cow borders \[default: 2\]
+#' @param parmar vector of values passed to par(mar)
+#'
+#' @export cowplot
+#' @export
+cowplot <- function(data, names=NULL, cow.overlap=0.35, xlims=NULL, x.axis=TRUE,
+                    fill="grey70", border="grey35", border.lwd=2,
+                    parmar=c(2.5, 3, 0.25, 0.25)){
+  # Get names before manipulating data
+  if(is.null(names)){
+    names <- names(data)
+    if(is.null(names)){
+      names <- 1:length(data)
+    }
+  }
+
+  # Scale Y values of data to [0, cow.overlap]
+  for(i in 1:length(data)){
+    y <- data[[i]]$y
+    data[[i]]$y <- (1 + cow.overlap) * (y / max(y))
+  }
+
+  # Get plot dimensions
+  if(is.null(xlims)){
+    xlims <- c(min(sapply(data, function(d){min(d$x)})),
+               max(sapply(data, function(d){max(d$x)})))
+  }
+  ylims <- c(0, length(data) + cow.overlap)
+
+  # Prep plot area
+  prep.plot.area(xlims, ylims, parmar, xaxs="i", yaxs="r")
+  if(x.axis){
+    clean.axis(1, title="Values", infinite=TRUE)
+  }
+  axis(2, at=(1:length(data)) - 0.5, tick=F, las=2, line=-0.8, labels=names)
+
+  # Add cows
+  sapply(length(data):1, function(i){
+    x <- c(data[[i]]$x, rev(data[[i]]$x))
+    y <- c(data[[i]]$y, rep(0, times=length(data[[i]]$y))) + (i-1)
+    polygon(x, y, border=border, col=fill, lwd=2)
+  })
+}
+
