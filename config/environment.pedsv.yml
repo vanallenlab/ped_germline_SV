@@ -119,4 +119,4 @@ dependencies:
   - xz=5.2.5=h7b6447c_0
   - zlib=1.2.12=h166bdaf_1
   - zstd=1.4.5=h9ceee32_0
-prefix: /opt/conda/envs/pedsv
+prefix: /opt/conda

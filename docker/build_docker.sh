@@ -5,7 +5,7 @@
 # Contact: Ryan Collins <Ryan_Collins@dfci.harvard.edu>
 # Distributed under the terms of the GNU GPL v2.0
 
-# Build docker image
+# Build project docker images
 
 set -eu -o pipefail
 
@@ -29,17 +29,23 @@ cd $EXEC_DIR
 # Copy ped SV repo into build context
 cp -r $SCRIPT_DIR/../../ped_germline_SV $BUILD_DIR/
 
-# Build image
+# Build base PedSV image
 docker build \
   -f $SCRIPT_DIR/PedSV/Dockerfile \
   --progress plain \
   --tag vanallenlab/pedsv:$TAG \
   $BUILD_DIR
 
-# Push image
-docker push vanallenlab/pedsv:$TAG
+# Build PedSV-R image
+docker build \
+  -f $SCRIPT_DIR/PedSV-R/Dockerfile \
+  --progress plain \
+  --tag vanallenlab/pedsv-r:$TAG \
+  $BUILD_DIR
 
-# Also update latest tag
-docker tag vanallenlab/pedsv:$TAG vanallenlab/pedsv:latest
-docker push vanallenlab/pedsv:latest
-
+# Push image & update latest
+for image in pedsv pedsv-r; do
+  docker push vanallenlab/${image}:$TAG
+  docker tag vanallenlab/${image}:$TAG vanallenlab/${image}:latest
+  docker push vanallenlab/${image}:latest
+done

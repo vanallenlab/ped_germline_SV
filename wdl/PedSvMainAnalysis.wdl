@@ -65,6 +65,26 @@ workflow PedSvMainAnalysis {
       ac_field = "parent_AC",
       docker = pedsv_r_docker
   }
+
+  call CohortSummaryPlots as ValidationCohortSummaryPlots {
+    input:
+      bed = validation_bed,
+      bed_idx = validation_bed_idx,
+      prefix = study_prefix + ".validation_cohort",
+      docker = pedsv_r_docker
+  }
+
+  call UnifyOutputs {
+    input:
+      tarballs = [StudyWideSummaryPlots.plots_tarball,
+                  TrioCohortSummaryPlots.plots_tarball,
+                  ValidationCohortSummaryPlots.plots_tarball],
+      prefix = study_prefix + "_analysis_outputs"
+  }
+
+  output {
+    File plots_tarball = UnifyOutputs.merged_tarball
+  }
 }
 
 
@@ -163,15 +183,12 @@ task CohortSummaryPlots {
     # Prep output directory
     mkdir ~{prefix}
 
-    # Plot SV counts
+    # Plot SV counts and sizes
     /opt/ped_germline_SV/analysis/landscape/plot_sv_counts.R \
       --af-field ~{af_field} \
       --ac-field ~{ac_field} \
       --out-prefix ~{prefix}/~{prefix} \
       ~{bed}
-
-    # Plot SV sizes
-    # TODO: implement this
 
     # Compress output
     tar -czvf ~{prefix}.tar.gz ~{prefix}
@@ -187,6 +204,36 @@ task CohortSummaryPlots {
     cpu: 4
     disks: "local-disk " + disk_gb + " HDD"
     preemptible: 3
+  }
+}
+
+
+# Merge multiple tarballs
+task UnifyOutputs {
+  input {
+    Array[File] tarballs
+    String prefix
+  }
+
+  Int disk_gb = ceil(10 * size(tarballs, "GB")) + 10
+
+  command <<<
+    set -eu -o pipefail
+
+    # Prep output directory
+    mkdir ~{prefix}
+
+    # Untar each tarball into output directory
+    while read tarball; do
+      tar -xzvf $tarball -C ~{prefix}
+    done < <( ~{write_lines(tarballs)} )
+
+    # Compress output directory
+    tar -czvf ~{prefix}.tar.gz ~{prefix}
+  >>>
+
+  output {
+    File merged_tarball = "~{prefix}.tar.gz"
   }
 }
 
