@@ -106,6 +106,9 @@ workflow PedSvMainAnalysis {
       bed = trio_bed,
       bed_idx = trio_bed_idx,
       prefix = study_prefix + ".trio_cohort",
+      sample_metadata_tsv = sample_metadata_tsv,
+      sample_list = trio_samples_list,
+      per_sample_tarball = MergeTrioSVsPerSample.per_sample_tarball,
       af_field = "parent_AF",
       ac_field = "parent_AC",
       docker = pedsv_r_docker
@@ -115,6 +118,9 @@ workflow PedSvMainAnalysis {
     input:
       bed = validation_bed,
       bed_idx = validation_bed_idx,
+      sample_metadata_tsv = sample_metadata_tsv,
+      sample_list = validation_samples_list,
+      per_sample_tarball = MergeValidationSVsPerSample.per_sample_tarball,
       prefix = study_prefix + ".validation_cohort",
       docker = pedsv_r_docker
   }
@@ -263,7 +269,7 @@ task MergeSVsPerSample {
     String docker
   }
 
-  Int disk_gb = ceil(3 * size(tarballs, "GB")) + 10
+  Int disk_gb = ceil(10 * size(tarballs, "GB")) + 20
 
   command <<<
     set -eu -o pipefail
@@ -277,8 +283,8 @@ task MergeSVsPerSample {
       | xargs -I {} zcat {} \
       | sort -V \
       | gzip -c \
-      > ~{prefix}_SVs_per_sample/$ID.svids.list.gz
-    done < sample_list
+      > ~{prefix}_SVs_per_sample/$ID.SV_IDs.list.gz
+    done < ~{sample_list}
 
     tar -czvf ~{prefix}_SVs_per_sample.tar.gz ~{prefix}_SVs_per_sample
   >>>
@@ -289,8 +295,8 @@ task MergeSVsPerSample {
 
   runtime {
     docker: docker
-    memory: "15.5 GB"
-    cpu: 4
+    memory: "3.5 GB"
+    cpu: 2
     disks: "local-disk " + disk_gb + " HDD"
     preemptible: 3
   }
@@ -302,6 +308,9 @@ task CohortSummaryPlots {
   input {
     File bed
     File bed_idx
+    File sample_metadata_tsv
+    File sample_list
+    File per_sample_tarball
     String prefix
     
     String af_field = "AF"
@@ -324,6 +333,23 @@ task CohortSummaryPlots {
       --ac-field ~{ac_field} \
       --out-prefix ~{prefix}/~{prefix} \
       ~{bed}
+
+    # Format SV counts per sample
+    mkdir perSample_data
+    tar -xzvf ~{per_sample_tarball} -C perSample_data/
+    while read sample; do
+      find perSample_data/ -name "$sample.svids.list.gz" \
+      | xargs -I {} zcat {} | wc -l \
+      | paste <( echo $sample ) -
+    done < ~{sample_list} \
+    | cat <( echo -e "sample\tcount" ) - \
+    > sv_counts_per_sample.tsv
+
+    # Plot SVs per sample
+    /opt/ped_germline_SV/analysis/landscape/plot_svs_per_sample.R \
+      --metadata ~{sample_metadata_tsv} \
+      --out-prefix ~{prefix}/~{prefix} \
+      sv_counts_per_sample.tsv
 
     # Compress output
     tar -czvf ~{prefix}.tar.gz ~{prefix}

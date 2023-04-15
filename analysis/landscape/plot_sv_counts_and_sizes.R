@@ -142,10 +142,10 @@ pdf(paste(args$out_prefix, "sv_site_counts.pdf", sep="."),
 plot.count.bars(bed, args$af_field, args$ac_field)
 dev.off()
 
-# Cowplot of SV sizes
+# Ridgeplot of SV sizes
 pdf(paste(args$out_prefix, "sv_size_distribs.pdf", sep="."),
     height=1.85, width=2.2)
-cowplot(get.svlen.densities(bed), xlims=log10(c(10, 5000000)), x.axis=FALSE,
+ridgeplot(get.svlen.densities(bed), xlims=log10(c(10, 5000000)), x.axis=FALSE,
         fill=hex2grey(DEL.colors[["light2"]]),
         border=hex2grey(DEL.colors[["dark1"]]), border.lwd=1.25,
         parmar=c(2.2, 3.5, 0.1, 0.1))
