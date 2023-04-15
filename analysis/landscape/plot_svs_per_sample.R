@@ -102,7 +102,7 @@ args <- parser$parse_args()
 counts <- load.counts(args$counts)
 
 # Load metadata
-meta <- load.sample.metadata(args$metatdata, keep.samples=names(counts),
+meta <- load.sample.metadata(args$metadata, keep.samples=names(counts),
                              reassign.parents=TRUE)
 
 # Plot waterfall
