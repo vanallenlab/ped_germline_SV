@@ -41,7 +41,7 @@ workflow PedSvMainAnalysis {
     String ubuntu_docker = "ubuntu:latest"
 	}
 
-  Array[Array[String]] contiglist = read_tsv(contig_fai)
+  Array[Array[String]] contiglist = read_tsv(ref_fai)
 
   call ConcatTextFiles as ConcatSampleLists {
     input:
@@ -83,6 +83,22 @@ workflow PedSvMainAnalysis {
         prefix = study_prefix + ".validation_cohort." + contig,
         docker = pedsv_r_docker
     }
+  }
+
+  call MergeSVsPerSample as MergeTrioSVsPerSample {
+    input:
+      tarballs = GetTrioSVsPerSample.per_sample_tarball,
+      sample_list = trio_samples_list,
+      prefix = study_prefix + ".trio_cohort",
+      docker = ubuntu_docker
+  }
+
+  call MergeSVsPerSample as MergeValidationSVsPerSample {
+    input:
+      tarballs = GetValidationSVsPerSample.per_sample_tarball,
+      sample_list = validation_samples_list,
+      prefix = study_prefix + ".validation_cohort",
+      docker = ubuntu_docker
   }
 
   call CohortSummaryPlots as TrioCohortSummaryPlots {
@@ -226,6 +242,49 @@ task GetSVsPerSample {
 
   output {
     File per_sample_tarball = "~{prefix}_sample_lists.tar.gz"
+  }
+
+  runtime {
+    docker: docker
+    memory: "15.5 GB"
+    cpu: 4
+    disks: "local-disk " + disk_gb + " HDD"
+    preemptible: 3
+  }
+}
+
+
+# Merge outputs of GetSVsPerSample across multiple chromosomes
+task MergeSVsPerSample {
+  input {
+    Array[File] tarballs
+    File sample_list
+    String prefix
+    String docker
+  }
+
+  Int disk_gb = ceil(3 * size(tarballs, "GB")) + 10
+
+  command <<<
+    set -eu -o pipefail
+
+    mkdir ~{prefix}_SVs_per_sample
+
+    cat ~{write_lines(tarballs)} | xargs -I {} tar -xzvf {}
+
+    while read ID; do
+      find ./ -name "$ID.svids.list.gz" \
+      | xargs -I {} zcat {} \
+      | sort -V \
+      | gzip -c \
+      > ~{prefix}_SVs_per_sample/$ID.svids.list.gz
+    done < sample_list
+
+    tar -czvf ~{prefix}_SVs_per_sample.tar.gz ~{prefix}_SVs_per_sample
+  >>>
+
+  output {
+    File per_sample_tarball = "~{prefix}_SVs_per_sample.tar.gz"
   }
 
   runtime {

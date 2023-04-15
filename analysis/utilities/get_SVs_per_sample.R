@@ -53,7 +53,7 @@ args <- parser$parse_args()
 #              "query" = "chr22")
 
 # Load BED and extract passing SV IDs
-keeper.ids <- load.sv.bed(args$bed, pass.only=TRUE)$name
+keeper.ids <- rownames(load.sv.bed(args$bed, pass.only=TRUE))
 
 # Format query
 query <- as.vector(unlist(sapply(unlist(strsplit(args$query, split=":")), strsplit, split="-")))
