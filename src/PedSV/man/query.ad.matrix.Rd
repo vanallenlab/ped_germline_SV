@@ -24,7 +24,8 @@ Subsets and optionally compresses an allele dosage matrix
 }
 \details{
 The value for \code{query.regions} is expected to be a list of vectors,
-where each vector must have three elements of the format (chromosome, start, end).
+where each vector must either be a single chromosome or have exactly
+three elements in the format (chromosome, start, end).
 
 Recognized values for \code{action} include:
 \itemize{
@@ -35,6 +36,4 @@ for each sample
 for each sample
 \item \code{"sum"} : return the sum of allele dosages for all query rows per sample
 }
-
-Note that
 }

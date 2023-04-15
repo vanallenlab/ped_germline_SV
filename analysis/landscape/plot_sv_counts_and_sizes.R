@@ -87,10 +87,12 @@ plot.count.bars <- function(bed, af.field="AF", ac.field="AC", greyscale=TRUE,
          col=bar.pal[c("dark2", "main", "light2")],
          border=bar.pal[c("dark2", "main", "light2")])
     n.total <- x.stops[length(x.stops)]
-    if(n.total > 1000){
+    rect(xleft=0, xright=n.total, ybottom=i-1+bar.buffer, ytop=i-bar.buffer,
+         col=NA, xpd=T)
+    if(n.total > 10000){
       count.label <- paste(round(n.total/1000, 1), "k", sep="")
     }else{
-      count.label <- n.total
+      count.label <- prettyNum(n.total, big.mark=",")
     }
     text(x=x.stops[length(x.stops)]-label.xadj, y=i-0.5, labels=count.label,
          pos=4, cex=5/6, xpd=T)
@@ -116,7 +118,7 @@ plot.count.bars <- function(bed, af.field="AF", ac.field="AC", greyscale=TRUE,
 # Parse command line arguments and options
 parser <- ArgumentParser(description="Plot SV counts and sizes")
 parser$add_argument("bed", metavar=".tsv", type="character",
-                    help="sample metadata .tsv")
+                    help="SV sites .bed")
 parser$add_argument("--af-field", default="AF", metavar="string", type="character",
                     help="column header to use for AF-related analyses")
 parser$add_argument("--ac-field", default="AC", metavar="string", type="character",
@@ -145,7 +147,7 @@ pdf(paste(args$out_prefix, "sv_size_distribs.pdf", sep="."),
     height=1.85, width=2.2)
 cowplot(get.svlen.densities(bed), xlims=log10(c(10, 5000000)), x.axis=FALSE,
         fill=hex2grey(DEL.colors[["light2"]]),
-        border=hex2grey(DEL.colors[["dark1"]]), border.lwd=2/3,
+        border=hex2grey(DEL.colors[["dark1"]]), border.lwd=1.25,
         parmar=c(2.2, 3.5, 0.1, 0.1))
 clean.axis(1, at=log10(logscale.major.bp),
            labels=logscale.major.bp.labels[seq(1, length(logscale.major.bp), 2)],

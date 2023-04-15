@@ -2,6 +2,16 @@
 
 This subdirectory contains the source and compiled code for a helper library of R functions that will be useful for various analyses throughout this project.  
 
+## Quickstart  
+
+The library comes pre-installed in one of the project's Docker images, `vanallenlab/pedsv-r`.
+
+```
+$ docker run --rm -it vanallenlab/pedsv-r
+$ R
+> library(PedSV)
+```
+
 ## Installation  
 
 In an R session:  

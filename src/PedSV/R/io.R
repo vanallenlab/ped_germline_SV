@@ -203,7 +203,8 @@ load.sv.bed <- function(bed.in, keep.coords=TRUE, pass.only=TRUE,
 #' @param action Action to apply to query rows; see `Details`
 #'
 #' @details The value for `query.regions` is expected to be a list of vectors,
-#' where each vector must have three elements of the format (chromosome, start, end).
+#' where each vector must either be a single chromosome or have exactly
+#' three elements in the format (chromosome, start, end).
 #'
 #' Recognized values for `action` include:
 #' * `"verbose"` : return the full query matrix \[default\]
@@ -212,8 +213,6 @@ load.sv.bed <- function(bed.in, keep.coords=TRUE, pass.only=TRUE,
 #' * `"all"` : return numeric indicator if all of the query rows are non-zero
 #' for each sample
 #' * `"sum"` : return the sum of allele dosages for all query rows per sample
-#'
-#' Note that
 #'
 #' @return numeric vector or data.frame, depending on `action`
 #'
@@ -232,6 +231,9 @@ query.ad.matrix <- function(ad, query.regions=NULL, query.ids=NULL,
     }else{
       require(bedr, quietly=TRUE)
       ad <- do.call("rbind", lapply(query.regions, function(coords){
+        if(length(coords) == 1){
+          coords <- c(coords, 0, 400000000)
+        }
         coords <- as.character(coords)
         interval <- paste(coords[1], ":", coords[2], "-", coords[3], sep="")
         bedr::tabix(region=interval, file.name=ad)

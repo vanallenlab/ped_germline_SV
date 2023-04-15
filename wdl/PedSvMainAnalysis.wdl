@@ -18,6 +18,7 @@ version 1.0
 workflow PedSvMainAnalysis {
 	input {
 		File sample_metadata_tsv
+    File ref_fai
     String study_prefix
 
 		File trio_sites_vcf
@@ -28,8 +29,8 @@ workflow PedSvMainAnalysis {
 		File trio_ad_matrix_idx
 		File trio_samples_list
 
-		File validation_sites_vcf
-		File validation_sites_vcf_idx
+    File validation_sites_vcf
+    File validation_sites_vcf_idx
 		File validation_bed
 		File validation_bed_idx
 		File validation_ad_matrix
@@ -39,6 +40,8 @@ workflow PedSvMainAnalysis {
     String pedsv_r_docker
     String ubuntu_docker = "ubuntu:latest"
 	}
+
+  Array[Array[String]] contiglist = read_tsv(contig_fai)
 
   call ConcatTextFiles as ConcatSampleLists {
     input:
@@ -54,6 +57,32 @@ workflow PedSvMainAnalysis {
       samples_list = all_samples_list,
       prefix = study_prefix,
       docker = pedsv_r_docker
+  }
+
+  scatter ( contig_info in contiglist ) {
+    String contig = contig_info[0]
+
+    call GetSVsPerSample as GetTrioSVsPerSample {
+      input:
+        sv_bed = trio_bed,
+        sv_bed_idx = trio_bed_idx,
+        ad_matrix = trio_ad_matrix,
+        ad_matrix_idx = trio_ad_matrix_idx,
+        contig = contig,
+        prefix = study_prefix + ".trio_cohort." + contig,
+        docker = pedsv_r_docker
+    }
+
+    call GetSVsPerSample as GetValidationSVsPerSample {
+      input:
+        sv_bed = validation_bed,
+        sv_bed_idx = validation_bed_idx,
+        ad_matrix = validation_ad_matrix,
+        ad_matrix_idx = validation_ad_matrix_idx,
+        contig = contig,
+        prefix = study_prefix + ".validation_cohort." + contig,
+        docker = pedsv_r_docker
+    }
   }
 
   call CohortSummaryPlots as TrioCohortSummaryPlots {
@@ -79,7 +108,8 @@ workflow PedSvMainAnalysis {
       tarballs = [StudyWideSummaryPlots.plots_tarball,
                   TrioCohortSummaryPlots.plots_tarball,
                   ValidationCohortSummaryPlots.plots_tarball],
-      prefix = study_prefix + "_analysis_outputs"
+      prefix = study_prefix + "_analysis_outputs",
+      docker = ubuntu_docker
   }
 
   output {
@@ -127,7 +157,7 @@ task StudyWideSummaryPlots {
     String docker
   }
 
-  Int disk_gb = ceil(2 * size([samples_metadata_tsv], "GB")) + 10
+  Int disk_gb = ceil(2 * size([sample_metadata_tsv], "GB")) + 10
 
   command <<<
     set -eu -o pipefail
@@ -141,7 +171,7 @@ task StudyWideSummaryPlots {
     # Plot PCs colored by ancestry
     /opt/ped_germline_SV/analysis/cohort_summaries/plot_pcs.R \
       --subset-samples ~{samples_list} \
-      --out-prefix StudyWideSummaryPlots/pca/~{study_prefix} \
+      --out-prefix StudyWideSummaryPlots/pca/~{prefix} \
       ~{sample_metadata_tsv}
 
     # Compress output
@@ -150,6 +180,52 @@ task StudyWideSummaryPlots {
 
   output {
     File plots_tarball = "StudyWideSummaryPlots.tar.gz"
+  }
+
+  runtime {
+    docker: docker
+    memory: "15.5 GB"
+    cpu: 4
+    disks: "local-disk " + disk_gb + " HDD"
+    preemptible: 3
+  }
+}
+
+
+# Get lists of variants per sample for a single chromosome
+task GetSVsPerSample {
+  input {
+    File sv_bed
+    File sv_bed_idx
+    File ad_matrix
+    File ad_matrix_idx
+    String contig
+    String prefix
+    String docker
+  }
+
+  Int disk_gb = ceil(3 * size([ad_matrix], "GB")) + 10
+
+  command <<<
+    set -eu -o pipefail
+
+    mkdir ~{prefix}_sample_lists/
+
+    tabix -h ~{sv_bed} ~{contig} | bgzip -c > sv_info.~{contig}.bed.gz
+
+    /opt/ped_germline_SV/analysis/utilities/get_SVs_per_sample.R \
+      --query ~{contig} \
+      --outdir ~{prefix}_sample_lists \
+      sv_info.~{contig}.bed.gz \
+      ~{ad_matrix}
+
+    find ~{prefix}_sample_lists/ -name "*.list" | xargs -I {} gzip {}
+
+    tar -czvf ~{prefix}_sample_lists.tar.gz ~{prefix}_sample_lists
+  >>>
+
+  output {
+    File per_sample_tarball = "~{prefix}_sample_lists.tar.gz"
   }
 
   runtime {
@@ -184,7 +260,7 @@ task CohortSummaryPlots {
     mkdir ~{prefix}
 
     # Plot SV counts and sizes
-    /opt/ped_germline_SV/analysis/landscape/plot_sv_counts.R \
+    /opt/ped_germline_SV/analysis/landscape/plot_sv_counts_and_sizes.R \
       --af-field ~{af_field} \
       --ac-field ~{ac_field} \
       --out-prefix ~{prefix}/~{prefix} \
@@ -213,6 +289,7 @@ task UnifyOutputs {
   input {
     Array[File] tarballs
     String prefix
+    String docker
   }
 
   Int disk_gb = ceil(10 * size(tarballs, "GB")) + 10
@@ -226,7 +303,7 @@ task UnifyOutputs {
     # Untar each tarball into output directory
     while read tarball; do
       tar -xzvf $tarball -C ~{prefix}
-    done < <( ~{write_lines(tarballs)} )
+    done < <( cat ~{write_lines(tarballs)} )
 
     # Compress output directory
     tar -czvf ~{prefix}.tar.gz ~{prefix}
@@ -234,6 +311,14 @@ task UnifyOutputs {
 
   output {
     File merged_tarball = "~{prefix}.tar.gz"
+  }
+
+  runtime {
+    docker: docker
+    memory: "1.5 GB"
+    cpu: 1
+    disks: "local-disk " + disk_gb + " HDD"
+    preemptible: 3
   }
 }
 

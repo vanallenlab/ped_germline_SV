@@ -138,9 +138,11 @@ cowplot <- function(data, names=NULL, cow.overlap=0.35, xlims=NULL, x.axis=TRUE,
 
   # Add cows
   sapply(length(data):1, function(i){
+    abline(h=i-1, col="gray85")
     x <- c(data[[i]]$x, rev(data[[i]]$x))
-    y <- c(data[[i]]$y, rep(0, times=length(data[[i]]$y))) + (i-1)
-    polygon(x, y, border=border, col=fill, lwd=2)
+    y <- c(data[[i]]$y, rep(0, times=length(data[[i]]$y)))+i-1
+    polygon(x, y, border=fill, col=fill, lwd=border.lwd)
+    points(data[[i]]$x, data[[i]]$y+i-1, type="l", lwd=border.lwd, col=border)
   })
 }
 
