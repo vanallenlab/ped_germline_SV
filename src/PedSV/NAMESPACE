@@ -2,7 +2,6 @@
 
 export(clean.axis)
 export(hex2grey)
-export(hillplot)
 export(load.constants)
 export(load.kinship.metrics)
 export(load.pc.matrix)
@@ -11,4 +10,5 @@ export(load.sv.bed)
 export(pc.scatterplot)
 export(prep.plot.area)
 export(query.ad.matrix)
+export(ridgeplot)
 importFrom(bedr,tabix)

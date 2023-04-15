@@ -103,9 +103,9 @@ pc.scatterplot <- function(pcs, pc.X, pc.Y, colors, title=NULL, x.title=NULL,
 #' @param border.lwd line width for hill borders \[default: 2\]
 #' @param parmar vector of values passed to par(mar)
 #'
-#' @export hillplot
+#' @export ridgeplot
 #' @export
-hillplot <- function(data, names=NULL, hill.overlap=0.35, xlims=NULL, x.axis=TRUE,
+ridgeplot <- function(data, names=NULL, hill.overlap=0.35, xlims=NULL, x.axis=TRUE,
                     fill="grey70", border="grey35", border.lwd=2,
                     parmar=c(2.5, 3, 0.25, 0.25)){
   # Get names before manipulating data
