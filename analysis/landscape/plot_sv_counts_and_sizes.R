@@ -41,8 +41,8 @@ get.counts.table <- function(bed, af.field="AF", ac.field="AC"){
       rev(c(0, 0, length(which(bed$SVTYPE == svtype))))
     }else{
       rev(c(length(which(bed$SVTYPE == svtype & bed[, ac.field] <= 1)),
-      length(which(bed$SVTYPE == svtype & bed[, ac.field] > 1 & bed[, af.field] < 0.01)),
-      length(which(bed$SVTYPE == svtype & bed[, af.field] >= 0.01))))
+            length(which(bed$SVTYPE == svtype & bed[, ac.field] > 1 & bed[, af.field] < 0.01)),
+            length(which(bed$SVTYPE == svtype & bed[, af.field] >= 0.01))))
     }
   })
 }
@@ -55,6 +55,41 @@ get.svlen.densities <- function(bed){
   })
   names(data) <- sv.abbreviations[svtypes.sub]
   return(data)
+}
+
+# Tabulate SV counts by type and frequency
+tabulate.counts <- function(bed){
+  counts <- as.data.frame(t(get.counts.table(bed)))
+  colnames(counts) <- c("common_af_ge_1pct", "rare_af_lt_1pct", "singleton_ac_1")
+  counts$ALL <- apply(counts, 1, sum)
+  counts$rare_af_lt_1pct <- counts$rare_af_lt_1pct + counts$singleton_ac_1
+  counts["ALL", ] <- apply(counts, 2, sum)
+  res <- do.call("rbind", lapply(rev(rownames(counts)), function(svtype){
+    do.call("rbind", lapply(rev(colnames(counts)), function(freq){
+      c(svtype, freq, counts[svtype, freq])
+    }))
+  }))
+  res <- as.data.frame(res)
+  colnames(res) <- c("#svtype", "freq", "N")
+  return(res[which(res$N > 0), ])
+}
+
+# Tabulate median SV sizes by type and frequency
+tabulate.sizes <- function(bed, af.field="AF", ac.field="AC"){
+  freq.idxs <- list("ALL" = 1:nrow(bed),
+                    "singleton_ac_1" = which(bed[, ac.field] <= 1),
+                    "rare_af_lt_1pct" = which(bed[, af.field] < 0.01),
+                    "common_af_ge_1pct" = which(bed[, af.field] >= 0.01))
+  res <- lapply(c("ALL", setdiff(svtypes, "CTX")), function(svtype){
+    sv.idxs <- if(svtype == "ALL"){1:nrow(bed)}else{which(bed$SVTYPE == svtype)}
+    do.call("rbind", lapply(names(freq.idxs), function(freq){
+      hit.idxs <- intersect(freq.idxs[[freq]], sv.idxs)
+      if(length(hit.idxs) > 0){c(svtype, freq, median(bed$SVLEN[hit.idxs]))}
+    }))
+  })
+  df <- as.data.frame(do.call("rbind", res))
+  colnames(df) <- c("#svtype", "freq", "N")
+  return(df)
 }
 
 
@@ -74,6 +109,7 @@ plot.count.bars <- function(bed, af.field="AF", ac.field="AC", greyscale=TRUE,
 
   # Prep plot area
   PedSV::prep.plot.area(xlims, ylims, parmar=c(0.25, 3.5, 0.1, 2.5), xaxs="i", yaxs="i")
+  abline(v=xlims[1], col="gray85")
 
   # Add bars & cap labels
   sapply(1:ncol(counts), function(i){
@@ -146,12 +182,21 @@ dev.off()
 pdf(paste(args$out_prefix, "sv_size_distribs.pdf", sep="."),
     height=1.85, width=2.2)
 ridgeplot(get.svlen.densities(bed), xlims=log10(c(10, 5000000)), x.axis=FALSE,
-        fill=hex2grey(DEL.colors[["light2"]]),
-        border=hex2grey(DEL.colors[["dark1"]]), border.lwd=1.25,
-        parmar=c(2.2, 3.5, 0.1, 0.1))
+          fill=hex2grey(DEL.colors[["light2"]]),
+          border=hex2grey(DEL.colors[["dark1"]]), border.lwd=1.25,
+          parmar=c(2.2, 3.5, 0.1, 0.1))
 clean.axis(1, at=log10(logscale.major.bp),
            labels=logscale.major.bp.labels[seq(1, length(logscale.major.bp), 2)],
            labels.at=log10(logscale.major.bp)[seq(1, length(logscale.major.bp), 2)],
            label.line=-0.9, title.line=0.2, title=bquote("SV Size" ~ (log[10])))
 dev.off()
 
+# Table of SV counts by type and frequency
+write.table(tabulate.counts(bed),
+            paste(args$out_prefix, "sv_counts_by_freq.tsv", sep="."),
+            col.names=T, row.names=F, sep="\t", quote=F)
+
+# Table of median SV sizes by type and frequency
+write.table(tabulate.sizes(bed),
+            paste(args$out_prefix, "sv_sizes_by_freq.tsv", sep="."),
+            col.names=T, row.names=F, sep="\t", quote=F)

@@ -33,6 +33,43 @@ load.counts <- function(tsv.in){
   return(vals)
 }
 
+# ANOVA of SV counts per ancestry
+sv.count.anovas <- function(counts, meta){
+  # Restrict to probands-only for trio cohort to control for relatedness
+  meta <- meta[which(is.na(meta$proband) | meta$proband), ]
+
+  # Join counts with meta
+  meta <- merge(meta, data.frame("count" = counts), all=F, sort=F, by=0)
+
+  # One ANOVA per ancestry
+  res <- do.call("rbind", lapply(sort(unique(meta$inferred_ancestry)), function(pop){
+    fit <- aov(count ~ disease, data=meta[which(meta$inferred_ancestry == pop), ])
+    c(pop, summary(fit)[[1]][["Pr(>F)"]][[1]])
+  }))
+  df <- as.data.frame(res)
+  colnames(df) <- c("#ancestry", "ANOVA_P")
+  return(df)
+}
+
+# Tabulate count of median SVs per genome by population and disease
+tabulate.counts <- function(counts, meta){
+  meta <- merge(meta, data.frame("count" = counts), all=F, sort=F, by=0)
+  res <- lapply(c("ALL", sort(unique(meta$inferred_ancestry))), function(pop){
+    pop.idxs <- if(pop == "ALL"){1:nrow(meta)}else{which(meta$inferred_ancestry == pop)}
+    do.call("rbind", lapply(c("ALL", sort(unique(meta$disease))), function(disease){
+      if(disease == "ALL"){
+        disease.idxs <- 1:nrow(meta)
+      }else{
+        disease.idxs <- which(meta$disease == disease)
+        disease <- metadata.cancer.label.map[disease]
+      }
+      c(pop, disease, median(meta$count[intersect(pop.idxs, disease.idxs)]))
+    }))
+  })
+  df <- as.data.frame(do.call("rbind", res))
+  colnames(df) <- c("#ancestry", "disease", "median_SVs_per_genome")
+  return(df)
+}
 
 
 ######################
@@ -67,7 +104,7 @@ plot.waterfall <- function(counts, meta, pop.spacer=0.05){
       rect(xleft=n.plotted+(1:n.vals)-1, xright=n.plotted+(1:n.vals),
            ybottom=0, ytop=vals, col=cancer.colors[pheno], border=cancer.colors[pheno])
       segments(x0=n.plotted, x1=n.plotted+n.vals, y0=median(vals), y1=median(vals),
-               col=cancer.palettes[[pheno]]["dark1"], lend="butt")
+               col=cancer.palettes[[pheno]]["dark1"], lend="butt", lwd=1.5)
       n.plotted <- n.plotted + n.vals
     }
     axis(1, at=c(n.start, n.plotted), tck=0, labels=NA)
@@ -94,7 +131,7 @@ parser$add_argument("--out-prefix", metavar="path", type="character", required=T
 args <- parser$parse_args()
 
 # # DEV:
-# args <- list("metatdata" = "~/scratch/gatk_sv_pediatric_cancers_combined_cohort_metadata_3_31_23.txt",
+# args <- list("metadata" = "~/scratch/gatk_sv_pediatric_cancers_combined_cohort_metadata_3_31_23.txt",
 #              "counts" = "~/scratch/dummy_counts_per_sample.tsv",
 #              "out_prefix" = "~/scratch/PedSV.dev")
 
@@ -110,3 +147,13 @@ pdf(paste(args$out_prefix, "svs_per_sample.pdf", sep="."),
     height=1.6, width=4)
 plot.waterfall(counts, meta)
 dev.off()
+
+# Run ANOVA of counts per sample per ancestry
+write.table(sv.count.anovas(counts, meta),
+            paste(args$out_prefix, "sv_count_per_genome_by_ancestry_ANOVA.tsv", sep="."),
+            col.names=T, row.names=F, sep="\t", quote=F)
+
+# Compile table of median SVs per genome by ancestry and disease
+write.table(tabulate.counts(counts, meta),
+            paste(args$out_prefix, "sv_count_per_genome_by_ancestry_and_disease.tsv", sep="."),
+            col.names=T, row.names=F, sep="\t", quote=F)

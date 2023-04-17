@@ -131,7 +131,8 @@ workflow PedSvMainAnalysis {
                   TrioCohortSummaryPlots.plots_tarball,
                   ValidationCohortSummaryPlots.plots_tarball],
       prefix = study_prefix + "_analysis_outputs",
-      docker = ubuntu_docker
+      docker = ubuntu_docker,
+      relocate_stats = true
   }
 
   output {
@@ -195,6 +196,7 @@ task StudyWideSummaryPlots {
       --subset-samples ~{samples_list} \
       --out-prefix StudyWideSummaryPlots/pca/~{prefix} \
       ~{sample_metadata_tsv}
+    gzip -f StudyWideSummaryPlots/pca/*.tsv
 
     # Compress output
     tar -czvf StudyWideSummaryPlots.tar.gz StudyWideSummaryPlots
@@ -338,7 +340,7 @@ task CohortSummaryPlots {
     mkdir perSample_data
     tar -xzvf ~{per_sample_tarball} -C perSample_data/
     while read sample; do
-      find perSample_data/ -name "$sample.svids.list.gz" \
+      find perSample_data/ -name "$sample.SV_IDs.list.gz" \
       | xargs -I {} zcat {} | wc -l \
       | paste <( echo $sample ) -
     done < ~{sample_list} \
@@ -352,6 +354,7 @@ task CohortSummaryPlots {
       sv_counts_per_sample.tsv
 
     # Compress output
+    find ~{prefix}/ -name "*.tsv" | xargs -I {} gzip -f {}
     tar -czvf ~{prefix}.tar.gz ~{prefix}
   >>>
 
@@ -375,6 +378,8 @@ task UnifyOutputs {
     Array[File] tarballs
     String prefix
     String docker
+
+    Boolean relocate_stats = false
   }
 
   Int disk_gb = ceil(10 * size(tarballs, "GB")) + 10
@@ -389,6 +394,12 @@ task UnifyOutputs {
     while read tarball; do
       tar -xzvf $tarball -C ~{prefix}
     done < <( cat ~{write_lines(tarballs)} )
+
+    # Relocate all text files to stats subdirectory
+    if [ ~{relocate_stats} == "true" ]; then
+      mkdir ~{prefix}/stats
+      find ~{prefix}/ -name "*.tsv.gz" | xargs -I {} mv {} ~{prefix}/stats/
+    fi
 
     # Compress output directory
     tar -czvf ~{prefix}.tar.gz ~{prefix}

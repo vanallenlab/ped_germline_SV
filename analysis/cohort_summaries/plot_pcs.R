@@ -22,6 +22,37 @@ require(argparse, quietly=TRUE)
 PedSV::load.constants("all")
 
 
+##################
+# Data functions #
+##################
+# Compile table of sample counts per ancestry per cohort
+tabulate.ancestries <- function(meta){
+  res <- lapply(c("ALL", sort(unique(meta$study_phase))), function(phase){
+    subres <- lapply(c("ALL", sort(unique(meta$disease))), function(disease){
+      do.call("rbind",
+              lapply(c("ALL", unique(meta$inferred_ancestry)), function(pop){
+                keep.idx <- 1:nrow(meta)
+                if(phase != "ALL"){
+                  keep.idx <- intersect(keep.idx, which(meta$study_phase == phase))
+                }
+                if(disease != "ALL"){
+                  keep.idx <- intersect(keep.idx, which(meta$disease == disease))
+                  disease <- metadata.cancer.label.map[disease]
+                }
+                if(pop != "ALL"){
+                  keep.idx <- intersect(keep.idx, which(meta$inferred_ancestry == pop))
+                }
+                c(phase, disease, pop, length(keep.idx))
+              }))
+    })
+    do.call("rbind", subres)
+  })
+  df <- as.data.frame(do.call("rbind", res))
+  colnames(df) <- c("#study_phase", "disease", "ancestry", "N")
+  return(df[which(as.numeric(df$N) > 0), ])
+}
+
+
 ###########
 # RScript #
 ###########
@@ -103,3 +134,8 @@ sapply(list(c(1, 2), c(3, 4)), function(pc.idxs){
                  parmar=parmar)
   dev.off()
 })
+
+# Compile table of sample counts per ancestry
+write.table(tabulate.ancestries(meta),
+            paste(args$out_prefix, "sample_counts_by_ancestry.tsv", sep="."),
+            col.names=T, row.names=F, sep="\t", quote=F)
