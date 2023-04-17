@@ -41,9 +41,10 @@ sv.count.anovas <- function(counts, meta){
   # Join counts with meta
   meta <- merge(meta, data.frame("count" = counts), all=F, sort=F, by=0)
 
-  # One ANOVA per ancestry
+  # One ANOVA per ancestry, adjusted for top four PCs to control for cryptic pop strat
   res <- do.call("rbind", lapply(sort(unique(meta$inferred_ancestry)), function(pop){
-    fit <- aov(count ~ disease, data=meta[which(meta$inferred_ancestry == pop), ])
+    fit <- aov(count ~ disease + PC1 + PC2 + PC3 + PC4,
+               data=meta[which(meta$inferred_ancestry == pop), ])
     c(pop, summary(fit)[[1]][["Pr(>F)"]][[1]])
   }))
   df <- as.data.frame(res)
