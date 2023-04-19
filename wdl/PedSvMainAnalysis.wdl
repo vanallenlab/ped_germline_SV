@@ -161,8 +161,8 @@ workflow PedSvMainAnalysis {
       ad_matrix_idxs = [validation_ad_matrix_idx],
       sample_metadata_tsv = sample_metadata_tsv,
       samples_list = validation_samples_list,
-      af_fields = ["parent_AF"],
-      ac_fields = ["parent_AC"],
+      af_fields = ["AF"],
+      ac_fields = ["AC"],
       prefix = study_prefix + ".validation_cohort",
       docker = pedsv_r_docker
   }

@@ -216,20 +216,19 @@ parser$add_argument("--metadata", metavar=".tsv", type="character",
                     help="sample metadata .tsv", required=TRUE)
 parser$add_argument("--subset-samples", metavar=".tsv", type="character",
                     help="list of samples to subset [default: use all samples]")
-parser$add_argument("--af-field", default="AF", metavar="string",
-                    type="character", action="append",
+parser$add_argument("--af-field", metavar="string", type="character", action="append",
                     help=paste("Column header to use for AF-related analyses.",
                                "Can be supplied once to be applied uniformly to",
                                "all values of --bed, or can be supplied an",
                                "equal number of times as --bed to apply one",
                                "value per --bed. [default: AF]"))
-parser$add_argument("--ac-field", default="AC", metavar="string",
-                    type="character", action="append",
+parser$add_argument("--ac-field", metavar="string", type="character", action="append",
                     help=paste("Column header to use for AC-related analyses.",
                                "Same requirements as --af-field. [default: AC]"))
 parser$add_argument("--out-prefix", metavar="path", type="character", required=TRUE,
                     help="path/prefix for all output files")
 args <- parser$parse_args()
+print(args)
 
 # # DEV:
 # args <- list("bed" = c("~/scratch/PedSV.v1.1.validation_cohort.analysis_samples.wAFs.bed.gz"),
@@ -254,14 +253,18 @@ if(!is.null(args$subset_samples)){
 meta <- load.sample.metadata(args$metadata, keep.samples=keepers, reassign.parents=FALSE)
 
 # Format AF/AC fields
-if(length(args$af_field) == 1){
+if(is.null(args$af_field)){
+  af.fields <- rep("AF", times=length(data))
+}else if(length(args$af_field) == 1){
   af.fields <- rep(args$af_field, times=length(data))
 }else if(length(args$af_field) != length(data)){
   stop("Incorrect --af-field specification. See --help.")
 }else{
   af.fields <- args$af_field
 }
-if(length(args$ac_field) == 1){
+if(is.null(args$ac_field)){
+  ac.fields <- rep("AC", times=length(data))
+}else if(length(args$ac_field) == 1){
   ac.fields <- rep(args$ac_field, times=length(data))
 }else if(length(args$ac_field) != length(data)){
   stop("Incorrect --ac-field specification. See --help.")
