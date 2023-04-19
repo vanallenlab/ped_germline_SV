@@ -31,6 +31,7 @@ To that end, the list below includes just a few of helper functions that might c
 - `load.sv.bed()` loads and cleans a .bed for a single SV callset (e.g., `PedSV.v1.trio_cohort.analysis_samples.wAFs.bed.gz`).  
 - `query.ad.matrix()` queries an allele dosage matrix without loading the entire matrix into memory (_see Vignette below_).  
 - `load.constants()` imports various contants, such as colors or labels, for the study (_see Vignette below_).  
+- `prep.glm.matrix()` cleans and prepares sample metadata as covariates association testing.  
 
 ### Vignette: querying allele dosage matrixes  
 

@@ -146,3 +146,67 @@ ridgeplot <- function(data, names=NULL, hill.overlap=0.35, xlims=NULL, x.axis=TR
   })
 }
 
+
+#' Barplot of values per cancer type
+#'
+#' Generate a barplot of one value for each cancer type
+#'
+#' @param plot.df Data.frame of values to plot. See `Details`.
+#' @param bar.hex Relative width for each bar \[default: 0.85\]
+#' @param add.top.axis Should the top axis be added? \[default: TRUE\]
+#' @param top.axis.units Specify units for top axis. Options are NULL (for
+#' numeric) or "percent" \[default: NULL\]
+#' @param title Custom title for top axis
+#' @param parmar Value of `mar` passed to `par()`
+#'
+#' @details `plot.df` is expected to adhere to the following specifications:
+#' * One row per cancer type and one row for controls
+#' * Row names indicate cancer type (or "control")
+#' * Columns ordered as follows: (1) value to plot, (2) lower CI bound,
+#' (3) upper CI bound, (4) P-value
+#'
+#' @export barplot.by.phenotype
+#' @export
+barplot.by.phenotype <- function(plot.df, bar.hex=0.8,
+                                 add.top.axis=TRUE, top.axis.units=NULL,
+                                 title="Value",
+                                 parmar=c(0.2, 4.1, 2.1, 3.9)){
+  # Get plot dimensions
+  xlims <- c(0, max(plot.df[, 1:3]))
+  ylims <- c(nrow(plot.df), 0)
+  y.mids <- (1:nrow(plot.df))-0.5
+
+  # Prep plot area
+  prep.plot.area(xlims, ylims, parmar=parmar, xaxs="i", yaxs="r")
+  axis(2, at=c(-10e10, 10e10), tck=0, labels=NA)
+  abline(v=plot.df["control", 1], col=control.colors["main"])
+  if(add.top.axis){
+    clean.axis(3, label.units=top.axis.units,
+               title=title, infinite.positive=TRUE,
+               label.line=-0.8, title.line=0.1)
+  }
+  axis(2, at=y.mids, tick=F, line=-0.85, las=2, cex.axis=5.5/6,
+       labels=cancer.names.short[rownames(plot.df)])
+
+  # Add bars, CI ticks, and outer borders
+  rect(ybottom=y.mids-(bar.hex/2),
+       ytop=y.mids+(bar.hex/2),
+       xleft=0, xright=plot.df[, 1],
+       col=cancer.colors[rownames(plot.df)],
+       border=NA, bty="n")
+  segments(y0=y.mids, y1=y.mids, x0=plot.df[, 2], x1=plot.df[, 3], lwd=2, lend="butt",
+           col=sapply(rownames(plot.df), function(pheno){cancer.palettes[[pheno]]["dark1"]}))
+  rect(ybottom=y.mids-(bar.hex/2),
+       ytop=y.mids+(bar.hex/2),
+       xleft=0, xright=plot.df[, 1],
+       col=NA, xpd=T)
+
+  # Add P values
+  sapply(which(rownames(plot.df) != "control"), function(i){
+    p.col <- if(plot.df[i, 4] < 0.05){"black"}else{control.colors[["main"]]}
+    axis(4, at=y.mids[i], tick=F, line=-0.9, las=2, cex.axis=5/6,
+         labels=PedSV::format.pval(plot.df[i, 4], nsmall=0),
+         col.axis=p.col)
+  })
+}
+

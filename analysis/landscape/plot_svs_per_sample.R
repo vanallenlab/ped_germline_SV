@@ -35,16 +35,13 @@ load.counts <- function(tsv.in){
 
 # ANOVA of SV counts per ancestry
 sv.count.anovas <- function(counts, meta){
-  # Restrict to probands-only for trio cohort to control for relatedness
-  meta <- meta[which(is.na(meta$proband) | meta$proband), ]
-
-  # Join counts with meta
-  meta <- merge(meta, data.frame("count" = counts), all=F, sort=F, by=0)
+  # Join counts with meta and restrict to probands-only for trio cohort to control for relatedness
+  test.df <- prep.glm.matrix(meta, as.factor(meta$disease), counts, use.N.pcs=4)
+  test.df <- test.df[rownames(meta)[which(is.na(meta$proband) | meta$proband)], ]
 
   # One ANOVA per ancestry, adjusted for top four PCs to control for cryptic pop strat
   res <- do.call("rbind", lapply(sort(unique(meta$inferred_ancestry)), function(pop){
-    fit <- aov(count ~ disease + PC1 + PC2 + PC3 + PC4,
-               data=meta[which(meta$inferred_ancestry == pop), ])
+    fit <- aov(Y ~ X + ., data=test.df[rownames(meta)[which(meta$inferred_ancestry == pop)], ])
     c(pop, summary(fit)[[1]][["Pr(>F)"]][[1]])
   }))
   df <- as.data.frame(res)
@@ -88,7 +85,7 @@ plot.waterfall <- function(counts, meta, pop.spacer=0.05){
   # Prep plot area
   prep.plot.area(xlims, ylims, parmar=c(2, 2.5, 0.15, 0.15), xaxs="r", yaxs="i")
   clean.axis(2, at=axTicks(2), labels=paste(axTicks(2) / 1000, "k", sep=""),
-             title="SVs / genome", infinite=TRUE)
+             title="SVs / Genome", infinite=TRUE)
 
   # Plot ancestries in alphabetical order
   pops <- sort(unique(meta$inferred_ancestry))
@@ -133,7 +130,7 @@ args <- parser$parse_args()
 
 # # DEV:
 # args <- list("metadata" = "~/scratch/gatk_sv_pediatric_cancers_combined_cohort_metadata_3_31_23.txt",
-#              "counts" = "~/scratch/dummy_counts_per_sample.tsv",
+#              "counts" = "~/scratch/sv_counts_per_sample.tsv",
 #              "out_prefix" = "~/scratch/PedSV.dev")
 
 # Load counts

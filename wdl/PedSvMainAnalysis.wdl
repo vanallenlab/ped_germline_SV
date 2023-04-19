@@ -51,8 +51,20 @@ workflow PedSvMainAnalysis {
   }
   File all_samples_list = ConcatSampleLists.outfile
 
-	call StudyWideSummaryPlots {
+  call StudyWideSummaryPlots {
     input:
+      sample_metadata_tsv = sample_metadata_tsv,
+      samples_list = all_samples_list,
+      prefix = study_prefix,
+      docker = pedsv_r_docker
+  }
+
+  call BurdenTests as StudyWideBurdenTests {
+    input:
+      beds = [trio_bed, validation_bed],
+      bed_idxs = [trio_bed_idx, validation_bed_idx],
+      ad_matrixes = [trio_ad_matrix, validation_ad_matrix],
+      ad_matrix_idxs = [trio_ad_matrix_idx, validation_ad_matrix_idx],
       sample_metadata_tsv = sample_metadata_tsv,
       samples_list = all_samples_list,
       prefix = study_prefix,

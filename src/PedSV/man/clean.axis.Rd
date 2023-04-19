@@ -9,12 +9,16 @@ clean.axis(
   at = NULL,
   labels = NULL,
   labels.at = NULL,
+  label.units = NULL,
+  max.ticks = 6,
   title = NULL,
   tck = -0.025,
   cex.axis = 5/6,
   label.line = -0.65,
   title.line = 0.5,
-  infinite = FALSE
+  infinite = FALSE,
+  infinite.positive = FALSE,
+  infinite.negative = FALSE
 )
 }
 \arguments{
@@ -25,6 +29,12 @@ clean.axis(
 \item{labels}{Labels for axis ticks [default: values of \code{at}]}
 
 \item{labels.at}{Positions for axis labels [default: values of \code{at}]}
+
+\item{label.units}{Specify custom units for the axis label. Default of \code{NULL}
+will display numeric values. Options currently include "percent" for percentages.
+Can be overridden by supplying \code{labels} directly.}
+
+\item{max.ticks}{Maximum number of axis ticks. Will be overridden by \code{at} [default: 6]}
 
 \item{title}{Axis title}
 
@@ -37,6 +47,12 @@ clean.axis(
 \item{title.line}{\code{line} parameter for axis title [default: 0.5]}
 
 \item{infinite}{Indicator for the axis to be extended infinitely (without ticks) [default: FALSE]}
+
+\item{infinite.positive}{Indicator for the axis to be extended infinitely
+in the positive direction (without ticks) [default: FALSE]}
+
+\item{infinite.negative}{Indicator for the axis to be extended infinitely
+in the negative direction (without ticks) [default: FALSE]}
 }
 \description{
 Print a clean axis using visually pleasing defaults
