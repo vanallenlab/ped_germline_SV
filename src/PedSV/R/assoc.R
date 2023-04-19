@@ -112,8 +112,8 @@ get.eligible.samples <- function(meta, cancer){
 #'
 #' Construct a one-hot encoding for disease status for a set of cases and controls
 #'
-#' @param case.ids
-#' @param control.ids
+#' @param case.ids Vector of case IDs
+#' @param control.ids Vector of control IDs
 #'
 #' @returns Numeric vector
 #'

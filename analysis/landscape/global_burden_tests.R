@@ -18,6 +18,7 @@
 # Load necessary libraries and constants
 options(scipen=1000, stringsAsFactors=F)
 require(PedSV, quietly=TRUE)
+require(Hmisc, quietly=TRUE)
 require(argparse, quietly=TRUE)
 PedSV::load.constants("all")
 
@@ -143,7 +144,7 @@ stats2plot <- function(stats, ci.mode="normal"){
     ci.uppers <- values + ci.margins
   }else if(ci.mode == "binomial"){
     require(Hmisc, quietly=TRUE)
-    cis <- binconf(x=round(values * ns), n=ns)
+    cis <- Hmisc::binconf(x=round(values * ns), n=ns)
     ci.lowers <- cis[, "Lower"]
     ci.uppers <- cis[, "Upper"]
   }
@@ -228,7 +229,6 @@ parser$add_argument("--ac-field", metavar="string", type="character", action="ap
 parser$add_argument("--out-prefix", metavar="path", type="character", required=TRUE,
                     help="path/prefix for all output files")
 args <- parser$parse_args()
-print(args)
 
 # # DEV:
 # args <- list("bed" = c("~/scratch/PedSV.v1.1.validation_cohort.analysis_samples.wAFs.bed.gz"),

@@ -7,7 +7,9 @@
 get.phenotype.vector(case.ids, control.ids)
 }
 \arguments{
-\item{control.ids}{}
+\item{case.ids}{Vector of case IDs}
+
+\item{control.ids}{Vector of control IDs}
 }
 \value{
 Numeric vector
