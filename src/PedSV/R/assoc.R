@@ -108,6 +108,24 @@ get.eligible.samples <- function(meta, cancer){
 }
 
 
+#' Build a phenotype indicator vector
+#'
+#' Construct a one-hot encoding for disease status for a set of cases and controls
+#'
+#' @param case.ids
+#' @param control.ids
+#'
+#' @returns Numeric vector
+#'
+#' @export get.phenotype.vector
+#' @export
+get.phenotype.vector <- function(case.ids, control.ids){
+  Y <- as.numeric(c(case.ids, control.ids) %in% case.ids)
+  names(Y) <- c(case.ids, control.ids)
+  return(Y)
+}
+
+
 #' PedSV generic association test
 #'
 #' Fit a GLM for user-defined dependent & independent variables while adjusting

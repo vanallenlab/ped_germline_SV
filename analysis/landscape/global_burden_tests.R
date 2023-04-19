@@ -99,8 +99,7 @@ burden.test <- function(data, query, meta, ad.vals, family,
 
     # Run burden test
     X <- ad.vals[intersect(names(ad.vals), c(case.ids, control.ids))]
-    Y <- as.numeric(c(case.ids, control.ids) %in% case.ids)
-    names(Y) <- c(case.ids, control.ids)
+    Y <- get.phenotype.vector(case.ids, control.ids)
     overlapping.ids <- intersect(names(X), names(Y))
     X <- X[overlapping.ids]
     Y <- Y[overlapping.ids]
@@ -190,7 +189,7 @@ main.burden.wrapper <- function(data, query, meta, action, af.fields, ac.fields,
     new.stats <- burden.test(data, query, meta, ad.vals, family, af.fields, ac.fields)
     new.stats$hypothesis <- paste(new.stats$hypothesis, subset.info[[1]], sep=".")
     all.stats <- rbind(all.stats, new.stats)
-    pdf(paste(out.prefix, subset.info[[1]], ".pdf", sep="."),
+    pdf(paste(out.prefix, subset.info[[1]], "pdf", sep="."),
         height=barplot.height, width=barplot.width)
     barplot.by.phenotype(stats2plot(new.stats, ci.mode), title=subset.info[[3]],
                          top.axis.units=barplot.units)

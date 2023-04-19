@@ -284,15 +284,18 @@ task BurdenTests {
     # Make output directory
     mkdir ~{prefix}.BurdenTests
 
+    # Build burden test command
+    cmd="/opt/ped_germline_SV/analysis/landscape/global_burden_tests.R"
+    cmd="$cmd $( awk -v OFS=" " -v ORS=" " '{ print "--bed", $1 }' ~{write_lines(beds)} )"
+    cmd="$cmd $( awk -v OFS=" " -v ORS=" " '{ print "--ad", $1 }' ~{write_lines(ad_matrixes)} )"
+    cmd="$cmd --metadata ~{sample_metadata_tsv} --subset-samples ~{samples_list}"
+    cmd="$cmd $( awk -v OFS=" " -v ORS=" " '{ print "--af-field", $1 }' ~{write_lines(af_fields)} )"
+    cmd="$cmd $( awk -v OFS=" " -v ORS=" " '{ print "--ac-field", $1 }' ~{write_lines(ac_fields)} )"
+    cmd="$cmd --out-prefix ~{prefix}.BurdenTests/~{prefix}"
+
     # Run burden tests
-    /opt/ped_germline_SV/analysis/landscape/global_burden_tests.R \
-      ~{sep=" --bed " beds} \
-      ~{sep=" --ad " ad_matrixes} \
-      --metadata ~{sample_metadata_tsv} \
-      --subset-samples ~{samples_list} \
-      ~{sep=" --af-field " af_fields} \
-      ~{sep=" --ac-field " ac_fields} \
-      --out-prefix ~{prefix}.BurdenTests/~{prefix}
+    echo -e "\n\nNow running burden tests with the following command:\n$cmd\n"
+    eval $cmd
     gzip -f ~{prefix}.BurdenTests/*.tsv
 
     # Compress output
