@@ -36,6 +36,8 @@ To that end, the list below includes just a few of helper functions that might c
 - `get.eligible.samples()` returns lists of eligible case and control samples for association testing.  
 - `pedsv.glm()` is a flexible function for conducting case-control association tests in our dataset (_see Vignette below_).  
 
+---  
+
 ### Vignette: querying allele dosage matrixes  
 
 The package has helper functions to load allele dosages for one or more SVs without loading the entire allele dosage matrix into memory.  
@@ -46,7 +48,7 @@ To accomplish this, use the `query.ad.matrix()` function, which has two optional
 
 2. If `query.ids` is provided as a vector of SV IDs, this function will only extract data for those SVs.  
 
-For example, this command will only extract allele dosages for SVs `my_SV_ID_1` and `my_SV_ID_2`, provided that those SVs can be found in either chr1:100-500 or chr5:30000000-31000000:  
+For example, this command will only extract allele dosages for SVs `my_SV_ID_1` and `my_SV_ID_2`, provided that those SVs can be found in either `chr1:100-500` or `chr5:30000000-31000000`:  
 ```
 ad.matrix.path <- "/path/to/my/ad.matrix.bed.gz"
 query.regions <- list(c("chr1", 100, 500), c("chr5", 30000000, 31000000))
@@ -93,6 +95,8 @@ query.idx <- c("my_SV_ID_1", "my_SV_ID_2")
 my.ad.results <- query.ad.matrix(ad.df, query.ids=query.ids)
 ```
 
+---  
+
 ### Vignette: conducting case-control association tests  
 
 A main purpose of this library is to enable rapid, standardized, and easy association testing between cases and controls.  
@@ -105,13 +109,15 @@ This is accomplished with the `pesv.glm()` function, which requires three argume
 
 3. `Y` : numeric or boolean/logical dependent variable to test for association (_e.g._, case/control labels).  
 
+By default, `pedsv.glm()` runs a basic linear regression model, but you can implement other models with the `family` parameter. See `?family` for more info.  
+
 There are three options for specifying `X` and `Y`:  
 
-1. As an unnamed vector. In this case, the values are assumed to be in the same order as the samples in ‘meta’.  
+1. As an **unnamed vector**. In this case, the values are assumed to be in the same order as the samples in ‘meta’.  
 
-2. As a named vector. In this case, the vector names are assumed to be sample IDs, and any sample ID failing to match in ‘meta’ will be dropped.  
+2. As a **named vector**. In this case, the vector names are assumed to be sample IDs, and any sample ID failing to match in ‘meta’ will be dropped.  
 
-3. As a data frame. In this case, the row names are assumed to be sample IDs, and any sample ID failing to match in ‘meta’ will be dropped.  
+3. As a **data frame**. In this case, the row names are assumed to be sample IDs, and any sample ID failing to match in ‘meta’ will be dropped.  
 
 As an example, let's say you want to test for association between Ewing sarcoma diagnosis and samples that carry either of the SVs `my_SV_ID_1` or `my_SV_ID_1`. You could run this test as follows:
 
@@ -124,18 +130,21 @@ subsetted.sv.bed <- my.sv.bed[my.SVs.of.interest, ]
 # Load sample metadata
 meta <- load.sample.metadata("/path/to/sample/metadata.tsv.gz")
 
-# The independent variable in this analysis is a 0/1 indicator of whether each sample carries either "my_SV_ID_1" or "my_SV_ID_2"
+# The independent variable in this analysis is a 0/1 indicator 
+# of whether each sample carries either "my_SV_ID_1" or "my_SV_ID_2"
 X <- query.ad.from.sv.bed("/path/to/my/ad.matrix.bed.gz", subsetted.sv.bed, action="any")
 
 # The dependent variable is a 0/1 indicator of case/control status
-# Here, we can take advantage of the get.eligible.samples() function to get the case and control sample IDs to include in our analysis
-# Note that "EWS" is the study-standardized abbreviation for Ewing sarcoma
-# We will also use the get.phenotype.vector() function to auto-format our dependent variable for us
+# Here, we can take advantage of the get.eligible.samples() function 
+# to get the case and control sample IDs to include in our analysis.
+# Note that "EWS" is the study-standardized abbreviation for Ewing sarcoma.
+# We will also use the get.phenotype.vector() function to auto-format 
+# our dependent variable for us
 sample.ids <- get.eligible.samples(meta, "EWS")
 Y <- get.phenotype.vector(sample.ids$cases, sample.ids$controls)
 
-# We can now run the association test as follows:
-results <- pedsv.glm(meta, X, Y)
+# We can now run a logistic regression association test as follows:
+results <- pedsv.glm(meta, X, Y, family=binomial())
 ```
 
 #### A note on covariate adjustment  
@@ -151,6 +160,8 @@ By default, these covariates include:
 * WGS dosage bias score  
 * Top `N` genetic principal components, where `N` defaults to 10 but can be specified by passing `keep.N.pcs` to `pedsv.glm()` or `prep.glm.matrix()`.   
 
+---  
+
 ### Vignette: loading helpful project-wide constants  
 
 The package has several built-in constants that are accessible with the `load.constants()` function. See `?load.constants` for full documentation of all options.  
@@ -158,6 +169,8 @@ The package has several built-in constants that are accessible with the `load.co
 For example, `load.constants("colors")` will load all project-associated colors and palettes, whereas `load.constants("scales")` will load default scale vectors commonly used in SV analyses (for example, log10-scaled genomic distances).  
 
 Most users will probably just want to call `load.constants("all")` at the beginning of most analyses to get all project constants.  
+
+---  
 
 ## Looking for more help?  
 
