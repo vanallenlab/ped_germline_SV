@@ -67,6 +67,8 @@ workflow PedSvMainAnalysis {
       ad_matrix_idxs = [trio_ad_matrix_idx, validation_ad_matrix_idx],
       sample_metadata_tsv = sample_metadata_tsv,
       samples_list = all_samples_list,
+      af_fields = ["parent_AF", "AF"],
+      ac_fields = ["parent_AC", "AC"],
       prefix = study_prefix,
       docker = pedsv_r_docker
   }
@@ -137,11 +139,42 @@ workflow PedSvMainAnalysis {
       docker = pedsv_r_docker
   }
 
+  call BurdenTests as TrioCohortBurdenTests {
+    input:
+      beds = [trio_bed],
+      bed_idxs = [trio_bed_idx],
+      ad_matrixes = [trio_ad_matrix],
+      ad_matrix_idxs = [trio_ad_matrix_idx],
+      sample_metadata_tsv = sample_metadata_tsv,
+      samples_list = trio_samples_list,
+      af_fields = ["parent_AF"],
+      ac_fields = ["parent_AC"],
+      prefix = study_prefix + ".trio_cohort",
+      docker = pedsv_r_docker
+  }
+
+  call BurdenTests as ValidationCohortBurdenTests {
+    input:
+      beds = [validation_bed],
+      bed_idxs = [validation_bed_idx],
+      ad_matrixes = [validation_ad_matrix],
+      ad_matrix_idxs = [validation_ad_matrix_idx],
+      sample_metadata_tsv = sample_metadata_tsv,
+      samples_list = validation_samples_list,
+      af_fields = ["parent_AF"],
+      ac_fields = ["parent_AC"],
+      prefix = study_prefix + ".validation_cohort",
+      docker = pedsv_r_docker
+  }
+
   call UnifyOutputs {
     input:
       tarballs = [StudyWideSummaryPlots.plots_tarball,
+                  StudyWideBurdenTests.plots_tarball,
                   TrioCohortSummaryPlots.plots_tarball,
-                  ValidationCohortSummaryPlots.plots_tarball],
+                  ValidationCohortSummaryPlots.plots_tarball,
+                  TrioCohortBurdenTests.plots_tarball,
+                  ValidationCohortBurdenTests.plots_tarball],
       prefix = study_prefix + "_analysis_outputs",
       docker = ubuntu_docker,
       relocate_stats = true
@@ -222,6 +255,58 @@ task StudyWideSummaryPlots {
     docker: docker
     memory: "15.5 GB"
     cpu: 4
+    disks: "local-disk " + disk_gb + " HDD"
+    preemptible: 3
+  }
+}
+
+
+# Conduct standard global burden tests
+task BurdenTests {
+  input {
+    Array[File] beds
+    Array[File] bed_idxs
+    Array[File] ad_matrixes
+    Array[File] ad_matrix_idxs
+    File sample_metadata_tsv
+    File samples_list
+    Array[String] af_fields
+    Array[String] ac_fields
+    String prefix
+    String docker
+  }
+
+  Int disk_gb = ceil(2 * (size(flatten([beds, ad_matrixes]), "GB"))) + 10
+
+  command <<<
+    set -eu -o pipefail
+
+    # Make output directory
+    mkdir ~{prefix}.BurdenTests
+
+    # Run burden tests
+    /opt/ped_germline_SV/analysis/landscape/global_burden_tests.R \
+      ~{sep=" --bed " beds} \
+      ~{sep=" --ad " ad_matrixes} \
+      --metadata ~{sample_metadata_tsv} \
+      --subset-samples ~{samples_list} \
+      ~{sep=" --af-field " af_fields} \
+      ~{sep=" --ac-field " ac_fields} \
+      --out-prefix ~{prefix}.BurdenTests/~{prefix}
+    gzip -f ~{prefix}.BurdenTests/*.tsv
+
+    # Compress output
+    tar -czvf ~{prefix}.BurdenTests.tar.gz ~{prefix}.BurdenTests
+  >>>
+
+  output {
+    File plots_tarball = "~{prefix}.BurdenTests.tar.gz"
+  }
+
+  runtime {
+    docker: docker
+    memory: "31.5 GB"
+    cpu: 16
     disks: "local-disk " + disk_gb + " HDD"
     preemptible: 3
   }
@@ -339,13 +424,13 @@ task CohortSummaryPlots {
     set -eu -o pipefail
 
     # Prep output directory
-    mkdir ~{prefix}
+    mkdir ~{prefix}.SummaryPlots
 
     # Plot SV counts and sizes
     /opt/ped_germline_SV/analysis/landscape/plot_sv_counts_and_sizes.R \
       --af-field ~{af_field} \
       --ac-field ~{ac_field} \
-      --out-prefix ~{prefix}/~{prefix} \
+      --out-prefix ~{prefix}.SummaryPlots/~{prefix} \
       ~{bed}
 
     # Format SV counts per sample
@@ -362,16 +447,16 @@ task CohortSummaryPlots {
     # Plot SVs per sample
     /opt/ped_germline_SV/analysis/landscape/plot_svs_per_sample.R \
       --metadata ~{sample_metadata_tsv} \
-      --out-prefix ~{prefix}/~{prefix} \
+      --out-prefix ~{prefix}.SummaryPlots/~{prefix} \
       sv_counts_per_sample.tsv
 
     # Compress output
-    find ~{prefix}/ -name "*.tsv" | xargs -I {} gzip -f {}
-    tar -czvf ~{prefix}.tar.gz ~{prefix}
+    find ~{prefix}.SummaryPlots/ -name "*.tsv" | xargs -I {} gzip -f {}
+    tar -czvf ~{prefix}.SummaryPlots.tar.gz ~{prefix}.SummaryPlots
   >>>
 
   output {
-    File plots_tarball = "~{prefix}.tar.gz"
+    File plots_tarball = "~{prefix}.SummaryPlots.tar.gz"
   }
 
   runtime {

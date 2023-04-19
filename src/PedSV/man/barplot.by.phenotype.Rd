@@ -10,7 +10,7 @@
   add.top.axis = TRUE,
   top.axis.units = NULL,
   title = "Value",
-  parmar = c(0.2, 4.1, 2.1, 3.9)
+  parmar = c(0.2, 4.1, 2.1, 4)
 )
 }
 \arguments{

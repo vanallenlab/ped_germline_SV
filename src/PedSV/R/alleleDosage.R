@@ -60,7 +60,12 @@ query.ad.matrix <- function(ad, query.regions=NULL, query.ids=NULL,
         }
         coords <- as.character(coords)
         interval <- paste(coords[1], ":", coords[2], "-", coords[3], sep="")
-        bedr::tabix(region=interval, file.name=ad)
+        sub.ad <- bedr::tabix(region=interval, file.name=ad)
+        if(is.null(query.ids)){
+          sub.ad
+        }else{
+          sub.ad[which(sub.ad[, 4] %in% query.ids), ]
+        }
       }))
     }
     ad <- as.data.frame(ad)
@@ -70,18 +75,19 @@ query.ad.matrix <- function(ad, query.regions=NULL, query.ids=NULL,
     ad <- ad[, -c(1:4)]
   }
 
-  # Subset to variants of interest and return directly if optioned
-  if(is.null(query.ids)){
-    sub.df <- ad
-  }else{
-    sub.df <- ad[which(rownames(ad) %in% query.ids), ]
+  # Second subsetting step based on query IDs
+  # This is necessary for use cases when ad is passed as a data.frame
+  if(!is.null(query.ids)){
+    ad <- ad[which(rownames(ad) %in% query.ids), ]
   }
+
+  # Subset to variants of interest and return directly if optioned
   if(action == "verbose"){
-    return(sub.df)
+    return(ad)
   }
 
   # Otherwise, apply various compression strategies prior to returning
-  compress.ad.matrix(sub.df, action)
+  compress.ad.matrix(ad, action)
 }
 
 

@@ -44,6 +44,21 @@ filter.bed <- function(bed, query, af.field="AF", ac.field="AC", autosomal=TRUE)
   if("large" %in% query.parts){
     keep.idx <- intersect(keep.idx, which(bed$SVLEN > 1000000 | bed$SVTYPE == "CTX"))
   }
+  lof.idx <- which(!unlist(sapply(bed$PREDICTED_LOF, is.na)))
+  cg.idx <- which(!unlist(sapply(bed$PREDICTED_COPY_GAIN, is.na)))
+  ied.idx <- which(!unlist(sapply(bed$PREDICTED_INTRAGENIC_EXON_DUP, is.na)))
+  if("gene_disruptive" %in% query.parts){
+    keep.idx <- intersect(keep.idx, unique(c(lof.idx, cg.idx, ied.idx)))
+  }
+  if("lof" %in% query.parts){
+    keep.idx <- intersect(keep.idx, lof.idx)
+  }
+  if("cg" %in% query.parts){
+    keep.idx <- intersect(keep.idx, cg.idx)
+  }
+  if("ied" %in% query.parts){
+    keep.idx <- intersect(keep.idx, ied.idx)
+  }
   bed[keep.idx, ]
 }
 
@@ -150,7 +165,7 @@ main.burden.wrapper <- function(data, query, meta, action, af.fields, ac.fields,
   if(action == "any"){
     ci.mode <- "binomial"
     family <- binomial()
-  }else if(action == "sum"){
+  }else if(action %in% c("sum", "count")){
     ci.mode <- "normal"
     family <- gaussian()
   }
@@ -173,6 +188,7 @@ main.burden.wrapper <- function(data, query, meta, action, af.fields, ac.fields,
                          action=action)
     }))
     new.stats <- burden.test(data, query, meta, ad.vals, family, af.fields, ac.fields)
+    new.stats$hypothesis <- paste(new.stats$hypothesis, subset.info[[1]], sep=".")
     all.stats <- rbind(all.stats, new.stats)
     pdf(paste(out.prefix, subset.info[[1]], ".pdf", sep="."),
         height=barplot.height, width=barplot.width)
@@ -266,15 +282,26 @@ all.stats <- data.frame("hypothesis"=character(0), "disease"=character(0),
 barplot.height <- 0.5 + (length(unique(meta$disease)) / 4)
 barplot.width <- 3
 
-# Total nucleotides rearranged per genome by SV type
+# Absolute sum of nucleotides rearranged per genome by SV type
 # TODO: implement this (need to weight AD matrix by query ID)
 
-
 # # Count of large variants per genome by SV type
-# TODO: implement this
+sv.subsets <- lapply(c("DEL", "DUP", "INV", "CPX"), function(svtype){
+  list(svtype,
+       as.character(unlist(sapply(data, function(info){
+         rownames(info$bed)[which(info$bed$SVTYPE == svtype)]
+       }))),
+       paste(sv.abbreviations[svtype], ">1Mb per Sample"))
+})
+all.stats <- main.burden.wrapper(data, query="large", meta, action="count",
+                                 af.fields, ac.fields, sv.subsets=sv.subsets, all.stats,
+                                 paste(args$out_prefix, "large_sv_per_genome.by_cancer", sep="."),
+                                 main.title="SVs >1Mb per Sample",
+                                 barplot.height, barplot.width)
+
 
 # Carrier rate of rare, large variants per genome by SV type
-sv.subsets <- lapply(c("DEL", "DUP", "INV", "CPX"), function(svtype){
+sv.subsets <- lapply(c("DEL", "DUP", "INV", "CPX", "CTX"), function(svtype){
   list(svtype,
        as.character(unlist(sapply(data, function(info){
          rownames(info$bed)[which(info$bed$SVTYPE == svtype)]
@@ -288,15 +315,44 @@ all.stats <- main.burden.wrapper(data, query="large.rare", meta, action="any",
                                  barplot.height, barplot.width, barplot.units="percent")
 
 # Number of rare LoF, CG, IEDs per genome
+sv.subsets <- list(
+  list("rare_LoF_SVs",
+       as.character(unlist(sapply(data, function(info){
+         rownames(info$bed)[which(!unlist(sapply(info$bed$PREDICTED_LOF, is.na)))]
+       }))),
+       "Rare LoF SVs per Sample"),
+  list("rare_CG_SVs",
+       as.character(unlist(sapply(data, function(info){
+         rownames(info$bed)[which(!unlist(sapply(info$bed$PREDICTED_COPY_GAIN, is.na)))]
+       }))),
+       "Rare CG SVs per Sample"),
+  list("rare_IED_SVs",
+       as.character(unlist(sapply(data, function(info){
+         rownames(info$bed)[which(!unlist(sapply(info$bed$PREDICTED_INTRAGENIC_EXON_DUP, is.na)))]
+       }))),
+       "Rare IED SVs per Sample")
+)
+all.stats <- main.burden.wrapper(data, query="rare.gene_disruptive", meta, action="count",
+                                 af.fields, ac.fields, sv.subsets=sv.subsets, all.stats,
+                                 paste(args$out_prefix, "rare_gene_disruptive_sv_per_genome.by_cancer", sep="."),
+                                 main.title="Rare Gene-Disruptive SVs / Sample",
+                                 barplot.height, barplot.width)
 
 # Number of genes impacted by rare LoF, CG, IED per genome
+# TODO: add variant weighting option to compress.ad.matrix
 
-# Number of LoF in constrained genes per genome
+# Carrier rate of rare LoF in constrained genes per genome
 
-# Number of LoF in tumor suppressor genes per genome
+# Carrier rate of rare LoF in haploinsufficient genes per genome
 
-# Number of CG in oncogenes per genome
+# Carrier rate of rare CG in triplosensitive genes per genome
+
+# Carrier rate of rare LoF in tumor suppressor genes per genome
+
+# Carrier rate of rare CG in oncogenes per genome
 
 # Write all stats to outfile
-# TODO: implement this
-
+colnames(all.stats)[1] <- paste("#", colnames(all.stats)[1], sep="")
+write.table(all.stats,
+            paste(args$out_prefix, "global_burden_tests.tsv", sep="."),
+            col.names=T, row.names=F, sep="\t", quote=F)

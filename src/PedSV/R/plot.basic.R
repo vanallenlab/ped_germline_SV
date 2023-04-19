@@ -170,7 +170,7 @@ ridgeplot <- function(data, names=NULL, hill.overlap=0.35, xlims=NULL, x.axis=TR
 barplot.by.phenotype <- function(plot.df, bar.hex=0.8,
                                  add.top.axis=TRUE, top.axis.units=NULL,
                                  title="Value",
-                                 parmar=c(0.2, 4.1, 2.1, 3.9)){
+                                 parmar=c(0.2, 4.1, 2.1, 4)){
   # Get plot dimensions
   xlims <- c(0, max(plot.df[, 1:3]))
   ylims <- c(nrow(plot.df), 0)
