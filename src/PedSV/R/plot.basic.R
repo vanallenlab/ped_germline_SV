@@ -153,6 +153,7 @@ ridgeplot <- function(data, names=NULL, hill.overlap=0.35, xlims=NULL, x.axis=TR
 #'
 #' @param plot.df Data.frame of values to plot. See `Details`.
 #' @param bar.hex Relative width for each bar \[default: 0.85\]
+#' @param color.by.sig Should bars be shaded differently by significance level? \[default: TRUE\]
 #' @param add.top.axis Should the top axis be added? \[default: TRUE\]
 #' @param top.axis.units Specify units for top axis. Options are NULL (for
 #' numeric) or "percent" \[default: NULL\]
@@ -167,12 +168,12 @@ ridgeplot <- function(data, names=NULL, hill.overlap=0.35, xlims=NULL, x.axis=TR
 #'
 #' @export barplot.by.phenotype
 #' @export
-barplot.by.phenotype <- function(plot.df, bar.hex=0.8,
+barplot.by.phenotype <- function(plot.df, bar.hex=0.8, color.by.sig=TRUE,
                                  add.top.axis=TRUE, top.axis.units=NULL,
                                  title="Value",
                                  parmar=c(0.2, 4.1, 2.1, 4)){
   # Get plot dimensions
-  xlims <- c(0, max(plot.df[, 1:3]))
+  xlims <- c(0, min(c(2*max(plot.df[, 1]), max(plot.df[, 1:3]))))
   ylims <- c(nrow(plot.df), 0)
   y.mids <- (1:nrow(plot.df))-0.5
 
@@ -183,19 +184,30 @@ barplot.by.phenotype <- function(plot.df, bar.hex=0.8,
   if(add.top.axis){
     clean.axis(3, label.units=top.axis.units,
                title=title, infinite.positive=TRUE,
-               label.line=-0.8, title.line=0.1)
+               label.line=-0.8, title.line=0.1, max.ticks=5)
   }
   axis(2, at=y.mids, tick=F, line=-0.85, las=2, cex.axis=5.5/6,
        labels=cancer.names.short[rownames(plot.df)])
 
   # Add bars, CI ticks, and outer borders
+  sig.idx <- which(plot.df[, 4] < 0.05)
+  bar.cols <- sapply(rownames(plot.df), function(pheno){cancer.palettes[[pheno]]["light1"]})
+  bar.cols[1] <- cancer.colors["control"]
+  ci.cols <- cancer.colors[rownames(plot.df)]
+  ci.cols[1] <- cancer.palettes[["control"]]["dark1"]
+  if(color.by.sig){
+    if(length(sig.idx) > 0){
+      bar.cols[sig.idx] <- cancer.colors[rownames(plot.df)[sig.idx]]
+      ci.cols[sig.idx] <- sapply(rownames(plot.df)[sig.idx], function(pheno){cancer.palettes[[pheno]]["dark1"]})
+    }
+  }
   rect(ybottom=y.mids-(bar.hex/2),
        ytop=y.mids+(bar.hex/2),
        xleft=0, xright=plot.df[, 1],
-       col=cancer.colors[rownames(plot.df)],
+       col=bar.cols,
        border=NA, bty="n")
   segments(y0=y.mids, y1=y.mids, x0=plot.df[, 2], x1=plot.df[, 3], lwd=2, lend="butt",
-           col=sapply(rownames(plot.df), function(pheno){cancer.palettes[[pheno]]["dark1"]}))
+           col=ci.cols)
   rect(ybottom=y.mids-(bar.hex/2),
        ytop=y.mids+(bar.hex/2),
        xleft=0, xright=plot.df[, 1],

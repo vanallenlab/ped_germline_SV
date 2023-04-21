@@ -4,7 +4,13 @@
 \alias{query.ad.matrix}
 \title{Query allele dosage matrix}
 \usage{
-query.ad.matrix(ad, query.regions = NULL, query.ids = NULL, action = "verbose")
+query.ad.matrix(
+  ad,
+  query.regions = NULL,
+  query.ids = NULL,
+  action = "verbose",
+  weights = NULL
+)
 }
 \arguments{
 \item{ad}{Either a path to an allele dosage .bed.gz matrix or a data.frame
@@ -15,6 +21,9 @@ from a previous call of \link{query.ad.matrix}}
 \item{query.ids}{Vector of variant IDs to query}
 
 \item{action}{Action to apply to query rows; see \code{Details}}
+
+\item{weights}{Optional named vector of weights for each variant. Variants
+not present in this vector will be assigned weight = 1. [default: no weighting]}
 }
 \value{
 numeric vector or data.frame, depending on \code{action}

@@ -4,7 +4,7 @@
 \alias{query.ad.from.sv.bed}
 \title{Query allele dosage matrix using an SV BED file}
 \usage{
-query.ad.from.sv.bed(ad, bed, action = "verbose")
+query.ad.from.sv.bed(ad, bed, action = "verbose", weights = NULL)
 }
 \arguments{
 \item{ad}{Allele dosage matrix. See \link{query.ad.matrix}.}
@@ -12,6 +12,9 @@ query.ad.from.sv.bed(ad, bed, action = "verbose")
 \item{bed}{Data frame of SVs to query as loaded by \link{load.sv.bed}.}
 
 \item{action}{Action to apply to query. See \link{query.ad.matrix}.}
+
+\item{weights}{Optional named vector of weights for each variant. Variants
+not present in this vector will be assigned weight = 1. [default: no weighting]}
 }
 \value{
 Data.frame or vector depending on value of \code{action}

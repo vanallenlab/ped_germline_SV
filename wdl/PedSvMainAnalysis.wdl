@@ -67,7 +67,7 @@ workflow PedSvMainAnalysis {
       ad_matrix_idxs = [trio_ad_matrix_idx, validation_ad_matrix_idx],
       sample_metadata_tsv = sample_metadata_tsv,
       samples_list = all_samples_list,
-      af_fields = ["parent_AF", "AF"],
+      af_fields = ["POPMAX_parent_AF", "POPMAX_AF"],
       ac_fields = ["parent_AC", "AC"],
       prefix = study_prefix,
       docker = pedsv_r_docker
@@ -123,7 +123,7 @@ workflow PedSvMainAnalysis {
       sample_metadata_tsv = sample_metadata_tsv,
       sample_list = trio_samples_list,
       per_sample_tarball = MergeTrioSVsPerSample.per_sample_tarball,
-      af_field = "parent_AF",
+      af_field = "POPMAX_parent_AF",
       ac_field = "parent_AC",
       docker = pedsv_r_docker
   }
@@ -147,7 +147,7 @@ workflow PedSvMainAnalysis {
       ad_matrix_idxs = [trio_ad_matrix_idx],
       sample_metadata_tsv = sample_metadata_tsv,
       samples_list = trio_samples_list,
-      af_fields = ["parent_AF"],
+      af_fields = ["POPMAX_parent_AF"],
       ac_fields = ["parent_AC"],
       prefix = study_prefix + ".trio_cohort",
       docker = pedsv_r_docker
@@ -161,7 +161,7 @@ workflow PedSvMainAnalysis {
       ad_matrix_idxs = [validation_ad_matrix_idx],
       sample_metadata_tsv = sample_metadata_tsv,
       samples_list = validation_samples_list,
-      af_fields = ["AF"],
+      af_fields = ["POPMAX_AF"],
       ac_fields = ["AC"],
       prefix = study_prefix + ".validation_cohort",
       docker = pedsv_r_docker
@@ -415,7 +415,7 @@ task CohortSummaryPlots {
     File per_sample_tarball
     String prefix
     
-    String af_field = "AF"
+    String af_field = "POPMAX_AF"
     String ac_field = "AC"
 
     String docker

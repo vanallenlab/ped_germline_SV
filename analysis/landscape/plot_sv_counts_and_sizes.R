@@ -109,7 +109,7 @@ plot.count.bars <- function(bed, af.field="AF", ac.field="AC", greyscale=TRUE,
 
   # Prep plot area
   PedSV::prep.plot.area(xlims, ylims, parmar=c(0.25, 3.5, 0.1, 2.5), xaxs="i", yaxs="i")
-  abline(v=xlims[1], col="gray85")
+  segments(x0=xlims[1], x1=xlims[1], y0=0, y1=ylims[2], col="gray85", xpd=T)
 
   # Add bars & cap labels
   sapply(1:ncol(counts), function(i){

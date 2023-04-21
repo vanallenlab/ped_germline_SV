@@ -7,6 +7,7 @@
 \method{barplot}{by.phenotype}(
   plot.df,
   bar.hex = 0.8,
+  color.by.sig = TRUE,
   add.top.axis = TRUE,
   top.axis.units = NULL,
   title = "Value",
@@ -17,6 +18,8 @@
 \item{plot.df}{Data.frame of values to plot. See \code{Details}.}
 
 \item{bar.hex}{Relative width for each bar [default: 0.85]}
+
+\item{color.by.sig}{Should bars be shaded differently by significance level? [default: TRUE]}
 
 \item{add.top.axis}{Should the top axis be added? [default: TRUE]}
 

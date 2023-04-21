@@ -21,6 +21,8 @@
 #' @param query.regions List of tripartite coordinate vectors to query; see `Details`
 #' @param query.ids Vector of variant IDs to query
 #' @param action Action to apply to query rows; see `Details`
+#' @param weights Optional named vector of weights for each variant. Variants
+#' not present in this vector will be assigned weight = 1. \[default: no weighting\]
 #'
 #' @details The value for `query.regions` is expected to be a list of vectors,
 #' where each vector must either be a single chromosome or have exactly
@@ -45,7 +47,7 @@
 #' @export query.ad.matrix
 #' @export
 query.ad.matrix <- function(ad, query.regions=NULL, query.ids=NULL,
-                            action="verbose"){
+                            action="verbose", weights=NULL){
 
   # Load region(s) of interest or whole matrix if query.regions is NULL
   if(inherits(ad, "character")){
@@ -54,19 +56,19 @@ query.ad.matrix <- function(ad, query.regions=NULL, query.ids=NULL,
                        stringsAsFactors=F)
     }else{
       require(bedr, quietly=TRUE)
-      ad <- do.call("rbind", lapply(query.regions, function(coords){
+      tabix.query <- sapply(query.regions, function(coords){
         if(length(coords) == 1){
           coords <- c(coords, 0, 400000000)
         }
         coords <- as.character(coords)
-        interval <- paste(coords[1], ":", coords[2], "-", coords[3], sep="")
-        sub.ad <- bedr::tabix(region=interval, file.name=ad)
-        if(is.null(query.ids)){
-          sub.ad
-        }else{
-          sub.ad[which(sub.ad[, 4] %in% query.ids), ]
-        }
-      }))
+        paste(coords[1], ":", coords[2], "-", coords[3], sep="")
+      })
+      tabix.query <- bedr.merge.region(bedr.sort.region(tabix.query, verbose=FALSE),
+                                       verbose=FALSE)
+      ad <- bedr::tabix(region=tabix.query, file.name=ad)
+      if(!is.null(query.ids)){
+        ad <- ad[which(ad[, 4] %in% query.ids), ]
+      }
     }
     ad <- as.data.frame(ad)
     ad <- ad[!duplicated(ad[, 1:4]), ]
@@ -81,13 +83,8 @@ query.ad.matrix <- function(ad, query.regions=NULL, query.ids=NULL,
     ad <- ad[which(rownames(ad) %in% query.ids), ]
   }
 
-  # Subset to variants of interest and return directly if optioned
-  if(action == "verbose"){
-    return(ad)
-  }
-
   # Otherwise, apply various compression strategies prior to returning
-  compress.ad.matrix(ad, action)
+  compress.ad.matrix(ad, action, weights)
 }
 
 
@@ -97,6 +94,8 @@ query.ad.matrix <- function(ad, query.regions=NULL, query.ids=NULL,
 #'
 #' @param ad.df Data.frame of allele dosages loaded by [query.ad.matrix]
 #' @param action Action to apply to query rows; see `Details` in [query.ad.matrix]
+#' @param weights Optional named vector of weights for each variant. Variants
+#' not present in this vector will be assigned weight = 1. \[default: no weighting\]
 #'
 #' @return numeric vector
 #'
@@ -104,10 +103,26 @@ query.ad.matrix <- function(ad, query.regions=NULL, query.ids=NULL,
 #'
 #' @export compress.ad.matrix
 #' @export
-compress.ad.matrix <- function(ad.df, action){
+compress.ad.matrix <- function(ad.df, action, weights=NULL){
   col.all.na <- apply(ad.df, 2, function(vals){
     all(is.na(as.numeric(vals)))
   })
+
+  # Reorder weights, fill missing weights, and apply weights to all ACs
+  ordered.weights <- rep(1, times=nrow(ad.df))
+  if(!is.null(weights)){
+    for(svid in names(weights)){
+      hits <- which(rownames(ad.df) == svid)
+      if(length(hits) > 0){
+        ordered.weights[hits] <- weights[svid]
+      }
+    }
+  }
+  ad.df <- as.data.frame(apply(ad.df, 2, function(vals){vals * ordered.weights}))
+
+  if(action == "verbose"){
+    query.res <- ad.df
+  }
   if(action == "any"){
     query.res <- as.numeric(apply(ad.df, 2, function(vals){
       any(as.logical(as.numeric(vals)), na.rm=T)
@@ -139,6 +154,8 @@ compress.ad.matrix <- function(ad.df, action){
 #' @param ad Allele dosage matrix. See [query.ad.matrix].
 #' @param bed Data frame of SVs to query as loaded by [load.sv.bed].
 #' @param action Action to apply to query. See [query.ad.matrix].
+#' @param weights Optional named vector of weights for each variant. Variants
+#' not present in this vector will be assigned weight = 1. \[default: no weighting\]
 #'
 #' @return Data.frame or vector depending on value of `action`
 #'
@@ -146,7 +163,7 @@ compress.ad.matrix <- function(ad.df, action){
 #'
 #' @export query.ad.from.sv.bed
 #' @export
-query.ad.from.sv.bed <- function(ad, bed, action="verbose"){
+query.ad.from.sv.bed <- function(ad, bed, action="verbose", weights=NULL){
   # Make query intervals list from BED
   query.regions <- lapply(1:nrow(bed), function(i){
     c(bed[i, "chrom"], bed[i, "start"] - 5, bed[i, "start"] + 5)
@@ -154,5 +171,5 @@ query.ad.from.sv.bed <- function(ad, bed, action="verbose"){
   query.ids <- rownames(bed)
 
   # Query AD matrix
-  query.ad.matrix(ad, query.regions, query.ids, action)
+  query.ad.matrix(ad, query.regions, query.ids, action, weights)
 }

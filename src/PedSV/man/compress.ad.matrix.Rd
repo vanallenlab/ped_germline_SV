@@ -4,12 +4,15 @@
 \alias{compress.ad.matrix}
 \title{Compress allele dosage matrix}
 \usage{
-compress.ad.matrix(ad.df, action)
+compress.ad.matrix(ad.df, action, weights = NULL)
 }
 \arguments{
 \item{ad.df}{Data.frame of allele dosages loaded by \link{query.ad.matrix}}
 
 \item{action}{Action to apply to query rows; see \code{Details} in \link{query.ad.matrix}}
+
+\item{weights}{Optional named vector of weights for each variant. Variants
+not present in this vector will be assigned weight = 1. [default: no weighting]}
 }
 \value{
 numeric vector

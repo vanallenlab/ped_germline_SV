@@ -70,7 +70,7 @@ args <- parser$parse_args()
 # args <- list("metadata" = "~/scratch/gatk_sv_pediatric_cancers_combined_cohort_metadata_3_31_23.txt",
 #              "subset_samples" = "/Users/collins/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/data/ancestry_and_relatedness/PedSV.v1.both_cohorts_final_samples.list",
 #              "out_prefix" = "~/scratch/PedSV.dev")
-
+#
 # Load PCs
 keepers <- NULL
 if(!is.null(args$subset_samples)){

@@ -4,7 +4,7 @@
 \alias{pedsv.glm}
 \title{PedSV generic association test}
 \usage{
-pedsv.glm(meta, X, Y, use.N.pcs = 10, family = gaussian())
+pedsv.glm(meta, X, Y, use.N.pcs = 10, family = gaussian(), cohort.term = FALSE)
 }
 \arguments{
 \item{meta}{Sample metadata loaded with \link{load.sample.metadata}}
@@ -17,6 +17,8 @@ pedsv.glm(meta, X, Y, use.N.pcs = 10, family = gaussian())
 model [default: 10]}
 
 \item{family}{\code{family} parameter passed to \link{glm}}
+
+\item{cohort.term}{Should a term for trio/validation cohort be included? [default: FALSE]}
 }
 \value{
 Named vector of test statsitics corresponding to independent variable

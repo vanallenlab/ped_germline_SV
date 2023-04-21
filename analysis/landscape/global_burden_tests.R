@@ -27,11 +27,15 @@ PedSV::load.constants("all")
 # Data functions #
 ##################
 # Filter a BED based on various categories of interest
-filter.bed <- function(bed, query, af.field="AF", ac.field="AC", autosomal=TRUE){
+filter.bed <- function(bed, query, af.field="AF", ac.field="AC",
+                       autosomal=TRUE, biallelic=TRUE){
   query.parts <- unlist(strsplit(query, split=".", fixed=T))
   keep.idx <- 1:nrow(bed)
   if(autosomal){
     keep.idx <- intersect(keep.idx, which(bed$chrom %in% c(1:22, paste("chr", 1:22, sep=""))))
+  }
+  if(biallelic){
+    keep.idx <- intersect(keep.idx, which(bed$FILTER == "PASS"))
   }
   if("rare" %in% query.parts){
     keep.idx <- intersect(keep.idx, which(bed[, af.field] < 0.01 & bed$SVTYPE != "CNV"))
@@ -45,20 +49,27 @@ filter.bed <- function(bed, query, af.field="AF", ac.field="AC", autosomal=TRUE)
   if("large" %in% query.parts){
     keep.idx <- intersect(keep.idx, which(bed$SVLEN > 1000000 | bed$SVTYPE == "CTX"))
   }
-  lof.idx <- which(!unlist(sapply(bed$PREDICTED_LOF, is.na)))
-  cg.idx <- which(!unlist(sapply(bed$PREDICTED_COPY_GAIN, is.na)))
-  ied.idx <- which(!unlist(sapply(bed$PREDICTED_INTRAGENIC_EXON_DUP, is.na)))
-  if("gene_disruptive" %in% query.parts){
-    keep.idx <- intersect(keep.idx, unique(c(lof.idx, cg.idx, ied.idx)))
+  lof.count <- sapply(bed$PREDICTED_LOF, length)
+  cg.count <- sapply(bed$PREDICTED_COPY_GAIN, length)
+  ied.count <- sapply(bed$PREDICTED_INTRAGENIC_EXON_DUP, length)
+  if(length(intersect(c("gene_disruptive", "genes_disrupted"), query.parts)) > 0){
+    keep.idx <- intersect(keep.idx, unique(c(which(lof.count > 0),
+                                             which(cg.count > 0),
+                                             which(ied.count > 0))))
+  }
+  if("single_gene_disruptive" %in% query.parts){
+    keep.idx <- intersect(keep.idx, unique(c(which(lof.count == 1),
+                                             which(cg.count == 1),
+                                             which(ied.count == 1))))
   }
   if("lof" %in% query.parts){
-    keep.idx <- intersect(keep.idx, lof.idx)
+    keep.idx <- intersect(keep.idx, which(lof.count > 0))
   }
   if("cg" %in% query.parts){
-    keep.idx <- intersect(keep.idx, cg.idx)
+    keep.idx <- intersect(keep.idx, which(cg.count > 0))
   }
   if("ied" %in% query.parts){
-    keep.idx <- intersect(keep.idx, ied.idx)
+    keep.idx <- intersect(keep.idx, which(ied.count > 0))
   }
   bed[keep.idx, ]
 }
@@ -77,7 +88,14 @@ get.ad.values <- function(data, query, action, af.fields, ac.fields){
   res <- lapply(1:length(data), function(i){
     info <- data[[i]]
     query.bed <- filter.bed(info$bed, query, af.fields[i], ac.fields[i])
-    query.ad.from.sv.bed(info$ad, query.bed, action)
+    if(query %in% c("rare.genes_disrupted")){
+      weights <- apply(query.bed[, c("PREDICTED_LOF", "PREDICTED_COPY_GAIN",
+                                    "PREDICTED_INTRAGENIC_EXON_DUP")],
+                       1, function(vals){sum(sapply(vals, length), na.rm=T)})
+    }else{
+      weights <- NULL
+    }
+    query.ad.from.sv.bed(info$ad, query.bed, action, weights)
   })
   if(is.data.frame(res[[1]])){
     return(res)
@@ -107,7 +125,7 @@ burden.test <- function(data, query, meta, ad.vals, family,
     c(cancer, length(case.ids), mean(X[case.ids], na.rm=T),
       sd(X[case.ids], na.rm=T), length(control.ids),
       mean(X[control.ids], na.rm=T), sd(X[control.ids], na.rm=T),
-      pedsv.glm(meta, X, Y, family=family))
+      pedsv.glm(meta, X, Y, family=family, cohort.term=length(data) > 1))
   })
 
   # Format and return data.frame of test statistics
@@ -117,8 +135,8 @@ burden.test <- function(data, query, meta, ad.vals, family,
                         "coefficient", "std.err",
                         "test.statistic", "P.value")
   res.df$hypothesis <- query
-  res.df$test <- if(family$family=="binomial"){"logit"}else{"linear"}
-  res.df[, c("hypothesis", "disease", "test", "n.case", "case.mean", "case.stdev",
+  res.df$model <- if(family$family=="binomial"){"logit"}else{"linear"}
+  res.df[, c("hypothesis", "disease", "model", "n.case", "case.mean", "case.stdev",
              "n.control", "control.mean", "control.stdev",
              "coefficient", "std.err", "test.statistic", "P.value")]
 }
@@ -162,12 +180,11 @@ main.burden.wrapper <- function(data, query, meta, action, af.fields, ac.fields,
                                 main.title="Values", barplot.height=2.5,
                                 barplot.width=3, barplot.units=NULL){
   # Get other parameters dictated by value of action
+  family <- binomial()
   if(action == "any"){
     ci.mode <- "binomial"
-    family <- binomial()
   }else if(action %in% c("sum", "count")){
     ci.mode <- "normal"
-    family <- gaussian()
   }
 
   # Gather verbose AD matrix for reuse later, and test all SVs before splitting by type
@@ -182,7 +199,7 @@ main.burden.wrapper <- function(data, query, meta, action, af.fields, ac.fields,
                        top.axis.units=barplot.units)
   dev.off()
   ad.dfs <- supercategory.res[["ad.df"]]
-  sapply(sv.subsets, function(subset.info){
+  for(subset.info in sv.subsets){
     ad.vals <- unlist(lapply(ad.dfs, function(df){
       compress.ad.matrix(df[intersect(rownames(df), subset.info[[2]]), ],
                          action=action)
@@ -195,7 +212,7 @@ main.burden.wrapper <- function(data, query, meta, action, af.fields, ac.fields,
     barplot.by.phenotype(stats2plot(new.stats, ci.mode), title=subset.info[[3]],
                          top.axis.units=barplot.units)
     dev.off()
-  })
+  }
   return(all.stats)
 }
 
@@ -217,6 +234,10 @@ parser$add_argument("--metadata", metavar=".tsv", type="character",
                     help="sample metadata .tsv", required=TRUE)
 parser$add_argument("--subset-samples", metavar=".tsv", type="character",
                     help="list of samples to subset [default: use all samples]")
+parser$add_argument("--exclude-variants", metavar=".txt", type="character",
+                    help=paste("list of variant IDs to exclude from analysis.",
+                               "Not recommended for most use-cases.",
+                               "[default: use all variants]"))
 parser$add_argument("--af-field", metavar="string", type="character", action="append",
                     help=paste("Column header to use for AF-related analyses.",
                                "Can be supplied once to be applied uniformly to",
@@ -234,13 +255,14 @@ args <- parser$parse_args()
 # args <- list("bed" = c("~/scratch/PedSV.v1.1.validation_cohort.analysis_samples.wAFs.bed.gz"),
 #              "ad" = c("~/scratch/PedSV.v1.1.validation_cohort.analysis_samples.wAFs.allele_dosages.bed.gz"),
 #              "metadata" = "~/scratch/gatk_sv_pediatric_cancers_combined_cohort_metadata_3_31_23.txt",
-#              "subset_samples" = "/Users/collins/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/data/ancestry_and_relatedness/PedSV.v1.both_cohorts_final_samples.list",
-#              "af_field" = "AF",
+#              "subset_samples" = "/Users/collins/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/data/ancestry_and_relatedness/PedSV.v1.validation_cohort_final_samples.list",
+#              "exclude_variants" = "~/scratch/PedSV.validation.bad_IDs.dev.txt",
+#              "af_field" = "POPMAX_AF",
 #              "ac_field" = "AC",
 #              "out_prefix" = "~/scratch/PedSV.dev")
 
 # Load BEDs and pair AD paths with each
-beds <- lapply(args$bed, load.sv.bed)
+beds <- lapply(args$bed, load.sv.bed, drop.vids=args$exclude_variants)
 data <- lapply(1:length(beds), function(i){
   list("bed" = beds[[i]], "ad" = args$ad[i])
 })
@@ -274,7 +296,7 @@ if(is.null(args$ac_field)){
 
 # Prepare data.frame for collecting test statistics
 all.stats <- data.frame("hypothesis"=character(0), "disease"=character(0),
-                        "test"=character(0), "n.case"=numeric(0),
+                        "model"=character(0), "n.case"=numeric(0),
                         "case.mean"=numeric(0), "n.control"=numeric(0),
                         "control.mean"=numeric(0), "coefficient"=numeric(0),
                         "std.err"=numeric(0), "test.statistic"=numeric(0),
@@ -287,19 +309,26 @@ barplot.width <- 3
 # Absolute sum of nucleotides rearranged per genome by SV type
 # TODO: implement this (need to weight AD matrix by query ID)
 
+
 # # Count of large variants per genome by SV type
 sv.subsets <- lapply(c("DEL", "DUP", "INV", "CPX"), function(svtype){
   list(svtype,
        as.character(unlist(sapply(data, function(info){
          rownames(info$bed)[which(info$bed$SVTYPE == svtype)]
        }))),
-       paste(sv.abbreviations[svtype], ">1Mb per Sample"))
+       paste("Samples with", sv.abbreviations[svtype], ">1Mb"))
 })
-all.stats <- main.burden.wrapper(data, query="large", meta, action="count",
+sv.subsets <- c(sv.subsets,
+                list(list("CTX",
+                     as.character(unlist(sapply(data, function(info){
+                       rownames(info$bed)[which(info$bed$SVTYPE == "CTX")]
+                     }))),
+                     "Samples with Reciprocal Translocations")))
+all.stats <- main.burden.wrapper(data, query="large", meta, action="any",
                                  af.fields, ac.fields, sv.subsets=sv.subsets, all.stats,
                                  paste(args$out_prefix, "large_sv_per_genome.by_cancer", sep="."),
-                                 main.title="SVs >1Mb per Sample",
-                                 barplot.height, barplot.width)
+                                 main.title="Samples with an SV >1Mb",
+                                 barplot.height, barplot.width, barplot.units="percent")
 
 
 # Carrier rate of rare, large variants per genome by SV type
@@ -308,7 +337,8 @@ sv.subsets <- lapply(c("DEL", "DUP", "INV", "CPX", "CTX"), function(svtype){
        as.character(unlist(sapply(data, function(info){
          rownames(info$bed)[which(info$bed$SVTYPE == svtype)]
        }))),
-       paste("Samples with Rare", sv.abbreviations[svtype], ">1Mb"))
+       paste("Samples with Rare", sv.abbreviations[svtype],
+             if(svtype != "CTX"){">1Mb"}))
 })
 all.stats <- main.burden.wrapper(data, query="large.rare", meta, action="any",
                                  af.fields, ac.fields, sv.subsets=sv.subsets, all.stats,
@@ -316,21 +346,39 @@ all.stats <- main.burden.wrapper(data, query="large.rare", meta, action="any",
                                  main.title="Samples with Rare SV >1Mb",
                                  barplot.height, barplot.width, barplot.units="percent")
 
+
 # Number of rare LoF, CG, IEDs per genome
 sv.subsets <- list(
   list("rare_LoF_SVs",
        as.character(unlist(sapply(data, function(info){
-         rownames(info$bed)[which(!unlist(sapply(info$bed$PREDICTED_LOF, is.na)))]
+         rownames(info$bed)[which(sapply(info$bed$PREDICTED_LOF, length) > 0)]
        }))),
        "Rare LoF SVs per Sample"),
+  list("rare_LoF_DELs",
+       as.character(unlist(sapply(data, function(info){
+         rownames(info$bed)[which(sapply(info$bed$PREDICTED_LOF, length) > 0
+                                  & info$bed$SVTYPE == "DEL")]
+       }))),
+       "Rare LoF Dels. per Sample"),
+  list("rare_LoF_nonDELs",
+       as.character(unlist(sapply(data, function(info){
+         rownames(info$bed)[which(sapply(info$bed$PREDICTED_LOF, length) > 0
+                                  & info$bed$SVTYPE != "DEL")]
+       }))),
+       "Rare LoF SVs (No Dels.)"),
   list("rare_CG_SVs",
        as.character(unlist(sapply(data, function(info){
-         rownames(info$bed)[which(!unlist(sapply(info$bed$PREDICTED_COPY_GAIN, is.na)))]
+         rownames(info$bed)[which(sapply(info$bed$PREDICTED_COPY_GAIN, length) > 0)]
        }))),
        "Rare CG SVs per Sample"),
   list("rare_IED_SVs",
        as.character(unlist(sapply(data, function(info){
-         rownames(info$bed)[which(!unlist(sapply(info$bed$PREDICTED_INTRAGENIC_EXON_DUP, is.na)))]
+         rownames(info$bed)[which(sapply(info$bed$PREDICTED_INTRAGENIC_EXON_DUP, length) > 0)]
+       }))),
+       "Rare IED SVs per Sample"),
+  list("rare_IED_SVs",
+       as.character(unlist(sapply(data, function(info){
+         rownames(info$bed)[which(sapply(info$bed$PREDICTED_INTRAGENIC_EXON_DUP, length) > 0)]
        }))),
        "Rare IED SVs per Sample")
 )
@@ -340,8 +388,55 @@ all.stats <- main.burden.wrapper(data, query="rare.gene_disruptive", meta, actio
                                  main.title="Rare Gene-Disruptive SVs / Sample",
                                  barplot.height, barplot.width)
 
-# Number of genes impacted by rare LoF, CG, IED per genome
-# TODO: add variant weighting option to compress.ad.matrix
+
+# Number of single-gene rare LoF, CG, IEDs per genome
+sv.subsets <- list(
+  list("rare_single_gene_LoF_SVs",
+       as.character(unlist(sapply(data, function(info){
+         rownames(info$bed)[which(sapply(info$bed$PREDICTED_LOF, length) == 1)]
+       }))),
+       "Rare Single-Gene LoF SVs"),
+  list("rare_single_gene_LoF_DELs",
+       as.character(unlist(sapply(data, function(info){
+         rownames(info$bed)[which(sapply(info$bed$PREDICTED_LOF, length) == 1
+                                  & info$bed$SVTYPE == "DEL")]
+       }))),
+       "Rare Single-Gene LoF Dels."),
+  list("rare_single_gene_LoF_nonDELs",
+       as.character(unlist(sapply(data, function(info){
+         rownames(info$bed)[which(sapply(info$bed$PREDICTED_LOF, length) == 1
+                                  & info$bed$SVTYPE != "DEL")]
+       }))),
+       "Rare Single-Gene LoF SVs (No Dels.)"),
+  list("rare_single_gene_CG_SVs",
+       as.character(unlist(sapply(data, function(info){
+         rownames(info$bed)[which(sapply(info$bed$PREDICTED_COPY_GAIN, length) == 1)]
+       }))),
+       "Rare Single-Gene CG SVs"),
+  list("rare_single_gene_IED_SVs",
+       as.character(unlist(sapply(data, function(info){
+         rownames(info$bed)[which(sapply(info$bed$PREDICTED_INTRAGENIC_EXON_DUP, length) == 1)]
+       }))),
+       "Rare Single-Gene IED SVs")
+)
+all.stats <- main.burden.wrapper(data, query="rare.single_gene_disruptive", meta, action="count",
+                                 af.fields, ac.fields, sv.subsets=sv.subsets, all.stats,
+                                 paste(args$out_prefix, "rare_single_gene_disruptive_sv_per_genome.by_cancer", sep="."),
+                                 main.title="Rare Single-Gene-Disruptive SVs",
+                                 barplot.height, barplot.width)
+
+
+# Number of genes impacted by rare LoF per genome
+ad.vals <- get.ad.values(data, query="rare.genes_disrupted.lof",
+                         action="sum", af.fields, ac.fields)
+new.stats <- burden.test(data, "rare.genes_disrupted.lof",
+                         meta, ad.vals, binomial(), af.fields, ac.fields)
+all.stats <- rbind(all.stats, new.stats)
+pdf(paste(args$out_prefix, "rare.n_genes_disrupted_per_genome.by_cancer.pdf", sep="."),
+    height=barplot.height, width=barplot.width)
+barplot.by.phenotype(stats2plot(new.stats, ci.mode="normal"),
+                     title="# Genes with Rare LoF SV per Sample")
+dev.off()
 
 # Carrier rate of rare LoF in constrained genes per genome
 

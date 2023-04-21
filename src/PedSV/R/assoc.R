@@ -21,7 +21,9 @@
 #' @param X Vector of values for primary independent variable. See `Details`.
 #' @param Y Vector of values for dependent variable. See `Details`.
 #' @param use.N.pcs Specify how many principal components should be adjusted in
-#' model \[default: 10\]
+#' model \[default: 5\]
+#' @param extra.terms Specify if any extra terms should be added to the model.
+#' Options include: "study", "cohort", "read.length", "insert.size", "wgd"
 #'
 #' @details There are several options for providing `X` and `Y` values:
 #'  * As an unnamed vector. In this case, the values are assumed to be in the
@@ -37,18 +39,28 @@
 #'
 #' @export prep.glm.matrix
 #' @export
-prep.glm.matrix <- function(meta, X, Y, use.N.pcs=10){
+prep.glm.matrix <- function(meta, X, Y, use.N.pcs=5, extra.terms=NULL){
   # Standard covariates
-  df <- data.frame("trio.phase" = as.numeric(meta$study_phase == "trio"),
-                   "is.female" = as.numeric(meta$inferred_sex == "FEMALE"
+  df <- data.frame("is.female" = as.numeric(meta$inferred_sex == "FEMALE"
                                             | meta$chrX_CopyNumber > 1.5),
                    "coverage" = scale(as.numeric(meta$median_coverage)),
-                   "read.length" = scale(as.numeric(meta$read_length)),
-                   "insert.size" = scale(as.numeric(meta$insert_size)),
-                   "wgd" = scale(as.numeric(meta$wgd_score)),
                    row.names=rownames(meta))
   if(use.N.pcs > 0){
     df <- cbind(df, apply(meta[paste("PC", 1:use.N.pcs, sep="")], 2, scale))
+  }
+  if(!is.null(extra.terms)){
+    if("cohort" %in% extra.terms){
+      df$trio.phase = as.numeric(meta$study_phase == "trio")
+    }
+    if("read.length" %in% extra.terms){
+      df$read.length <- scale(as.numeric(meta$read_length))
+    }
+    if("insert.size" %in% extra.terms){
+      df$insert.size <- scale(as.numeric(meta$insert_size))
+    }
+    if("wgd" %in% extra.terms){
+      df$abs.wgd = scale(abs(as.numeric(meta$wgd_score)))
+    }
   }
 
   # Add X and Y values
@@ -138,6 +150,7 @@ get.phenotype.vector <- function(case.ids, control.ids){
 #' @param use.N.pcs Specify how many principal components should be adjusted in
 #' model \[default: 10\]
 #' @param family `family` parameter passed to [glm]
+#' @param cohort.term Should a term for trio/validation cohort be included? \[default: FALSE\]
 #'
 #' @return Named vector of test statsitics corresponding to independent variable
 #'
@@ -145,9 +158,9 @@ get.phenotype.vector <- function(case.ids, control.ids){
 #'
 #' @export pedsv.glm
 #' @export
-pedsv.glm <- function(meta, X, Y, use.N.pcs=10, family=gaussian()){
+pedsv.glm <- function(meta, X, Y, use.N.pcs=10, family=gaussian(), cohort.term=FALSE){
   # Build dataframe of covariates
-  test.df <- prep.glm.matrix(meta, X, Y, use.N.pcs)
+  test.df <- prep.glm.matrix(meta, X, Y, use.N.pcs, cohort.term)
 
   # Fit GLM
   fit <- glm(Y ~ X + ., data=test.df, family=family)

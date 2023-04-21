@@ -112,12 +112,14 @@ load.sample.metadata <- function(tsv.in, keep.samples=NULL, reassign.parents=TRU
 #' Load a .bed for an SV callset
 #'
 #' @param bed.in Path to input .bed
-#' @param keep.coordinates Should coordinates be retained? [Default: TRUE]
-#' @param pass.only Should only PASS variants be included? [Default: TRUE]
+#' @param keep.coordinates Should coordinates be retained? \[Default: TRUE\]
+#' @param pass.only Should only PASS variants be included? \[Default: TRUE\]
 #' @param split.coding Should coding consequence annotations be split from
-#' comma-delimited strings to character vectors? [Default: TRUE]
+#' comma-delimited strings to character vectors? \[Default: TRUE\]
 #' @param split.noncoding Should noncoding consequence annotations be split from
-#' comma-delimited strings to character vectors? [Default: FALSE]
+#' comma-delimited strings to character vectors? \[Default: FALSE\]
+#' @param drop.vids Either a vector or a path to a file containing variant IDs
+#' to be excluded drop the input file. \[Default: Keep all IDs\]
 #'
 #' @returns data.frame
 #'
@@ -126,11 +128,20 @@ load.sample.metadata <- function(tsv.in, keep.samples=NULL, reassign.parents=TRU
 #' @export load.sv.bed
 #' @export
 load.sv.bed <- function(bed.in, keep.coords=TRUE, pass.only=TRUE,
-                        split.coding=TRUE, split.noncoding=FALSE){
+                        split.coding=TRUE, split.noncoding=FALSE,
+                        drop.vids=NULL){
   # Load data
   df <- read.table(bed.in, header=T, comment.char="", sep="\t", check.names=F,
                    stringsAsFactors=F)
   colnames(df)[1] <- gsub("#", "", colnames(df)[1])
+
+  # Drop variant IDs, if specified
+  if(!is.null(drop.vids)){
+    if(file.exists(drop.vids)){
+      drop.vids <- unique(read.table(drop.vids, header=F)[, 1])
+    }
+    df <- df[which(!df$name %in% drop.vids), ]
+  }
 
   # Restrict to PASS-only, if optioned
   if(pass.only){
@@ -158,7 +169,10 @@ load.sv.bed <- function(bed.in, keep.coords=TRUE, pass.only=TRUE,
     list.cols <- list.cols[grep("NONCODING", list.cols, invert=TRUE)]
   }
   df[, list.cols] <- apply(df[, list.cols], 2, function(col.vals){
-    sapply(as.character(col.vals), strsplit, split=",")
+    sapply(as.character(col.vals), function(str){
+      vals <- strsplit(str, split=",", fixed=T)
+      unlist(vals[which(!is.na(vals))])
+      })
   })
 
   # Ensure numeric frequency columns

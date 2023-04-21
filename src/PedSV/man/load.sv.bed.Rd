@@ -9,21 +9,25 @@ load.sv.bed(
   keep.coords = TRUE,
   pass.only = TRUE,
   split.coding = TRUE,
-  split.noncoding = FALSE
+  split.noncoding = FALSE,
+  drop.vids = NULL
 )
 }
 \arguments{
 \item{bed.in}{Path to input .bed}
 
-\item{pass.only}{Should only PASS variants be included? \link{Default: TRUE}}
+\item{pass.only}{Should only PASS variants be included? [Default: TRUE]}
 
 \item{split.coding}{Should coding consequence annotations be split from
-comma-delimited strings to character vectors? \link{Default: TRUE}}
+comma-delimited strings to character vectors? [Default: TRUE]}
 
 \item{split.noncoding}{Should noncoding consequence annotations be split from
-comma-delimited strings to character vectors? \link{Default: FALSE}}
+comma-delimited strings to character vectors? [Default: FALSE]}
 
-\item{keep.coordinates}{Should coordinates be retained? \link{Default: TRUE}}
+\item{drop.vids}{Either a vector or a path to a file containing variant IDs
+to be excluded drop the input file. [Default: Keep all IDs]}
+
+\item{keep.coordinates}{Should coordinates be retained? [Default: TRUE]}
 }
 \value{
 data.frame
