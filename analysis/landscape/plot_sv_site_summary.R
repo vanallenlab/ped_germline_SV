@@ -171,7 +171,7 @@ plot.HWE <- function(bed, pop=NULL, title=NULL, full.legend=F, lab.cex=1,
 
   #Gather HW p-values & colors
   HWE.mat <- make.hwe.mat(bed, prefix=pop)
-  HW.p <- HWChisqStats(X=HWE.mat, x.linked=F, pvalues=T)
+  HW.p <- HardyWeinberg::HWChisqStats(X=HWE.mat, x.linked=F, pvalues=T)
   HW.cols <- rep(colors[1], times=length(HW.p))
   HW.cols[which(HW.p<0.05)] <- colors[2]
   HW.cols[which(HW.p<0.05/length(HW.p))] <- colors[3]

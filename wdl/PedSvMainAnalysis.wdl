@@ -28,6 +28,7 @@ workflow PedSvMainAnalysis {
 		File trio_ad_matrix
 		File trio_ad_matrix_idx
 		File trio_samples_list
+    File? trio_variant_exclusion_list
 
     File validation_sites_vcf
     File validation_sites_vcf_idx
@@ -36,6 +37,10 @@ workflow PedSvMainAnalysis {
 		File validation_ad_matrix
 		File validation_ad_matrix_idx
 		File validation_samples_list
+    File? validation_variant_exclusion_list
+
+    Array[File]? gene_lists
+    Array[String]? gene_list_names
 
     String pedsv_r_docker
     String ubuntu_docker = "ubuntu:latest"
@@ -50,6 +55,17 @@ workflow PedSvMainAnalysis {
       docker = ubuntu_docker
   }
   File all_samples_list = ConcatSampleLists.outfile
+
+  if (length([trio_variant_exclusion_list, validation_variant_exclusion_list]) > 0) {
+    call ConcatTextFiles as ConcatVariantExclusionLists {
+      input:
+        infiles = select_all([trio_variant_exclusion_list, 
+                              validation_variant_exclusion_list]),
+        outfile_name = study_prefix + ".both_cohorts.variant_exclusion.list",
+        docker = ubuntu_docker
+    }
+  }
+  File? sv_exclusion_list = select_first([ConcatVariantExclusionLists.outfile])
 
   call StudyWideSummaryPlots {
     input:
@@ -69,6 +85,9 @@ workflow PedSvMainAnalysis {
       samples_list = all_samples_list,
       af_fields = ["POPMAX_parent_AF", "POPMAX_AF"],
       ac_fields = ["parent_AC", "AC"],
+      variant_exclusion_list = sv_exclusion_list,
+      gene_lists = gene_lists,
+      gene_list_names = gene_list_names,
       prefix = study_prefix,
       docker = pedsv_r_docker
   }
@@ -149,6 +168,9 @@ workflow PedSvMainAnalysis {
       samples_list = trio_samples_list,
       af_fields = ["POPMAX_parent_AF"],
       ac_fields = ["parent_AC"],
+      variant_exclusion_list = sv_exclusion_list,
+      gene_lists = gene_lists,
+      gene_list_names = gene_list_names,
       prefix = study_prefix + ".trio_cohort",
       docker = pedsv_r_docker
   }
@@ -163,6 +185,9 @@ workflow PedSvMainAnalysis {
       samples_list = validation_samples_list,
       af_fields = ["POPMAX_AF"],
       ac_fields = ["AC"],
+      variant_exclusion_list = sv_exclusion_list,
+      gene_lists = gene_lists,
+      gene_list_names = gene_list_names,
       prefix = study_prefix + ".validation_cohort",
       docker = pedsv_r_docker
   }
@@ -272,17 +297,29 @@ task BurdenTests {
     File samples_list
     Array[String] af_fields
     Array[String] ac_fields
+    File? variant_exclusion_list
+    Array[File]? gene_lists
+    Array[String]? gene_list_names
     String prefix
     String docker
   }
 
   Int disk_gb = ceil(2 * (size(flatten([beds, ad_matrixes]), "GB"))) + 10
+  Boolean any_gene_lists = defined(gene_lists)
 
   command <<<
     set -eu -o pipefail
 
     # Make output directory
     mkdir ~{prefix}.BurdenTests
+
+    # Prep gene list input, if optioned
+    if [ ~{any_gene_lists} == "true" ]; then
+      paste \
+        ~{write_lines(select_first([gene_list_names]))} \
+        ~{write_lines(select_first([gene_lists]))} \
+      > gene_list.input.tsv
+    fi
 
     # Build burden test command
     cmd="/opt/ped_germline_SV/analysis/landscape/global_burden_tests.R"
@@ -291,6 +328,12 @@ task BurdenTests {
     cmd="$cmd --metadata ~{sample_metadata_tsv} --subset-samples ~{samples_list}"
     cmd="$cmd $( awk -v OFS=" " -v ORS=" " '{ print "--af-field", $1 }' ~{write_lines(af_fields)} )"
     cmd="$cmd $( awk -v OFS=" " -v ORS=" " '{ print "--ac-field", $1 }' ~{write_lines(ac_fields)} )"
+    if [ ~{any_gene_lists} == "true" ]; then
+      cmd="$cmd --gene-lists gene_list.input.tsv"
+    fi
+    if [ ~{defined(variant_exclusion_list)} == "true" ]; then
+      cmd="$cmd --exclude-variants ~{variant_exclusion_list}"
+    fi
     cmd="$cmd --out-prefix ~{prefix}.BurdenTests/~{prefix}"
 
     # Run burden tests
