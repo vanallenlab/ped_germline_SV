@@ -151,9 +151,16 @@ format.pval <- function(p, nsmall=2, max.decimal=3, equality="=", min.neg.log10.
     bquote(italic(P) %~~% 0)
   }else if(ceiling(-log10(p)) > max.decimal){
     parts <- unlist(strsplit(format(p, scientific=T), split="e"))
-    base <- gsub(" ", "", formatC(round(as.numeric(parts[1]), nsmall), digits=1+nsmall), fixed=T)
+    base <- gsub(" ", "", format(round(as.numeric(parts[1]), nsmall), digits=1+nsmall), fixed=T)
     exp <- gsub(" ", "", as.numeric(parts[2]), fixed=T)
-    bquote(italic(P) ~ .(equality) ~ .(base) ~ "x" ~ 10 ^ .(exp))
+    if(base %in% c("1", "10")){
+      if(base == "10"){
+        exp <- as.character(as.numeric(exp) - 1)
+      }
+      bquote(italic(P) ~ .(equality) ~ 10 ^ .(exp))
+    }else{
+      bquote(italic(P) ~ .(equality) ~ .(base) ~ "x" ~ 10 ^ .(exp))
+    }
   }else{
     bquote(italic(P) ~ .(equality) ~ .(formatC(round(p, max.decimal), digits=max.decimal)))
   }

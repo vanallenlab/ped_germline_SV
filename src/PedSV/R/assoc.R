@@ -23,7 +23,8 @@
 #' @param use.N.pcs Specify how many principal components should be adjusted in
 #' model \[default: 5\]
 #' @param extra.terms Specify if any extra terms should be added to the model.
-#' Options include: "study", "cohort", "read.length", "insert.size", "wgd"
+#' Named options include: "study", "cohort", "coverage, "read.length", "insert.size",
+#' and "wgd". Custom terms can be passed using their exact column names in `meta`.
 #'
 #' @details There are several options for providing `X` and `Y` values:
 #'  * As an unnamed vector. In this case, the values are assumed to be in the
@@ -43,7 +44,6 @@ prep.glm.matrix <- function(meta, X, Y, use.N.pcs=5, extra.terms=NULL){
   # Standard covariates
   df <- data.frame("is.female" = as.numeric(meta$inferred_sex == "FEMALE"
                                             | meta$chrX_CopyNumber > 1.5),
-                   "coverage" = scale(as.numeric(meta$median_coverage)),
                    row.names=rownames(meta))
   if(use.N.pcs > 0){
     df <- cbind(df, apply(meta[paste("PC", 1:use.N.pcs, sep="")], 2, scale))
@@ -51,6 +51,9 @@ prep.glm.matrix <- function(meta, X, Y, use.N.pcs=5, extra.terms=NULL){
   if(!is.null(extra.terms)){
     if("cohort" %in% extra.terms){
       df$trio.phase = as.numeric(meta$study_phase == "trio")
+    }
+    if("coverage" %in% extra.terms){
+      df$coverage = scale(as.numeric(meta$median_coverage))
     }
     if("read.length" %in% extra.terms){
       df$read.length <- scale(as.numeric(meta$read_length))
@@ -60,6 +63,10 @@ prep.glm.matrix <- function(meta, X, Y, use.N.pcs=5, extra.terms=NULL){
     }
     if("wgd" %in% extra.terms){
       df$abs.wgd = scale(abs(as.numeric(meta$wgd_score)))
+    }
+    other.terms <- setdiff(extra.terms, c("cohort", "coverage", "read.length", "insert.size", "wgd"))
+    for(term in other.terms){
+      df[, term] <- scale(meta[, term])
     }
   }
 
@@ -150,7 +157,7 @@ get.phenotype.vector <- function(case.ids, control.ids){
 #' @param use.N.pcs Specify how many principal components should be adjusted in
 #' model \[default: 10\]
 #' @param family `family` parameter passed to [glm]
-#' @param cohort.term Should a term for trio/validation cohort be included? \[default: FALSE\]
+#' @param extra.terms Extra covariate terms to include in model. See [PedSV::prep.glm.matrix].
 #'
 #' @return Named vector of test statsitics corresponding to independent variable
 #'
@@ -158,9 +165,9 @@ get.phenotype.vector <- function(case.ids, control.ids){
 #'
 #' @export pedsv.glm
 #' @export
-pedsv.glm <- function(meta, X, Y, use.N.pcs=10, family=gaussian(), cohort.term=FALSE){
+pedsv.glm <- function(meta, X, Y, use.N.pcs=10, family=gaussian(), extra.terms=NULL){
   # Build dataframe of covariates
-  test.df <- prep.glm.matrix(meta, X, Y, use.N.pcs, cohort.term)
+  test.df <- prep.glm.matrix(meta, X, Y, use.N.pcs, extra.terms)
 
   # Fit GLM
   fit <- glm(Y ~ X + ., data=test.df, family=family)

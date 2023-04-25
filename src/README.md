@@ -153,7 +153,6 @@ The `pedsv.glm` function calls `prep.glm.matrix()`, which transforms `meta` into
 
 By default, these covariates include:  
 * One-hot indicator for whether the sample is female (defined as inferred sex label or chrX ploidy > 1.5)  
-* Median WGS coverage  
 * Top `N` genetic principal components, where `N` defaults to 5 but can be specified by passing `keep.N.pcs` to `pedsv.glm()` or `prep.glm.matrix()`.   
 
 Other covariates can be added to this default list; see `?prep.glm.matrix` for more details.  

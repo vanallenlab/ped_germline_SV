@@ -214,6 +214,8 @@ barplot.by.phenotype <- function(plot.df, bar.hex=0.8, color.by.sig=TRUE,
        col=NA, xpd=T)
 
   # Add P values
+  axis(4, at=y.mids[which(rownames(plot.df) == "control")],
+       cex.axis=5/6, las=2, line=-1, tick=F, label="Logit model:")
   sapply(which(rownames(plot.df) != "control"), function(i){
     p.col <- if(plot.df[i, 4] < 0.05){"black"}else{control.colors[["main"]]}
     axis(4, at=y.mids[i], tick=F, line=-0.9, las=2, cex.axis=5/6,

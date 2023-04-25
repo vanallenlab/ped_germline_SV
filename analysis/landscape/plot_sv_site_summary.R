@@ -9,7 +9,7 @@
 # Distributed under terms of the GNU GPL v2.0 License (see LICENSE)
 # Contact: Ryan L. Collins <Ryan_Collins@dfci.harvard.edu>
 
-# Plot genome-wide SV count and size distributions for a single cohort
+# Plot genome-wide SV site summaries for a single cohort
 
 
 #########
@@ -92,6 +92,23 @@ tabulate.sizes <- function(bed, af.field="AF", ac.field="AC"){
   return(df)
 }
 
+# Gather Hardy-Weinberg data
+make.hwe.mat <- function(bed, prefix=NULL){
+  # Get column IDs
+  n.genos <- gsub("^_", "", paste(prefix, "N_BI_GENOS", sep="_"))
+  n.homref <- gsub("^_", "", paste(prefix, "N_HOMREF", sep="_"))
+  n.het <- gsub("^_", "", paste(prefix, "N_HET", sep="_"))
+  n.homalt <- gsub("^_", "", paste(prefix, "N_HOMALT", sep="_"))
+
+  # Restrict to autosomal, biallelic variants with at least one non-ref call
+  sub.dat <- bed[which(bed$chrom %in% paste("chr", 1:22, sep="") & bed$FILTER == "PASS"), ]
+  sub.dat <- sub.dat[which(apply(sub.dat[, c(n.het, n.homalt)], 1, sum) > 0), ]
+  HWE.mat <- data.frame("AA"=as.numeric(sub.dat[, n.homref]),
+                        "AB"=as.numeric(sub.dat[, n.het]),
+                        "BB"=as.numeric(sub.dat[, n.homalt]))
+  HWE.mat[complete.cases(HWE.mat), ]
+}
+
 
 ######################
 # Plotting functions #
@@ -147,6 +164,71 @@ plot.count.bars <- function(bed, af.field="AF", ac.field="AC", greyscale=TRUE,
        labels=c("Common", "Rare", "Singleton"))
 }
 
+# Hardy-Weinberg ternary plot
+plot.HWE <- function(bed, pop=NULL, title=NULL, full.legend=F, lab.cex=1,
+                     colors=c("#4DAC26", "#81F850", "#AC26A1")){
+  require(HardyWeinberg, quietly=T)
+
+  #Gather HW p-values & colors
+  HWE.mat <- make.hwe.mat(bed, prefix=pop)
+  HW.p <- HWChisqStats(X=HWE.mat, x.linked=F, pvalues=T)
+  HW.cols <- rep(colors[1], times=length(HW.p))
+  HW.cols[which(HW.p<0.05)] <- colors[2]
+  HW.cols[which(HW.p<0.05/length(HW.p))] <- colors[3]
+
+  # Generate HW plot frame
+  par(mar=c(1, 1, 1, 1), bty="n")
+  plot(x=1.15*c(-1/sqrt(3), 1/sqrt(3)), y=c(-0.15, 1.15), type="n",
+       xaxt="n", yaxt="n", xlab="", ylab="", xaxs="i", yaxs="i")
+  segments(x0=c(-1/sqrt(3), 0, 1/sqrt(3)),
+           x1=c(0, 1/sqrt(3), -1/sqrt(3)),
+           y0=c(0, 1, 0), y1=c(1, 0, 0))
+  HWTernaryPlot(X=HWE.mat, n=max(HWE.mat, na.rm=T), newframe=F,
+                vbounds=F, mafbounds=F,
+                region=1, vertexlab=NA,
+                alpha=0.05,
+                curvecols=c(colors[1:2], NA, NA), pch=NA)
+
+  #Add axes
+  text(x=c(-1/sqrt(3), 1/sqrt(3)), y=0, labels=c("0/0", "1/1"),
+       pos=1, cex=0.8, xpd=T, font=2)
+  text(x=0, y=1, labels="0/1", pos=3, cex=0.8, xpd=T, font=2)
+
+  #Finish HW plot
+  HWTernaryPlot(X=HWE.mat, n=max(HWE.mat, na.rm=T), newframe=F,
+                vbounds=F, mafbounds=F,
+                region=1, vertexlab=NA,
+                alpha=0.03/nrow(HWE.mat),
+                curvecols=c(colors[1], colors[3], NA, NA),
+                pch=21, cex=0.3, signifcolour=F, markercol=NA,
+                markerbgcol=adjustcolor(HW.cols, alpha=0.25))
+  segments(x0=c(-1/sqrt(3), 0, 1/sqrt(3)),
+           x1=c(0, 1/sqrt(3), -1/sqrt(3)),
+           y0=c(0, 1, 0), y1=c(1, 0, 0))
+
+  #Add legend
+  n.pass <- length(which(HW.p>=0.05))
+  cat(paste("PASS: ", n.pass/length(HW.p), "\n", sep=""))
+  n.nom <- length(which(HW.p<0.05 & HW.p>=0.05/nrow(HWE.mat)))
+  cat(paste("NOMINAL FAILS: ", n.nom/length(HW.p), "\n", sep=""))
+  n.bonf <- length(which(HW.p<0.05/nrow(HWE.mat)))
+  cat(paste("BONFERRONI FAILS: ", n.bonf/length(HW.p), "\n", sep=""))
+  legend("right", pch=19, col=colors, pt.cex=1.3,
+         legend=c(paste(round(100*(n.pass/nrow(HWE.mat)), 0), "%", sep=""),
+                  paste(round(100*(n.nom/nrow(HWE.mat)), 0), "%", sep=""),
+                  paste(round(100*(n.bonf/nrow(HWE.mat)), 0), "%", sep="")),
+         bty="n", bg=NA, cex=0.7)
+  text(x=par("usr")[2], y=par("usr")[4]-(0.2*(par("usr")[4]-par("usr")[3])),
+       pos=2, cex=0.7, labels=paste(title, "\n \n ", sep=""), font=2)
+  text(x=par("usr")[2], y=par("usr")[4]-(0.2*(par("usr")[4]-par("usr")[3])),
+       pos=2, cex=0.7,
+       labels=paste(" \n", prettyNum(max(apply(HWE.mat, 1, sum), na.rm=T), big.mark=","),
+                    " Samples\n ", sep=""))
+  text(x=par("usr")[2], y=par("usr")[4]-(0.2*(par("usr")[4]-par("usr")[3])),
+       pos=2, cex=0.7, labels=paste(" \n \n", prettyNum(nrow(HWE.mat), big.mark=","),
+                                    " SVs", sep=""))
+}
+
 
 ###########
 # RScript #
@@ -200,3 +282,14 @@ write.table(tabulate.counts(bed),
 write.table(tabulate.sizes(bed),
             paste(args$out_prefix, "sv_sizes_by_freq.tsv", sep="."),
             col.names=T, row.names=F, sep="\t", quote=F)
+
+# HWE ternary plots per population
+pops.in.bed <- unique(sapply(colnames(bed)[grep("_AF$", colnames(bed))],
+                             function(col.name){unlist(strsplit(col.name, split="_"))[1]}))
+for(pop in intersect(names(pop.colors), pops.in.bed)){
+  cat(paste("HWE for ", pop, ":\n", sep=""))
+  png(paste(args$out_prefix, pop, "HWE.png", sep="."),
+      height=1000, width=1000, res=400)
+  plot.HWE(bed, pop=pop, title=pop.names.short[pop], full.legend=T)
+  dev.off()
+}

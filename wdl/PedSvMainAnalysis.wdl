@@ -430,7 +430,7 @@ task CohortSummaryPlots {
     mkdir ~{prefix}.SummaryPlots
 
     # Plot SV counts and sizes
-    /opt/ped_germline_SV/analysis/landscape/plot_sv_counts_and_sizes.R \
+    /opt/ped_germline_SV/analysis/landscape/plot_sv_site_summary.R \
       --af-field ~{af_field} \
       --ac-field ~{ac_field} \
       --out-prefix ~{prefix}.SummaryPlots/~{prefix} \
