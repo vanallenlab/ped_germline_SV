@@ -4,12 +4,14 @@
 \alias{load.sample.metadata}
 \title{Load a .tsv of sample metadata}
 \usage{
-load.sample.metadata(tsv.in, keep.samples = NULL)
+load.sample.metadata(tsv.in, keep.samples = NULL, reassign.parents = TRUE)
 }
 \arguments{
 \item{tsv.in}{Path to input .tsv}
 
 \item{keep.samples}{Vector of sample IDs to retain \link{default: keep all samples}}
+
+\item{reassign.parents}{Assign all parents to have \code{control} disease labels \link{default: TRUE}}
 }
 \value{
 data.frame

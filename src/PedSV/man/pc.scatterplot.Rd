@@ -11,8 +11,11 @@ pc.scatterplot(
   colors,
   title = NULL,
   x.title = NULL,
+  x.title.line = 0.5,
   y.title = NULL,
+  y.title.line = 0.5,
   legend.vals = NULL,
+  legend.labels = NULL,
   cex = 0.3,
   parmar = c(2.5, 2.5, 1, 1)
 )
@@ -28,9 +31,17 @@ pc.scatterplot(
 
 \item{title}{Main title for plot [default: NULL]}
 
-\item{x.title}{Title for Y-axis}
+\item{x.title}{Title for X-axis}
+
+\item{x.title.line}{Line for X-axis title (\code{title.line} parameter for \link{clean.axis})}
+
+\item{y.title}{Title for Y-axis}
+
+\item{y.title.line}{Line for axis titles (\code{title.line} parameter for \link{clean.axis})}
 
 \item{legend.vals}{Named vector mapping category names to colors [default: NULL]}
+
+\item{legend.labels}{Optional vector to overwrite names of \code{legend.vals}}
 
 \item{cex}{Character expansion factor for individual points [default: 0.3]}
 

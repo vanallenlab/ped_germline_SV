@@ -18,11 +18,11 @@ ADD ped_germline_SV /opt/ped_germline_SV
 
 # Create default python environment (environment must be present in build context)
 RUN mamba update --all && \
-    mamba env create --file=/opt/ped_germline_SV/config/environment.pedsv.yml
+    mamba env create --file=/opt/ped_germline_SV/config/environment.pedsv-r.yml
 
 # Use conda-pack to create a standalone enviornment
 RUN mamba install conda-pack && \
-    conda-pack -n pedsv -o /tmp/env.tar && \
+    conda-pack -n pedsv-r -o /tmp/env.tar && \
     mkdir /venv && cd /venv && tar -xf /tmp/env.tar && \
     rm /tmp/env.tar && \
     /venv/bin/conda-unpack
@@ -62,9 +62,9 @@ RUN apt-get clean && \
 ARG DEBIAN_FRONTEND=noninteractive
 RUN /opt/ped_germline_SV/config/install_gcloud.sh
 
-# Copy GATK-SV (must be in build context)
-ADD gatk-sv /opt/gatk-sv
-RUN source activate pedsv && pip install -e /opt/gatk-sv/src/svtk
+# Install PedSV R package
+ARG PEDSV_VERSION=0.0.1
+RUN Rscript -e "install.packages('/opt/ped_germline_SV/src/PedSV_${PEDSV_VERSION}.tar.gz', type='source', repos=NULL)"
 
 # Developer aliases, etc (for convenience)
 RUN echo 'alias l="ls -ltrha"' >> ~/.bashrc

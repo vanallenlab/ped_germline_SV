@@ -59,6 +59,7 @@ load.kinship.metrics <- function(tsv.in){
 #'
 #' @param tsv.in Path to input .tsv
 #' @param keep.samples Vector of sample IDs to retain [default: keep all samples]
+#' @param reassign.parents Assign all parents to have `control` disease labels [default: TRUE]
 #'
 #' @returns data.frame
 #'
@@ -66,7 +67,7 @@ load.kinship.metrics <- function(tsv.in){
 #'
 #' @export load.sample.metadata
 #' @export
-load.sample.metadata <- function(tsv.in, keep.samples=NULL){
+load.sample.metadata <- function(tsv.in, keep.samples=NULL, reassign.parents=TRUE){
   # Load data
   df <- read.table(tsv.in, header=T, comment.char="", sep="\t", check.names=F,
                    stringsAsFactors=F)
@@ -90,6 +91,12 @@ load.sample.metadata <- function(tsv.in, keep.samples=NULL){
   # Convert types as necessary
   df$proband <- c("Yes" = TRUE, "No" = FALSE)[df$proband]
 
+  # Reassign parents as controls unless disabled
+  if(reassign.parents){
+    parent.idxs <- which(!is.na(df$family_id) & !df$proband)
+    df[parent.idxs, "disease"] <- "control"
+  }
+
   # Reorder columns and sort on sample ID before returning
   df[sort(rownames(df)),
      c("study_phase", "batch", "study", "disease", "proband", "family_id",
@@ -105,12 +112,14 @@ load.sample.metadata <- function(tsv.in, keep.samples=NULL){
 #' Load a .bed for an SV callset
 #'
 #' @param bed.in Path to input .bed
-#' @param keep.coordinates Should coordinates be retained? [Default: TRUE]
-#' @param pass.only Should only PASS variants be included? [Default: TRUE]
+#' @param keep.coordinates Should coordinates be retained? \[Default: TRUE\]
+#' @param pass.only Should only PASS variants be included? \[Default: TRUE\]
 #' @param split.coding Should coding consequence annotations be split from
-#' comma-delimited strings to character vectors? [Default: TRUE]
+#' comma-delimited strings to character vectors? \[Default: TRUE\]
 #' @param split.noncoding Should noncoding consequence annotations be split from
-#' comma-delimited strings to character vectors? [Default: FALSE]
+#' comma-delimited strings to character vectors? \[Default: FALSE\]
+#' @param drop.vids Either a vector or a path to a file containing variant IDs
+#' to be excluded drop the input file. \[Default: Keep all IDs\]
 #'
 #' @returns data.frame
 #'
@@ -119,11 +128,20 @@ load.sample.metadata <- function(tsv.in, keep.samples=NULL){
 #' @export load.sv.bed
 #' @export
 load.sv.bed <- function(bed.in, keep.coords=TRUE, pass.only=TRUE,
-                        split.coding=TRUE, split.noncoding=FALSE){
+                        split.coding=TRUE, split.noncoding=FALSE,
+                        drop.vids=NULL){
   # Load data
   df <- read.table(bed.in, header=T, comment.char="", sep="\t", check.names=F,
                    stringsAsFactors=F)
   colnames(df)[1] <- gsub("#", "", colnames(df)[1])
+
+  # Drop variant IDs, if specified
+  if(!is.null(drop.vids)){
+    if(file.exists(drop.vids)){
+      drop.vids <- unique(read.table(drop.vids, header=F)[, 1])
+    }
+    df <- df[which(!df$name %in% drop.vids), ]
+  }
 
   # Restrict to PASS-only, if optioned
   if(pass.only){
@@ -151,7 +169,10 @@ load.sv.bed <- function(bed.in, keep.coords=TRUE, pass.only=TRUE,
     list.cols <- list.cols[grep("NONCODING", list.cols, invert=TRUE)]
   }
   df[, list.cols] <- apply(df[, list.cols], 2, function(col.vals){
-    sapply(as.character(col.vals), strsplit, split=",")
+    sapply(as.character(col.vals), function(str){
+      vals <- strsplit(str, split=",", fixed=T)
+      unlist(vals[which(!is.na(vals))])
+      })
   })
 
   # Ensure numeric frequency columns
@@ -185,85 +206,20 @@ load.sv.bed <- function(bed.in, keep.coords=TRUE, pass.only=TRUE,
 }
 
 
-#' Query allele dosage matrix
+#' Load gene list(s)
 #'
-#' Subsets and optionally compresses an allele dosage matrix
+#' Load one or more list(s) of gene symbols
 #'
-#' @param ad Either a path to an allele dosage .bed.gz matrix or a data.frame
-#' from a previous call of [query.ad.matrix]
-#' @param query.regions List of tripartite coordinate vectors to query; see `Details`
-#' @param query.ids Vector of variant IDs to query
-#' @param action Action to apply to query rows; see `Details`
+#' @param input.tsv Path to two-column .tsv of gene list prefix(es) and path to gene list(s)
 #'
-#' @details The value for `query.regions` is expected to be a list of vectors,
-#' where each vector must have three elements of the format (chromosome, start, end).
+#' @returns list of gene symbol character vectors
 #'
-#' Recognized values for `action` include:
-#' * `"verbose"` : return the full query matrix \[default\]
-#' * `"any"` : return numeric indicator if any of the query rows are non-zero
-#' for each sample
-#' * `"all"` : return numeric indicator if all of the query rows are non-zero
-#' for each sample
-#' * `"sum"` : return the sum of allele dosages for all query rows per sample
-#'
-#' Note that
-#'
-#' @return numeric vector or data.frame, depending on `action`
-#'
-#' @importFrom bedr tabix
-#'
-#' @export query.ad.matrix
+#' @export load.gene.lists
 #' @export
-query.ad.matrix <- function(ad, query.regions=NULL, query.ids=NULL,
-                            action="verbose"){
-
-  # Load region(s) of interest or whole matrix if query.regions is NULL
-  if(inherits(ad, "character")){
-    if(is.null(query.regions)){
-      ad <- read.table(ad, sep="\t", comment.char="", check.names=F,
-                       stringsAsFactors=F)
-    }else{
-      require(bedr, quietly=TRUE)
-      ad <- do.call("rbind", lapply(query.regions, function(coords){
-        coords <- as.character(coords)
-        interval <- paste(coords[1], ":", coords[2], "-", coords[3], sep="")
-        bedr::tabix(region=interval, file.name=ad)
-      }))
-    }
-    ad <- as.data.frame(ad)
-    ad[, -c(1:4)] <- apply(ad[, -c(1:4)], 2, as.numeric)
-    rownames(ad) <- ad[, 4]
-    ad <- ad[, -c(1:4)]
-  }
-
-  # Subset to variants of interest and return directly if optioned
-  if(is.null(query.ids)){
-    sub.df <- ad
-  }else{
-    sub.df <- ad[which(rownames(ad) %in% query.ids), ]
-  }
-  if(action == "verbose"){
-    return(sub.df)
-  }
-
-  # Otherwise, apply various compression strategies prior to returning
-  col.all.na <- apply(sub.df, 2, function(vals){
-    all(is.na(as.numeric(vals)))
-  })
-  if(action == "any"){
-    query.res <- as.numeric(apply(sub.df, 2, function(vals){
-      any(as.logical(as.numeric(vals)), na.rm=T)
-      }))
-  }else if(action == "all"){
-    query.res <- as.numeric(apply(sub.df, 2, function(vals){
-      all(as.logical(as.numeric(vals)), na.rm=T)
-      }))
-  }else if(action == "sum"){
-    query.res <- apply(sub.df, 2, function(vals){
-      sum(as.numeric(vals), na.rm=T)
-    })
-  }
-  query.res[col.all.na] <- NA
-  names(query.res) <- colnames(sub.df)
-  return(query.res)
+load.gene.lists <- function(input.tsv){
+  info.df <- read.table(input.tsv, header=F, sep="\t")
+  set.names <- info.df[, 1]
+  sets <- lapply(info.df[, 2], function(path){sort(unique(read.table(path, header=F)[, 1]))})
+  names(sets) <- set.names
+  return(sets)
 }
