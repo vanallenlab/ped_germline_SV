@@ -250,6 +250,10 @@ args <- parser$parse_args()
 #              "af_field" = "AF",
 #              "ac_field" = "AC",
 #              "out_prefix" = "~/scratch/PedSV.dev")
+# args <- list("bed" = "~/scratch/PedSV.v1.1.trio_cohort.analysis_samples.wAFs.bed.gz",
+#              "af_field" = "parent_AF",
+#              "ac_field" = "parent_AC",
+#              "out_prefix" = "~/scratch/PedSV.dev")
 
 # Load BED
 bed <- PedSV::load.sv.bed(args$bed)
@@ -290,6 +294,7 @@ for(pop in intersect(names(pop.colors), pops.in.bed)){
   cat(paste("HWE for ", pop, ":\n", sep=""))
   png(paste(args$out_prefix, pop, "HWE.png", sep="."),
       height=1000, width=1000, res=400)
-  plot.HWE(bed, pop=pop, title=pop.names.short[pop], full.legend=T)
+  plot.HWE(bed, pop=paste(pop, "parent", sep="_"),
+           title=pop.names.short[pop], full.legend=T)
   dev.off()
 }
