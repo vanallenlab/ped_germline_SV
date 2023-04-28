@@ -26,59 +26,6 @@ PedSV::load.constants("all")
 ##################
 # Data functions #
 ##################
-# Filter a BED based on various categories of interest
-filter.bed <- function(bed, query, af.field="AF", ac.field="AC",
-                       autosomal=TRUE, biallelic=TRUE, keep.idx=NULL){
-  query.parts <- unlist(strsplit(query, split=".", fixed=T))
-  if(is.null(keep.idx)){
-    keep.idx <- 1:nrow(bed)
-  }
-  if(autosomal){
-    keep.idx <- intersect(keep.idx, which(bed$chrom %in% c(1:22, paste("chr", 1:22, sep=""))))
-  }
-  if(biallelic){
-    keep.idx <- intersect(keep.idx, which(bed$FILTER == "PASS"))
-  }
-  if("rare" %in% query.parts){
-    keep.idx <- intersect(keep.idx, which(bed[, af.field] < 0.01 & bed$SVTYPE != "CNV"))
-  }
-  if("vrare" %in% query.parts){
-    keep.idx <- intersect(keep.idx, which(bed[, af.field] < 0.001 & bed$SVTYPE != "CNV"))
-  }
-  if("singleton" %in% query.parts){
-    keep.idx <- intersect(keep.idx, which(bed[, ac.field] <= 1 & bed$SVTYPE != "CNV"))
-  }
-  if("large" %in% query.parts){
-    keep.idx <- intersect(keep.idx, which(bed$SVLEN > 1000000 | bed$SVTYPE == "CTX"))
-  }
-  lof.count <- sapply(bed$PREDICTED_LOF, length) + sapply(bed$PREDICTED_PARTIAL_EXON_DUP, length)
-  cg.count <- sapply(bed$PREDICTED_COPY_GAIN, length)
-  ied.count <- sapply(bed$PREDICTED_INTRAGENIC_EXON_DUP, length)
-  if(length(intersect(c("gene_disruptive", "genes_disrupted"), query.parts)) > 0){
-    keep.idx <- intersect(keep.idx, unique(c(which(lof.count > 0),
-                                             which(cg.count > 0),
-                                             which(ied.count > 0))))
-  }
-  if("single_gene_disruptive" %in% query.parts){
-    keep.idx <- intersect(keep.idx, unique(c(which(lof.count == 1),
-                                             which(cg.count == 1),
-                                             which(ied.count == 1))))
-  }
-  if("lof" %in% query.parts){
-    keep.idx <- intersect(keep.idx, which(lof.count > 0))
-  }
-  if("cg" %in% query.parts){
-    keep.idx <- intersect(keep.idx, which(cg.count > 0))
-  }
-  if("ied" %in% query.parts){
-    keep.idx <- intersect(keep.idx, which(ied.count > 0))
-  }
-  if("cg_and_ied" %in% query.parts){
-    keep.idx <- intersect(keep.idx, which(cg.count > 0 | ied.count > 0))
-  }
-  bed[keep.idx, ]
-}
-
 # Wrapper to apply filter.bed over script input data format (list)
 filter.data <- function(data, query, af.fields, ac.fields, keep.idx=NULL){
   lapply(1:length(data), function(i){
@@ -162,6 +109,7 @@ supercategory.burden.test <- function(data, query, meta, action, family,
                                       extra.terms=NULL){
   ad.df <- get.ad.values(data, query=query, action="verbose", af.fields, ac.fields,
                          keep.idx.list=keep.idx.list)
+  ad.df <- lapply(ad.df, function(df){df[, intersect(colnames(df), rownames(meta))]})
   ad.vals <- unlist(lapply(ad.df, compress.ad.matrix, action=action))
   new.stats <- burden.test(data, query=query, meta=meta, ad.vals=ad.vals,
                            family=family, extra.terms=extra.terms)
@@ -170,10 +118,11 @@ supercategory.burden.test <- function(data, query, meta, action, family,
 
 # Helper function to convert burden test stats to barplot-compliant data.frame
 stats2plot <- function(stats, ci.mode="normal"){
-  values <- c(mean(as.numeric(stats$control.mean)), as.numeric(stats$case.mean))
-  ns <- c(mean(as.numeric(stats$n.control)), as.numeric(stats$n.case))
+  n.phenos <- nrow(stats)
+  values <- as.numeric(c(stats$case.mean, stats$control.mean))
+  ns <- as.numeric(c(stats$n.case, stats$n.control))
   if(ci.mode == "normal"){
-    stdevs <- c(mean(as.numeric(stats$control.stdev)), as.numeric(stats$case.stdev))
+    stdevs <- as.numeric(c(stats$case.stdev, stats$control.stdev))
     ci.margins <- stdevs / sqrt(ns) * qnorm(0.975)
     ci.lowers <- values - ci.margins
     ci.uppers <- values + ci.margins
@@ -183,10 +132,15 @@ stats2plot <- function(stats, ci.mode="normal"){
     ci.lowers <- cis[, "Lower"]
     ci.uppers <- cis[, "Upper"]
   }
-  pvals <- as.numeric(c(NA, stats$P.value))
-  plot.df <- data.frame("value" = values, "ci.lower" = ci.lowers, "ci.upper" = ci.uppers,
-                        "p" = pvals, row.names=c("control", stats$disease))
-  plot.df[c("control", intersect(names(cancer.colors[1:4]), rownames(plot.df))), ]
+  pvals <- as.numeric(stats$P.value)
+  plot.df <- data.frame("case.value" = values[1:n.phenos],
+                        "case.ci.lower" = ci.lowers[1:n.phenos],
+                        "case.ci.upper" = ci.uppers[1:n.phenos],
+                        "control.value" = values[(1:n.phenos) + n.phenos],
+                        "control.ci.lower" = ci.lowers[(1:n.phenos) + n.phenos],
+                        "control.ci.upper" = ci.uppers[(1:n.phenos) + n.phenos],
+                        "p" = pvals, row.names=stats$disease)
+  plot.df[intersect(names(cancer.colors[1:4]), rownames(plot.df)), ]
 }
 
 # Main wrapper function to run one category of burden test for each SV type
@@ -240,7 +194,7 @@ main.burden.wrapper <- function(data, query, meta, action, af.fields, ac.fields,
 # RScript #
 ###########
 # Parse command line arguments and options
-parser <- ArgumentParser(description="Plot SV counts and sizes")
+parser <- ArgumentParser(description="Case:control SV burden tests")
 parser$add_argument("--bed", metavar=".tsv", type="character", action="append",
                     help=paste("SV sites .bed. Can be supplied one or more",
                                "times. Must be supplied at least once. Order",
@@ -275,13 +229,21 @@ args <- parser$parse_args()
 # # DEV:
 # args <- list("bed" = c("~/scratch/PedSV.v1.1.validation_cohort.analysis_samples.wAFs.bed.gz"),
 #              "ad" = c("~/scratch/PedSV.v1.1.validation_cohort.analysis_samples.wAFs.allele_dosages.bed.gz"),
-#              "metadata" = "~/scratch/gatk_sv_pediatric_cancers_combined_cohort_metadata_3_31_23.txt",
+#              "metadata" = "~/scratch/gatk_sv_pediatric_cancers_combined_cohort_metadata_3_31_23.w_control_assignments.txt",
 #              "gene_lists" = "~/scratch/PedSV.gene_lists.tsv",
 #              "subset_samples" = "/Users/collins/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/data/ancestry_and_relatedness/PedSV.v1.validation_cohort_final_samples.list",
 #              "exclude_variants" = "~/scratch/PedSV.validation.bad_IDs.dev.txt",
 #              "af_field" = "POPMAX_AF",
 #              "ac_field" = "AC",
 #              "out_prefix" = "~/scratch/PedSV.dev")
+# args <- list("bed" = c("~/scratch/PedSV.v1.1.trio_cohort.analysis_samples.wAFs.bed.gz"),
+#              "ad" = c("~/scratch/PedSV.v1.1.trio_cohort.analysis_samples.wAFs.allele_dosages.bed.gz"),
+#              "metadata" = "~/scratch/gatk_sv_pediatric_cancers_combined_cohort_metadata_3_31_23.w_control_assignments.txt",
+#              "gene_lists" = "~/scratch/PedSV.gene_lists.tsv",
+#              "subset_samples" = "/Users/collins/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/data/ancestry_and_relatedness/PedSV.v1.trio_cohort_final_samples.list",
+#              "af_field" = "POPMAX_parent_AF",
+#              "ac_field" = "parent_AC",
+#              "out_prefix" = "~/scratch/PedSV.trio.dev")
 
 # Load BEDs and pair AD paths with each
 beds <- lapply(args$bed, load.sv.bed, drop.vids=args$exclude_variants)

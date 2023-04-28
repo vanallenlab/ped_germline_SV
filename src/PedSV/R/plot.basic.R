@@ -152,7 +152,8 @@ ridgeplot <- function(data, names=NULL, hill.overlap=0.35, xlims=NULL, x.axis=TR
 #' Generate a barplot of one value for each cancer type
 #'
 #' @param plot.df Data.frame of values to plot. See `Details`.
-#' @param bar.hex Relative width for each bar \[default: 0.85\]
+#' @param bar.hex Relative width for each bar \[default: 0.5\]
+#' @param case.control.sep Relatve separation between overlapping case and control bars \[default: 0.33\]
 #' @param color.by.sig Should bars be shaded differently by significance level? \[default: TRUE\]
 #' @param add.top.axis Should the top axis be added? \[default: TRUE\]
 #' @param top.axis.units Specify units for top axis. Options are NULL (for
@@ -161,21 +162,31 @@ ridgeplot <- function(data, names=NULL, hill.overlap=0.35, xlims=NULL, x.axis=TR
 #' @param parmar Value of `mar` passed to `par()`
 #'
 #' @details `plot.df` is expected to adhere to the following specifications:
-#' * One row per cancer type and one row for controls
+#' * One row per cancer type
 #' * Row names indicate cancer type (or "control")
-#' * Columns ordered as follows: (1) value to plot, (2) lower CI bound,
-#' (3) upper CI bound, (4) P-value
+#' * Columns ordered as follows: (1) case value to plot, (2) case lower CI bound,
+#' (3) case upper CI bound, (4) control value to plot, (5) control lower CI bound,
+#' (6) control upper CI bound, (7) P-value
 #'
 #' @export barplot.by.phenotype
 #' @export
-barplot.by.phenotype <- function(plot.df, bar.hex=0.8, color.by.sig=TRUE,
-                                 add.top.axis=TRUE, top.axis.units=NULL,
-                                 title="Value",
+barplot.by.phenotype <- function(plot.df, bar.hex=0.5, case.control.sep=1/3,
+                                 color.by.sig=TRUE, add.top.axis=TRUE, top.axis.units=NULL,
+                                 title="Value", orient.cases="top",
                                  parmar=c(0.2, 4.1, 2.1, 4)){
   # Get plot dimensions
-  xlims <- c(0, min(c(2*max(plot.df[, 1]), max(plot.df[, 1:3]))))
+  xlims <- c(0, min(c(2*max(plot.df[, c(1, 4)]), max(plot.df[, 1:6]))))
   ylims <- c(nrow(plot.df), 0)
   y.mids <- (1:nrow(plot.df))-0.5
+
+  # Vertically order cases and controls
+  if(orient.cases == "top"){
+    control.sep <- case.control.sep/2
+    case.sep <- -case.control.sep/2
+  }else{
+    control.sep <- -case.control.sep/2
+    case.sep <- case.control.sep/2
+  }
 
   # Prep plot area
   prep.plot.area(xlims, ylims, parmar=parmar, xaxs="i", yaxs="r")
@@ -189,37 +200,49 @@ barplot.by.phenotype <- function(plot.df, bar.hex=0.8, color.by.sig=TRUE,
   axis(2, at=y.mids, tick=F, line=-0.85, las=2, cex.axis=5.5/6,
        labels=cancer.names.short[rownames(plot.df)])
 
+  # Add control bars
+  rect(ybottom=y.mids-(bar.hex/2)+control.sep,
+       ytop=y.mids+(bar.hex/2)+control.sep,
+       xleft=0, xright=plot.df[, 4],
+       col=control.colors[["main"]], border=NA, bty="n")
+  segments(y0=y.mids+control.sep,
+           y1=y.mids+control.sep,
+           x0=plot.df[, 5], x1=plot.df[, 6], lwd=2, lend="butt",
+           col=cancer.palettes[["control"]]["dark1"])
+  rect(ybottom=y.mids-(bar.hex/2)+control.sep,
+       ytop=y.mids+(bar.hex/2)+control.sep,
+       xleft=0, xright=plot.df[, 4],
+       col=NA, xpd=T)
+
   # Add bars, CI ticks, and outer borders
-  sig.idx <- which(plot.df[, 4] < 0.05)
+  sig.idx <- which(plot.df[, 7] < 0.05)
   bar.cols <- sapply(rownames(plot.df), function(pheno){cancer.palettes[[pheno]]["light1"]})
-  bar.cols[1] <- cancer.colors["control"]
   ci.cols <- cancer.colors[rownames(plot.df)]
-  ci.cols[1] <- cancer.palettes[["control"]]["dark1"]
   if(color.by.sig){
     if(length(sig.idx) > 0){
       bar.cols[sig.idx] <- cancer.colors[rownames(plot.df)[sig.idx]]
       ci.cols[sig.idx] <- sapply(rownames(plot.df)[sig.idx], function(pheno){cancer.palettes[[pheno]]["dark1"]})
     }
   }
-  rect(ybottom=y.mids-(bar.hex/2),
-       ytop=y.mids+(bar.hex/2),
+  rect(ybottom=y.mids-(bar.hex/2)+case.sep,
+       ytop=y.mids+(bar.hex/2)+case.sep,
        xleft=0, xright=plot.df[, 1],
        col=bar.cols,
        border=NA, bty="n")
-  segments(y0=y.mids, y1=y.mids, x0=plot.df[, 2], x1=plot.df[, 3], lwd=2, lend="butt",
+  segments(y0=y.mids+case.sep,
+           y1=y.mids+case.sep,
+           x0=plot.df[, 2], x1=plot.df[, 3], lwd=2, lend="butt",
            col=ci.cols)
-  rect(ybottom=y.mids-(bar.hex/2),
-       ytop=y.mids+(bar.hex/2),
+  rect(ybottom=y.mids-(bar.hex/2)+case.sep,
+       ytop=y.mids+(bar.hex/2)+case.sep,
        xleft=0, xright=plot.df[, 1],
        col=NA, xpd=T)
 
   # Add P values
-  axis(4, at=y.mids[which(rownames(plot.df) == "control")],
-       cex.axis=5/6, las=2, line=-1, tick=F, label="Logit model:")
-  sapply(which(rownames(plot.df) != "control"), function(i){
-    p.col <- if(plot.df[i, 4] < 0.05){"black"}else{control.colors[["main"]]}
+  sapply(1:nrow(plot.df), function(i){
+    p.col <- if(plot.df[i, 7] < 0.05){"black"}else{control.colors[["main"]]}
     axis(4, at=y.mids[i], tick=F, line=-0.9, las=2, cex.axis=5/6,
-         labels=PedSV::format.pval(plot.df[i, 4], nsmall=0),
+         labels=PedSV::format.pval(plot.df[i, 7], nsmall=0),
          col.axis=p.col)
   })
 }

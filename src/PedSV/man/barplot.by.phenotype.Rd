@@ -6,18 +6,22 @@
 \usage{
 \method{barplot}{by.phenotype}(
   plot.df,
-  bar.hex = 0.8,
+  bar.hex = 0.5,
+  case.control.sep = 1/3,
   color.by.sig = TRUE,
   add.top.axis = TRUE,
   top.axis.units = NULL,
   title = "Value",
+  orient.cases = "top",
   parmar = c(0.2, 4.1, 2.1, 4)
 )
 }
 \arguments{
 \item{plot.df}{Data.frame of values to plot. See \code{Details}.}
 
-\item{bar.hex}{Relative width for each bar [default: 0.85]}
+\item{bar.hex}{Relative width for each bar [default: 0.5]}
+
+\item{case.control.sep}{Relatve separation between overlapping case and control bars [default: 0.33]}
 
 \item{color.by.sig}{Should bars be shaded differently by significance level? [default: TRUE]}
 
@@ -36,9 +40,10 @@ Generate a barplot of one value for each cancer type
 \details{
 \code{plot.df} is expected to adhere to the following specifications:
 \itemize{
-\item One row per cancer type and one row for controls
+\item One row per cancer type
 \item Row names indicate cancer type (or "control")
-\item Columns ordered as follows: (1) value to plot, (2) lower CI bound,
-(3) upper CI bound, (4) P-value
+\item Columns ordered as follows: (1) case value to plot, (2) case lower CI bound,
+(3) case upper CI bound, (4) control value to plot, (5) control lower CI bound,
+(6) control upper CI bound, (7) P-value
 }
 }
