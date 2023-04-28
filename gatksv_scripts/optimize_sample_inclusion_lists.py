@@ -151,9 +151,11 @@ def remove_sample(samples, sid):
 
     samples.pop(sid)
 
-    rels = [oid for oid, values in samples.items() if sid in values['trio_members']]
-    for rel in rels:
-        samples[rel]['complete_trio'] = False
+    for oid, values in samples.items():
+        if 'trio_members' not in values.keys():
+            continue
+        if sid in values['trio_members']:
+            samples[rel]['complete_trio'] = False
 
     return samples
 
@@ -290,7 +292,8 @@ def prune_related(samples, kinship_in, require={}, max_kinship=1/8):
     return samples
 
 
-def balance_ancestries(samples, require={}, seed=2023):
+def balance_ancestries(samples, require={}, seed=2023, abs_fold=True,
+                       allow_drop_cases=True, return_keepers=False, verbose=False):
     """
     Downsample controls to balance ancestry distributions between cases and controls
     """
@@ -299,7 +302,11 @@ def balance_ancestries(samples, require={}, seed=2023):
     samples_subset = samples.copy()
     for sid, vals in samples.items():
         for key, value in require.items():
-            if vals[key] != value:
+            if isinstance(value, list):
+                keep = vals[key] in value
+            else:
+                keep = vals[key] == value
+            if not keep:
                 samples_subset.pop(sid)
                 break
 
@@ -320,19 +327,25 @@ def balance_ancestries(samples, require={}, seed=2023):
         x2 = chisquare(k_case, ratio * k_ctrl)
         return x2.pvalue
 
-    def __get_fold(counts):
+    def __get_fold(counts, abs_fold=True):
         fold = counts.loc[False, :] / counts.loc[True, :]
-        order = np.log2(fold).abs().sort_values(ascending=False).index
+        if abs_fold:
+            order = np.log2(fold).abs().sort_values(ascending=False).index
+        else:
+            order = np.log2(fold).sort_values(ascending=False).index
         return fold[order]
 
     counts = __count_pops(samples_subset)
+    if verbose:
+        print('Samples prior to pruning:')
+        print(counts)
     pval = __compare_pops(counts)
     random.seed(seed)
     sids_to_prune = set()
     while pval < 0.05 or np.isnan(pval):
-        fold = __get_fold(counts)
+        fold = __get_fold(counts, abs_fold=abs_fold)
         pop = fold.index[0]
-        if fold[pop] > 1:
+        if fold[pop] >= 1 or not allow_drop_cases:
             pop_sids = [sid for sid, vals in samples_subset.items() \
                         if vals['pop'] == pop and vals['pheno'] == 'control']
         else:
@@ -343,6 +356,13 @@ def balance_ancestries(samples, require={}, seed=2023):
         sample_subset = remove_sample(samples_subset, loser)
         counts = __count_pops(samples_subset)
         pval = __compare_pops(counts)
+
+    if verbose:
+        print('Samples after pruning:')
+        print(counts)
+
+    if return_keepers:
+        return samples_subset
 
     for sid in sids_to_prune:
         samples = remove_sample(samples, sid)

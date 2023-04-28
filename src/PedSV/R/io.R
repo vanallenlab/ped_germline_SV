@@ -80,16 +80,27 @@ load.sample.metadata <- function(tsv.in, keep.samples=NULL, reassign.parents=TRU
   }
 
   # Rename columns
-  for( cnames in list(c("ancestry_short_variant_inferred_or_reported", "reported_ancestry"),
-                      c("melt_insert_size", "insert_size"),
-                      c("melt_read_length", "read_length"),
-                      c("sex_inferred_by_ploidy", "inferred_sex"),
-                      c("ancestry_inferred_by_SVs", "inferred_ancestry"))) {
-    colnames(df)[which(colnames(df) == cnames[1])] <- cnames[2]
+  for(cnames in list(c("ancestry_short_variant_inferred_or_reported", "reported_ancestry"),
+                     c("melt_insert_size", "insert_size"),
+                     c("melt_read_length", "read_length"),
+                     c("sex_inferred_by_ploidy", "inferred_sex"),
+                     c("ancestry_inferred_by_SVs", "inferred_ancestry"),
+                     c("neuroblastoma_control", "NBL_control"),
+                     c("ewing_control", "EWS_control"),
+                     c("osteosarcoma_control", "OS_control"))) {
+    if(cnames[1] %in% colnames(df)){
+      colnames(df)[which(colnames(df) == cnames[1])] <- cnames[2]
+    }
   }
 
   # Convert types as necessary
   df$proband <- c("Yes" = TRUE, "No" = FALSE)[df$proband]
+  for(cancer in names(cancer.colors)){
+    cname <- paste(cancer, "control", sep="_")
+    if(cname %in% colnames(df)){
+      df[, cname] <- c("True" = TRUE, "False" = FALSE)[df[, cname]]
+    }
+  }
 
   # Reassign parents as controls unless disabled
   if(reassign.parents){
@@ -100,6 +111,7 @@ load.sample.metadata <- function(tsv.in, keep.samples=NULL, reassign.parents=TRU
   # Reorder columns and sort on sample ID before returning
   df[sort(rownames(df)),
      c("study_phase", "batch", "study", "disease", "proband", "family_id",
+       colnames(df)[grep("_control$", colnames(df))],
        "reported_ancestry", "inferred_ancestry", "inferred_sex", "read_length",
        "insert_size", "median_coverage", "melt_coverage", "wgd_score",
        colnames(df)[grep("^PC", colnames(df))],
@@ -172,7 +184,7 @@ load.sv.bed <- function(bed.in, keep.coords=TRUE, pass.only=TRUE,
     sapply(as.character(col.vals), function(str){
       vals <- strsplit(str, split=",", fixed=T)
       unlist(vals[which(!is.na(vals))])
-      })
+    })
   })
 
   # Ensure numeric frequency columns
