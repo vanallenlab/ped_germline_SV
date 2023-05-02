@@ -130,3 +130,7 @@ dmypy.json
 
 # Mac files
 **/.DS_Store
+
+# ignore some folders within Jett's analysis
+jett_analysis/info/presentations
+jett_analysis/info/papers

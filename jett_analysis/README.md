@@ -8,6 +8,8 @@ This folder serves as a place to document Jett's analysis in collaboration on Ri
 * `ref`: reference files used by various notebooks, with purposes documented in a `README.md`.
 * `info`: files containing useful notes. Notably includes `methods.md` and `style.md`, which explain the methods and a style guide for code.
 
+The data for this project is stored under a google bucket named `vanallen-pedsv-analysis`.
+
 ## Python Virtual Environment
 
 I use a virtual environment for reproducibility. To create the virtual environment used to generate this code:
