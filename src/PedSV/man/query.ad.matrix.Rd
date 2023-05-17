@@ -9,7 +9,9 @@ query.ad.matrix(
   query.regions = NULL,
   query.ids = NULL,
   action = "verbose",
-  weights = NULL
+  weights = NULL,
+  na.behavior = "threshold",
+  na.frac = 0.05
 )
 }
 \arguments{
@@ -24,6 +26,12 @@ from a previous call of \link{query.ad.matrix}}
 
 \item{weights}{Optional named vector of weights for each variant. Variants
 not present in this vector will be assigned weight = 1. [default: no weighting]}
+
+\item{na.behavior}{Specify how \code{NA} entries in \code{ad.df} should be treated when
+compressing. See \link{compress.ad.matrix} for more information.}
+
+\item{na.frac}{Fraction of \code{NA} entries allowed before failing a sample.
+See \link{compress.ad.matrix} for more information.}
 }
 \value{
 numeric vector or data.frame, depending on \code{action}

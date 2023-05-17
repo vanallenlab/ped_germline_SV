@@ -95,6 +95,7 @@ load.sample.metadata <- function(tsv.in, keep.samples=NULL, reassign.parents=TRU
 
   # Convert types as necessary
   df$proband <- c("Yes" = TRUE, "No" = FALSE)[df$proband]
+  PedSV::load.constants("colors")
   for(cancer in names(cancer.colors)){
     cname <- paste(cancer, "control", sep="_")
     if(cname %in% colnames(df)){

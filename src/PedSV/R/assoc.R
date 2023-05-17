@@ -78,7 +78,7 @@ prep.glm.matrix <- function(meta, X, Y, use.N.pcs=5, extra.terms=NULL){
       df[, new.col.name] <- as.numeric(vals)
     }else{
       if(!is.data.frame(vals)){
-        vals <- as.data.frame(vals)
+        vals <- as.data.frame(vals, row.names=names(vals))
       }
       colnames(vals) <- new.col.name
       df <- merge(df, vals, by=0, sort=F, all=F)
@@ -97,7 +97,7 @@ prep.glm.matrix <- function(meta, X, Y, use.N.pcs=5, extra.terms=NULL){
     stop("Error in prep.glm.matrix: must supply non-separable X and Y values")
   }
 
-  return(df)
+  return(df[complete.cases(df), ])
 }
 
 

@@ -81,7 +81,7 @@ burden.test <- function(data, query, meta, ad.vals, family,
     # Run burden test
     X <- ad.vals[intersect(names(ad.vals), c(case.ids, control.ids))]
     Y <- get.phenotype.vector(case.ids, control.ids)
-    overlapping.ids <- intersect(names(X), names(Y))
+    overlapping.ids <- intersect(names(X[which(!is.na(X))]), names(Y))
     X <- X[overlapping.ids]
     Y <- Y[overlapping.ids]
     c(cancer, length(case.ids), mean(X[case.ids], na.rm=T),
@@ -246,9 +246,9 @@ args <- parser$parse_args()
 #              "out_prefix" = "~/scratch/PedSV.trio.dev")
 
 # Load BEDs and pair AD paths with each
-beds <- lapply(args$bed, load.sv.bed, drop.vids=args$exclude_variants)
-data <- lapply(1:length(beds), function(i){
-  list("bed" = beds[[i]], "ad" = args$ad[i])
+data <- lapply(1:length(args$bed), function(i){
+  list("bed" = load.sv.bed(args$bed[i], drop.vids=args$exclude_variants),
+       "ad" = args$ad[i])
 })
 
 # Load metadata

@@ -4,7 +4,13 @@
 \alias{compress.ad.matrix}
 \title{Compress allele dosage matrix}
 \usage{
-compress.ad.matrix(ad.df, action, weights = NULL)
+compress.ad.matrix(
+  ad.df,
+  action,
+  weights = NULL,
+  na.behavior = "threshold",
+  na.frac = 0.05
+)
 }
 \arguments{
 \item{ad.df}{Data.frame of allele dosages loaded by \link{query.ad.matrix}}
@@ -13,12 +19,26 @@ compress.ad.matrix(ad.df, action, weights = NULL)
 
 \item{weights}{Optional named vector of weights for each variant. Variants
 not present in this vector will be assigned weight = 1. [default: no weighting]}
+
+\item{na.behavior}{Specify how \code{NA} entries in \code{ad.df} should be treated when
+compressing. See \code{Details}.}
+
+\item{na.frac}{Fraction of \code{NA} entries allowed before failing a sample. See \code{Details}.}
 }
 \value{
 numeric vector
 }
 \description{
 Compresses information in an allele dosage matrix
+}
+\details{
+The \code{na.behavior} argument recognizes two options:
+\itemize{
+\item \code{all}: only return \code{NA} for a sample if none of the rows in \code{ad.df} are non-NA
+\item \code{any}: return \code{NA} for a sample if any of the rows in \code{ad.df} are NA
+\item \code{threshold}: return \code{NA} for a sample if more than \code{na.frac} genotypes in that
+sample are NA
+}
 }
 \seealso{
 \link{query.ad.matrix}
