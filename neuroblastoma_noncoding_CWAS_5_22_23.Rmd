@@ -1,0 +1,410 @@
+---
+title: "Untitled"
+author: "Riaz Gillani"
+date: "2023-04-06"
+output: html_document
+---
+
+```{r}
+
+#install.packages("~/ped_germline_SV-main/src/PedSV_0.0.1.tar.gz", repos=NULL, type="source")
+#install.packages("~/rCNV2-master/source/rCNV2_1.0.1.tar.gz",repos = NULL)
+
+library(MASS)
+library(tidyverse)
+library(useful)
+library(here)
+library(dplyr)
+library(ggplot2)
+library(RColorBrewer)
+library(ggrepel)
+library(VennDiagram)
+library(stringr)
+library(scales)
+library(grid)
+library(exact2x2)
+library(readr)
+library(biomaRt)
+library(sqldf)
+library(gridExtra)
+library(ggbeeswarm)
+library(caret)
+library(vcfR)
+library(bedr)
+library(PedSV)
+library(parallel)
+library(argparse)
+library(qqman)
+library(metafor)
+library(rCNV2)
+library(ggpubr)
+library(ggbeeswarm)
+library(quest)
+PedSV::load.constants("all")
+
+```
+
+#Load in files
+```{r}
+#Case-control BED
+
+case_control_BED_col_names <- read_tsv("~/gatk_sv_pediatric_cancer_analysis_samples_bed_files_4_12_23/PedSV.v1.1.validation_cohort.analysis_samples.wAFs.bed.gz") %>% colnames()
+
+case_control_BED <- read.table("~/gatk_sv_pediatric_cancer_analysis_samples_bed_files_4_12_23/PedSV.v1.1.validation_cohort.analysis_samples.wAFs.bed.gz", col.names = case_control_BED_col_names) %>% filter(FILTER %in% c("PASS","MULTIALLELIC")) %>% rename(chrom = "X.chrom")
+
+
+```
+
+#Overall approach
+```{r}
+
+# ***UPDATES NEEDED FOR SUBSEQUENT REVISIONS:
+# 1. REMOVE ARTEFACTUAL CNVS SUPPORTED BY READ DEPTH EVIDENCE ONLY (POSSIBLY RELATED TO REALIGNMENT)
+# 2. SUBSET TO CONTROLS THAT ARE MOST CLOSELY MATCHED TO ANCESTRY COMPOSITION OF DISEASE COHORT BEING ANALYZED
+
+# Explanation of 6 category groupings and logic for enumeration:
+# 1. sv_type: filter on svtype column. INS:ME_ALL is all the INS:ME SVs grouped together. INS_ALL = INS + INS:ME_ALL.
+# 2. frequency: RARE is AF < .01, COMMON is AF >= .01
+# 3. noncoding_functional_intersection: filter for non NA values in PREDICTED_NONCODING_BREAKPOINT and PREDICTED_NONCODING_SPAN
+# 4. functional_categories: filter on the relevant functional categories for a specific disease context
+# 5. genic_relationship: for PREDICTED_INTERGENIC == TRUE, non NA values for PREDICTED_INTRONIC, PREDICTED_PROMOTER, PREDICTED_UTR
+# 6. gene_group: for the genic relationships PREDICTED_INTRONIC, PREDICTED_PROMOTER, PREDICTED_UTR filter for genes in the respective gene sets (defined by you)
+# 7. Accomplish enumeration by using nested looping for each of the 6 categories above, with output as a tibble listing all the categories
+
+# Starting with callset filtered as follows for noncoding SVs:
+# 1. Inclusive of only the following svtypes: DUP, DEL, INS, CPX, INS:ME, INS:ME:ALU, INS:ME:LINE1, INS:ME:SVA, INV, INS. Removing BND (low quality), CTX (rare), CNV (multiallelic CNVs that should be treated differently).
+# 2. Filter out variants that have any protein-coding impact (i.e., any genes listed for PREDICTED_BREAKEND_EXONIC,PREDICTED_COPY_GAIN,PREDICTED_DUP_PARTIAL,PREDICTED_INTRAGENIC_EXON_DUP,PREDICTED_INV_SPAN,PREDICTED_LOF,PREDICTED_MSV_EXON_OVERLAP,PREDICTED_NEAREST_TSS,PREDICTED_PARTIAL_EXON_DUP,PREDICTED_TSS_DUP). Keep the following noncoding genic_relationship categories: PREDICTED_INTERGENIC == TRUE, PREDICTED_INTRONIC, PREDICTED_PROMOTER, PREDICTED_UTR, PREDICTED_INV_SPAN
+# 3. Only includes SVs meeting PASS or MULTIALLELIC FILTER criteria
+
+# Approach to categorization of structural variants into enumerated categories and identifying associated samples:
+# 1. Determine which structural variants fall into each of the enumerated categories and store the information for each category as a list of vectors of c(name, chrom, start, end)
+# 2. Use the information from step 1 to run query.ad.matrix(), which will take query.regions and query.ids as inputs (confirm that query.ids are should be the name field). Verbose output will return the full query matrix
+# 3. The sample ids from the query matrix can be subsetted for the appropriate disease and controls (using metadata)
+
+# Approach to GLM for populated/ non-redundant categories:
+# 1. Create a table for each functional category, where each row is an instance of a structural variant, and the columns are as follows: structural_variant, sample_id, case_vs_control, sex, PCs 1-20. 
+# 2. Regress number of SVs (dependent variable) on case_vs_control, sex, PCs 1-20 and store the case_vs_control z-scores and p-values for case_vs_control in a vector
+
+# Approach to eigenvalue decomposition and identification of :
+# 1. Carry out category label switching X times to create a category x permutation run matrix of z-scores
+# 2. ?Carry out eigenvalue decomposition to estimate the number of effective tests that you need to correct (need to determine actual approach here)
+# 3. Using Bonferroni correction, identify if any categories meet the category-wide significance threshold (which will be .05 divided by number of effective tests)
+
+```
+
+#Define gene sets
+```{r}
+
+#Protein-coding genes
+ensembl <- useMart("ENSEMBL_MART_ENSEMBL")
+datasets <- listDatasets(ensembl)
+ensembl = useDataset("hsapiens_gene_ensembl",mart=ensembl) #hsapiens_gene_ensembl is version GRCh38.p13
+filters = listFilters(ensembl)
+attributes = listAttributes(ensembl)
+
+gene_biotype_table_hg38 <- getBM(attributes = c("hgnc_symbol","gene_biotype"), mart = ensembl)
+
+gene_biotype_table_hg38_protein_coding <- gene_biotype_table_hg38 %>% filter(gene_biotype == "protein_coding" & !str_detect(hgnc_symbol,"^MT-") & !hgnc_symbol == "")
+
+protein_coding <- gene_biotype_table_hg38_protein_coding$hgnc_symbol
+
+#Constrained genes (defined by oe_lof). Note: there are 750 genes that are constrained by the definition below but do not intersect with the protein_coding_genes above
+
+oe_lof_threshold <- 0.5
+
+gnomad.v2.1.1.lof_metrics.by_gene <- read_tsv(here::here("data","gnomad.v2.1.1.lof_metrics.by_gene.txt"))
+
+constrained <- gnomad.v2.1.1.lof_metrics.by_gene %>% filter(oe_lof < oe_lof_threshold) %>% distinct(gene) %>% unlist() %>% unname()
+
+#COSMIC cancer census genes
+
+cosmic_cancer_gene_census_4_15_23 <- read_tsv(here::here("data","cosmic_cancer_gene_census_4_15_23.tsv"))
+
+cosmic_cancer_genes <- cosmic_cancer_gene_census_4_15_23$`Gene Symbol`
+
+#Cancer predisposition genes
+
+VAL_germline_tier_1_updated_tibble_2_10_22_manual_updates <- read_tsv(here::here("data","VAL_germline_tier_1_updated_tibble_2_10_22_manual_updates.txt"))
+
+germline_CPGs <- VAL_germline_tier_1_updated_tibble_2_10_22_manual_updates$gene
+
+#None
+none <- c("")
+
+```
+
+#Enumeration of categories
+```{r}
+
+CWAS_categories_neuroblastoma_noncoding_4_15_23 <- read_tsv(here::here("data","CWAS_categories_neuroblastoma_noncoding_5_3_23.txt"))
+
+noncoding_CWAS_sv_type <- CWAS_categories_neuroblastoma_noncoding_4_15_23 %>% filter(!is.na(sv_type)) %>% distinct(sv_type) %>% unlist() %>% unname()
+
+noncoding_CWAS_frequency <- CWAS_categories_neuroblastoma_noncoding_4_15_23 %>% filter(!is.na(frequency)) %>% distinct(frequency) %>% unlist() %>% unname()
+
+noncoding_CWAS_noncoding_functional_intersection <- CWAS_categories_neuroblastoma_noncoding_4_15_23 %>% filter(!is.na(noncoding_functional_intersection)) %>% distinct(noncoding_functional_intersection) %>% unlist() %>% unname()
+
+noncoding_CWAS_functional_category <- CWAS_categories_neuroblastoma_noncoding_4_15_23 %>% filter(!is.na(functional_category)) %>% distinct(functional_category) %>% unlist() %>% unname()
+
+noncoding_CWAS_genic_relationship <- CWAS_categories_neuroblastoma_noncoding_4_15_23 %>% filter(!is.na(genic_relationship)) %>% distinct(genic_relationship) %>% unlist() %>% unname()
+
+noncoding_CWAS_gene_group <- CWAS_categories_neuroblastoma_noncoding_4_15_23 %>% filter(!is.na(gene_group)) %>% distinct(gene_group) %>% unlist() %>% unname()
+
+noncoding_CWAS_enumerated_categories <- tibble(sv_type = NA, frequency = NA, functional_intersection = NA, functional_category = NA, genic_relationship = NA, gene_group = NA)
+
+count <- 0
+
+for(sv_type in noncoding_CWAS_sv_type){
+  for(frequency in noncoding_CWAS_frequency){
+    for(functional_intersection in noncoding_CWAS_noncoding_functional_intersection){
+      for(functional_category in noncoding_CWAS_functional_category){
+        for(genic_relationship in noncoding_CWAS_genic_relationship){
+          for(gene_group in noncoding_CWAS_gene_group){
+            
+            if(genic_relationship == "PREDICTED_INTERGENIC"){
+              
+              noncoding_CWAS_enumerated_categories <- add_row(noncoding_CWAS_enumerated_categories, sv_type = sv_type, frequency = frequency, functional_intersection = functional_intersection, functional_category = functional_category, genic_relationship = genic_relationship, gene_group = NA)
+              count = count + 1
+              print(count)
+              
+            }
+            else{
+              
+              noncoding_CWAS_enumerated_categories <- add_row(noncoding_CWAS_enumerated_categories, sv_type = sv_type, frequency = frequency, functional_intersection = functional_intersection, functional_category = functional_category, genic_relationship = genic_relationship, gene_group = gene_group)
+              count = count + 1
+              print(count)
+              
+            }
+              
+            
+          }
+        }
+      }
+    }
+  }
+}
+
+noncoding_CWAS_enumerated_categories <- noncoding_CWAS_enumerated_categories[-1,]
+
+noncoding_CWAS_enumerated_categories_unique <- noncoding_CWAS_enumerated_categories %>% distinct() 
+
+noncoding_CWAS_enumerated_categories_unique$gene_group <- noncoding_CWAS_enumerated_categories_unique$gene_group %>% replace_na("none")
+
+noncoding_CWAS_enumerated_categories_unique <- noncoding_CWAS_enumerated_categories_unique %>% mutate(unique_category_id = str_c(sv_type,".",frequency,".",functional_intersection,".",functional_category,".",genic_relationship,".",gene_group))
+
+write_tsv(noncoding_CWAS_enumerated_categories_unique,here::here("data","noncoding_CWAS_enumerated_categories_unique_5_3_23.txt"))
+
+noncoding_CWAS_enumerated_categories_unique_with_row_names <- read_tsv(here::here("data","noncoding_CWAS_enumerated_categories_unique_5_3_23.txt")) %>% column_to_rownames("unique_category_id")
+
+```
+
+#Filtered SV callset
+```{r}
+
+# Starting with callset filtered as follows for noncoding SVs:
+# 1. Inclusive of only the following svtypes: DUP, DEL, INS, CPX, INS:ME, INS:ME:ALU, INS:ME:LINE1, INS:ME:SVA, INV. Removing BND (low quality), CTX (rare), CNV (multiallelic CNVs that should be treated differently).
+# 2. Filter out variants that have any protein-coding impact (i.e., any genes listed for PREDICTED_BREAKEND_EXONIC,PREDICTED_COPY_GAIN,PREDICTED_DUP_PARTIAL,PREDICTED_INTRAGENIC_EXON_DUP,PREDICTED_LOF,PREDICTED_MSV_EXON_OVERLAP,PREDICTED_PARTIAL_EXON_DUP,PREDICTED_TSS_DUP). Keep the following noncoding genic_relationship categories: PREDICTED_INTERGENIC == TRUE (subset are PREDICTED_NEAREST_TSS NA, subset with PREDICTED_NEAREST_TSS with an associated gene), PREDICTED_INTRONIC, PREDICTED_PROMOTER, PREDICTED_UTR, PREDICTED_INV_SPAN.
+# 3. Only includes SVs meeting PASS or MULTIALLELIC FILTER criteria
+# 4. Excluding sex chromosomes
+# 5. Include variants with call_rate >= 0.99
+
+svtypes_for_inclusion <- c("DUP","DEL","INS","CPX","INS:ME","INS:ME:ALU","INS:ME:LINE1","INS:ME:SVA","INV")
+
+case_control_BED_with_call_rate <- case_control_BED %>% mutate(call_rate = N_BI_GENOS/max(case_control_BED$N_BI_GENOS, na.rm = T))
+
+case_control_BED_filtered_for_noncoding_CWAS <- case_control_BED_with_call_rate %>% filter(svtype %in% svtypes_for_inclusion & !(ALGORITHMS == "depth" | EVIDENCE %in% c("RD","BAF,RD")) & is.na(PREDICTED_BREAKEND_EXONIC) & is.na(PREDICTED_COPY_GAIN) & is.na(PREDICTED_DUP_PARTIAL) & is.na(PREDICTED_INTRAGENIC_EXON_DUP) & is.na(PREDICTED_LOF) & is.na(PREDICTED_MSV_EXON_OVERLAP) & is.na(PREDICTED_PARTIAL_EXON_DUP) & is.na(PREDICTED_TSS_DUP) & FILTER %in% c("PASS","MULTIALLELIC") & !(chrom %in% c("chrX","chrY")) & call_rate >= 0.99)
+
+case_control_BED_filtered_for_noncoding_CWAS_coordinate_lookup_table <- case_control_BED_filtered_for_noncoding_CWAS %>% dplyr::select(name,`chrom`,start,end) %>% column_to_rownames("name")
+
+```
+
+#Categorization of structural variants into enumerated categories
+```{r}
+
+#Define function to return structural variant names by
+
+return_structural_variant_by_category_function <- function(category_name){
+  
+sv_type <- noncoding_CWAS_enumerated_categories_unique_with_row_names[category_name,"sv_type"]
+frequency <- noncoding_CWAS_enumerated_categories_unique_with_row_names[category_name,"frequency"]
+functional_intersection <- noncoding_CWAS_enumerated_categories_unique_with_row_names[category_name,"functional_intersection"]
+functional_category <- noncoding_CWAS_enumerated_categories_unique_with_row_names[category_name,"functional_category"]
+genic_relationship <- noncoding_CWAS_enumerated_categories_unique_with_row_names[category_name,"genic_relationship"]
+gene_group <- noncoding_CWAS_enumerated_categories_unique_with_row_names[category_name,"gene_group"]
+
+gene_group_evaluated <- eval(as.symbol(gene_group))
+
+gene_group_only_collapsed <- str_c(str_c("^",gene_group_evaluated,"$"), collapse = "|")
+gene_group_start_collapsed <- str_c(str_c("^",gene_group_evaluated,"(?=,)"), collapse = "|")
+gene_group_middle_collapsed <- str_c(str_c("(?<=,)",gene_group_evaluated,"(?=,)"), collapse = "|")
+gene_group_end_collapsed <- str_c(str_c("(?<=,)",gene_group_evaluated,"$"), collapse = "|")
+
+#SVs meeting sv_type criteria
+
+if(sv_type == "ANY"){
+  
+SVs_meeting_sv_type_criteria <- case_control_BED_filtered_for_noncoding_CWAS
+  
+}
+else if(sv_type == "INS_ALL"){
+  
+SVs_meeting_sv_type_criteria <- case_control_BED_filtered_for_noncoding_CWAS[case_control_BED_filtered_for_noncoding_CWAS$svtype %in% c("INS","INS:ME:SVA","INS:ME:ALU","INS:ME","INS:ME:LINE1"),]
+    
+}
+else if(sv_type == "INS:ME_ALL"){
+  
+SVs_meeting_sv_type_criteria <- case_control_BED_filtered_for_noncoding_CWAS[case_control_BED_filtered_for_noncoding_CWAS$svtype %in% c("INS:ME:SVA","INS:ME:ALU","INS:ME","INS:ME:LINE1"),]
+    
+}
+else{
+
+SVs_meeting_sv_type_criteria <- case_control_BED_filtered_for_noncoding_CWAS[case_control_BED_filtered_for_noncoding_CWAS$svtype == sv_type,]
+}
+
+#SVs meeting frequency criteria
+
+if(frequency == "RARE"){
+
+SVs_meeting_sv_type_frequency_criteria <- SVs_meeting_sv_type_criteria[SVs_meeting_sv_type_criteria$POPMAX_AF < .01,]
+  
+}
+else if(frequency == "COMMON"){
+
+SVs_meeting_sv_type_frequency_criteria <- SVs_meeting_sv_type_criteria[SVs_meeting_sv_type_criteria$POPMAX_AF >= .01,]
+  
+}
+else if(frequency == "ANY"){
+  
+SVs_meeting_sv_type_frequency_criteria <- SVs_meeting_sv_type_criteria
+    
+}
+
+#SVs meeting functional criteria
+
+if(functional_intersection == "PREDICTED_NONCODING_BREAKPOINT"){
+
+SVs_meeting_sv_type_frequency_functional_criteria <- SVs_meeting_sv_type_frequency_criteria[!is.na(SVs_meeting_sv_type_frequency_criteria$PREDICTED_NONCODING_BREAKPOINT) & str_detect(SVs_meeting_sv_type_frequency_criteria$PREDICTED_NONCODING_BREAKPOINT, paste0("^",functional_category,"$|^",functional_category,"(?=,)|(?<=,)",functional_category,"(?=,)|(?<=,)",functional_category,"$")),]
+  
+}
+else if(functional_intersection == "PREDICTED_NONCODING_SPAN"){
+  
+SVs_meeting_sv_type_frequency_functional_criteria <- SVs_meeting_sv_type_frequency_criteria[!is.na(SVs_meeting_sv_type_frequency_criteria$PREDICTED_NONCODING_SPAN) & str_detect(SVs_meeting_sv_type_frequency_criteria$PREDICTED_NONCODING_SPAN, paste0("^",functional_category,"$|^",functional_category,"(?=,)|(?<=,)",functional_category,"(?=,)|(?<=,)",functional_category,"$")),]
+  
+}
+else if(functional_intersection == "ANY"){
+  
+SVs_meeting_sv_type_frequency_functional_criteria <- SVs_meeting_sv_type_frequency_criteria[(!is.na(SVs_meeting_sv_type_frequency_criteria$PREDICTED_NONCODING_BREAKPOINT) & str_detect(SVs_meeting_sv_type_frequency_criteria$PREDICTED_NONCODING_BREAKPOINT, paste0("^",functional_category,"$|^",functional_category,"(?=,)|(?<=,)",functional_category,"(?=,)|(?<=,)",functional_category,"$"))) | (!is.na(SVs_meeting_sv_type_frequency_criteria$PREDICTED_NONCODING_SPAN) & str_detect(SVs_meeting_sv_type_frequency_criteria$PREDICTED_NONCODING_SPAN, paste0("^",functional_category,"$|^",functional_category,"(?=,)|(?<=,)",functional_category,"(?=,)|(?<=,)",functional_category,"$"))),]
+  
+}
+
+#SVs meeting genic criteria
+
+if(genic_relationship == "PREDICTED_INTERGENIC"){
+
+SVs_meeting_sv_type_frequency_functional_genic_criteria <- SVs_meeting_sv_type_frequency_functional_criteria[(SVs_meeting_sv_type_frequency_functional_criteria$PREDICTED_INTERGENIC == "True" & is.na(SVs_meeting_sv_type_frequency_functional_criteria$PREDICTED_NEAREST_TSS)),]
+  
+}
+else if(genic_relationship == "PREDICTED_INTERGENIC.PREDICTED_NEAREST_TSS"){
+  
+  
+SVs_meeting_sv_type_frequency_functional_genic_criteria <- SVs_meeting_sv_type_frequency_functional_criteria[(SVs_meeting_sv_type_frequency_functional_criteria$PREDICTED_INTERGENIC == "True" & !is.na(SVs_meeting_sv_type_frequency_functional_criteria$PREDICTED_NEAREST_TSS) & str_detect(SVs_meeting_sv_type_frequency_functional_criteria$PREDICTED_NEAREST_TSS,paste0(gene_group_only_collapsed,"|",gene_group_start_collapsed,"|",gene_group_middle_collapsed,"|",gene_group_end_collapsed))),]
+
+}
+else if(genic_relationship == "PREDICTED_INTRONIC"){
+
+SVs_meeting_sv_type_frequency_functional_genic_criteria <- SVs_meeting_sv_type_frequency_functional_criteria[!is.na(SVs_meeting_sv_type_frequency_functional_criteria$PREDICTED_INTRONIC) & str_detect(SVs_meeting_sv_type_frequency_functional_criteria$PREDICTED_INTRONIC,paste0(gene_group_only_collapsed,"|",gene_group_start_collapsed,"|",gene_group_middle_collapsed,"|",gene_group_end_collapsed)),]
+  
+}
+else if(genic_relationship == "PREDICTED_PROMOTER"){
+
+SVs_meeting_sv_type_frequency_functional_genic_criteria <- SVs_meeting_sv_type_frequency_functional_criteria[!is.na(SVs_meeting_sv_type_frequency_functional_criteria$PREDICTED_PROMOTER) & str_detect(SVs_meeting_sv_type_frequency_functional_criteria$PREDICTED_PROMOTER,paste0(gene_group_only_collapsed,"|",gene_group_start_collapsed,"|",gene_group_middle_collapsed,"|",gene_group_end_collapsed)),]
+  
+}
+else if(genic_relationship == "PREDICTED_UTR"){
+
+SVs_meeting_sv_type_frequency_functional_genic_criteria <- SVs_meeting_sv_type_frequency_functional_criteria[!is.na(SVs_meeting_sv_type_frequency_functional_criteria$PREDICTED_UTR) & str_detect(SVs_meeting_sv_type_frequency_functional_criteria$PREDICTED_UTR,paste0(gene_group_only_collapsed,"|",gene_group_start_collapsed,"|",gene_group_middle_collapsed,"|",gene_group_end_collapsed)),]
+  
+}
+else if(genic_relationship == "PREDICTED_INV_SPAN"){
+
+SVs_meeting_sv_type_frequency_functional_genic_criteria <- SVs_meeting_sv_type_frequency_functional_criteria[!is.na(SVs_meeting_sv_type_frequency_functional_criteria$PREDICTED_INV_SPAN) & str_detect(SVs_meeting_sv_type_frequency_functional_criteria$PREDICTED_INV_SPAN,paste0(gene_group_only_collapsed,"|",gene_group_start_collapsed,"|",gene_group_middle_collapsed,"|",gene_group_end_collapsed)),]  
+  
+}
+else if(genic_relationship == "ANY"){
+
+SVs_meeting_sv_type_frequency_functional_genic_criteria <- SVs_meeting_sv_type_frequency_functional_criteria[(SVs_meeting_sv_type_frequency_functional_criteria$PREDICTED_INTERGENIC == "True" & is.na(SVs_meeting_sv_type_frequency_functional_criteria$PREDICTED_NEAREST_TSS)) | (SVs_meeting_sv_type_frequency_functional_criteria$PREDICTED_INTERGENIC == "True" & !is.na(SVs_meeting_sv_type_frequency_functional_criteria$PREDICTED_NEAREST_TSS) & str_detect(SVs_meeting_sv_type_frequency_functional_criteria$PREDICTED_NEAREST_TSS,paste0(gene_group_only_collapsed,"|",gene_group_start_collapsed,"|",gene_group_middle_collapsed,"|",gene_group_end_collapsed))) | (!is.na(SVs_meeting_sv_type_frequency_functional_criteria$PREDICTED_INTRONIC) & str_detect(SVs_meeting_sv_type_frequency_functional_criteria$PREDICTED_INTRONIC,paste0(gene_group_only_collapsed,"|",gene_group_start_collapsed,"|",gene_group_middle_collapsed,"|",gene_group_end_collapsed))) | (!is.na(SVs_meeting_sv_type_frequency_functional_criteria$PREDICTED_PROMOTER) & str_detect(SVs_meeting_sv_type_frequency_functional_criteria$PREDICTED_PROMOTER,paste0(gene_group_only_collapsed,"|",gene_group_start_collapsed,"|",gene_group_middle_collapsed,"|",gene_group_end_collapsed))) | (!is.na(SVs_meeting_sv_type_frequency_functional_criteria$PREDICTED_UTR) & str_detect(SVs_meeting_sv_type_frequency_functional_criteria$PREDICTED_UTR,paste0(gene_group_only_collapsed,"|",gene_group_start_collapsed,"|",gene_group_middle_collapsed,"|",gene_group_end_collapsed))) | (!is.na(SVs_meeting_sv_type_frequency_functional_criteria$PREDICTED_INV_SPAN) & str_detect(SVs_meeting_sv_type_frequency_functional_criteria$PREDICTED_INV_SPAN,paste0(gene_group_only_collapsed,"|",gene_group_start_collapsed,"|",gene_group_middle_collapsed,"|",gene_group_end_collapsed))),]
+  
+}
+
+
+#Return
+
+return(case_control_BED_filtered_for_noncoding_CWAS_coordinate_lookup_table[SVs_meeting_sv_type_frequency_functional_genic_criteria$name,] %>% rownames_to_column("SV") %>% mutate(category = category_name))
+
+}
+
+#Identify SVs falling into each category (memory intensive but can be done locally)
+
+SVs_in_each_category_list <- mclapply(row.names(noncoding_CWAS_enumerated_categories_unique_with_row_names), return_structural_variant_by_category_function)
+
+SVs_in_each_category_list_combined <- bind_rows(SVs_in_each_category_list)
+
+SVs_in_each_category_list_combined %>% distinct(category)
+
+write_tsv(SVs_in_each_category_list_combined,here::here("data","SVs_in_each_category_list_combined_5_16_23.tsv"))
+
+```
+
+#Parallelizing burden testing ()
+```{r}
+
+#Shard categories (groups of 10)
+
+SVs_in_each_category_list_combined <- read_tsv(here::here("data","SVs_in_each_category_list_combined_5_16_23.tsv"))
+
+unique_list_of_categories <- unique(SVs_in_each_category_list_combined$category)
+
+write_tsv(unique_list_of_categories %>% as_tibble(),here::here("data","cwas_neuroblastoma_unique_list_of_categories_5_16_23.txt"), col_names = FALSE)
+
+unique_list_of_categories_list <- split(unique_list_of_categories,ceiling(seq_along(unique_list_of_categories)/10))
+
+count <- 0
+
+for(index in 1:length(unique_list_of_categories_list)){
+
+write_tsv(unique_list_of_categories_list[[index]] %>% as_tibble(),here::here("data/CWAS_category_shards_5_16_23",str_c("shard_",index,".txt")), col_names = FALSE)
+  
+count <- count + 1  
+
+print(count)
+
+}
+
+#Burden testing function for each category (associated R script run in parallel shards in the cloud)
+
+```
+
+#Neuroblastoma CWAS statistics and exploratory visualizations
+```{r}
+
+#Load neuroblastoma CWAS GLM results
+
+neuroblastoma_cwas_concatenated_glm_results_col_names <- c("point_estimate","std_error","z_score","p_value","SV_counts_cases","SV_counts_cases_max","number_of_cases_with_zero_SVs","total_cases","SV_counts_controls","SV_counts_controls_max","number_of_controls_with_zero_SVs","total_controls","number_of_unique_SVs","category_name")
+
+neuroblastoma_cwas_concatenated_glm_results <- read_tsv(here::here("data","neuroblastoma_cwas_concatenated_glm_results_5_16_23.txt"), col_names = neuroblastoma_cwas_concatenated_glm_results_col_names) %>% mutate(sv_type = str_split_fixed(category_name,"\\.",6)[,1], frequency = str_split_fixed(category_name,"\\.",6)[,2], noncoding_functional_intersection = str_split_fixed(category_name,"\\.",6)[,3], functional_category = str_split_fixed(category_name,"\\.",6)[,4], genic_relationship = str_split_fixed(category_name,"\\.",6)[,5], gene_group = str_split_fixed(category_name,"\\.",6)[,6], mean_SVs_per_case = SV_counts_cases/total_cases, mean_SVs_per_control = SV_counts_controls/total_controls, mean_SVs_total = ((SV_counts_cases + SV_counts_controls)/ (total_cases + total_controls)))
+
+neuroblastoma_cwas_concatenated_glm_results_RARE <- neuroblastoma_cwas_concatenated_glm_results[neuroblastoma_cwas_concatenated_glm_results$frequency == "RARE",] %>% mutate(negative_log10_p_value = -log10(p_value))
+
+#Rare SV categories
+neuroblastoma_cwas_concatenated_glm_results_RARE_plot <- ggplot(neuroblastoma_cwas_concatenated_glm_results_RARE, aes(x = point_estimate, y = negative_log10_p_value)) + geom_point(color = "Dark blue", alpha = 0.3) + theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), axis.ticks.x=element_blank(),  axis.ticks.y=element_blank(), axis.text.y = element_text(size = 16, color = "black"), axis.text.x = element_text(size = 16, color = "black"), axis.title = element_text(size = 16, color = "black"), title = element_text(size = 16, color = "black"), legend.position="none") + labs(title = "Noncoding category-wide association testing\nin neuroblastoma germline samples vs controls:\nRare Variants", x = expression(log[10](Odds~Ratio)), y = expression(-log[10](p~value)))
+
+ggsave(here::here("results","neuroblastoma_cwas_concatenated_glm_results_RARE_plot_5_17_23.png"),neuroblastoma_cwas_concatenated_glm_results_RARE_plot)
+
+#QQ plot
+
+neuroblastoma_cwas_concatenated_glm_results_RARE_category_name_and_p_value <- neuroblastoma_cwas_concatenated_glm_results_RARE[,c("category_name","p_value")] %>% dplyr::rename(p = p_value)
+
+plot.qq(neuroblastoma_cwas_concatenated_glm_results_RARE_category_name_and_p_value, echo.lambdas = TRUE)
+
+
+```
