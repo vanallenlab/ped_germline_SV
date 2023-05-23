@@ -10,16 +10,16 @@
 set -eu -o pipefail
 
 TAG=$1
-IMAGES=$2
+if [ -z ${2:-} ]; then
+  echo "No images specified; building all images by default"
+  IMAGES="pedsv,pedsv-r"
+else
+  IMAGES=$2
+fi
 
 if [ -z $TAG ]; then
   echo "ERROR: Must provide desired image tag as a positional argument. Exiting."
   exit 1
-fi
-
-if [ -z $IMAGES ]; then
-  echo "No images specified; building all images by default"
-  IMAGES=pedsv,pedsv-r
 fi
 
 # Get various directories
