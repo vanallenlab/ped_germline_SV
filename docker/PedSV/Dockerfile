@@ -17,7 +17,9 @@ MAINTAINER "Ryan Collins <Ryan_Collins@dfci.harvard.edu>"
 ADD ped_germline_SV /opt/ped_germline_SV
 
 # Create default python environment (environment must be present in build context)
-RUN mamba update --all && \
+ENV CONDA_SUBDIR=linux-64
+RUN conda config --env --set subdir osx-64 && \
+    mamba update --all && \
     mamba env create --file=/opt/ped_germline_SV/config/environment.pedsv.yml
 
 # Use conda-pack to create a standalone enviornment

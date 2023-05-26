@@ -40,6 +40,7 @@ if [ $( echo $IMAGES | sed 's/,/\n/g' | awk '{ if ($1=="pedsv") print }' | wc -l
   echo -e "\nPROGRESS: Now building PedSV image\n"
   docker build \
     -f $SCRIPT_DIR/PedSV/Dockerfile \
+    --platform linux/x86_64 \
     --progress plain \
     --tag vanallenlab/pedsv:$TAG \
     $BUILD_DIR
@@ -50,6 +51,7 @@ if [ $( echo $IMAGES | sed 's/,/\n/g' | awk '{ if ($1=="pedsv-r") print }' | wc 
   echo -e "\nPROGRESS: Now building PedSV-R image\n"
   docker build \
     -f $SCRIPT_DIR/PedSV-R/Dockerfile \
+    --platform linux/x86_64 \
     --progress plain \
     --tag vanallenlab/pedsv-r:$TAG \
     $BUILD_DIR

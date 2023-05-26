@@ -3,6 +3,11 @@ channels:
   - bioconda
   - r
   - conda-forge
+  - nodefaults
+subdir: linux-64
+subdirs:
+  - linux-64
+  - noarch
 dependencies:
   - _libgcc_mutex=0.1=conda_forge
   - _openmp_mutex=4.5=2_gnu
