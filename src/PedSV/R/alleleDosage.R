@@ -23,6 +23,10 @@
 #' @param action Action to apply to query rows; see `Details`
 #' @param weights Optional named vector of weights for each variant. Variants
 #' not present in this vector will be assigned weight = 1. \[default: no weighting\]
+#' @param na.behavior Specify how `NA` entries in `ad.df` should be treated when
+#' compressing. See [compress.ad.matrix] for more information.
+#' @param na.frac Fraction of `NA` entries allowed before failing a sample.
+#' See [compress.ad.matrix] for more information.
 #'
 #' @details The value for `query.regions` is expected to be a list of vectors,
 #' where each vector must either be a single chromosome or have exactly
@@ -47,7 +51,8 @@
 #' @export query.ad.matrix
 #' @export
 query.ad.matrix <- function(ad, query.regions=NULL, query.ids=NULL,
-                            action="verbose", weights=NULL){
+                            action="verbose", weights=NULL,
+                            na.behavior="threshold", na.frac=0.05){
 
   # Load region(s) of interest or whole matrix if query.regions is NULL
   if(inherits(ad, "character")){
@@ -84,7 +89,7 @@ query.ad.matrix <- function(ad, query.regions=NULL, query.ids=NULL,
   }
 
   # Otherwise, apply various compression strategies prior to returning
-  compress.ad.matrix(ad, action, weights)
+  compress.ad.matrix(ad, action, weights, na.behavior, na.frac)
 }
 
 
@@ -96,16 +101,36 @@ query.ad.matrix <- function(ad, query.regions=NULL, query.ids=NULL,
 #' @param action Action to apply to query rows; see `Details` in [query.ad.matrix]
 #' @param weights Optional named vector of weights for each variant. Variants
 #' not present in this vector will be assigned weight = 1. \[default: no weighting\]
+#' @param na.behavior Specify how `NA` entries in `ad.df` should be treated when
+#' compressing. See `Details`.
+#' @param na.frac Fraction of `NA` entries allowed before failing a sample. See `Details`.
 #'
 #' @return numeric vector
+#'
+#' @details The `na.behavior` argument recognizes two options:
+#' * `all`: only return `NA` for a sample if none of the rows in `ad.df` are non-NA
+#' * `any`: return `NA` for a sample if any of the rows in `ad.df` are NA
+#' * `threshold`: return `NA` for a sample if more than `na.frac` genotypes in that
+#' sample are NA
 #'
 #' @seealso [query.ad.matrix]
 #'
 #' @export compress.ad.matrix
 #' @export
-compress.ad.matrix <- function(ad.df, action, weights=NULL){
-  col.all.na <- apply(ad.df, 2, function(vals){
-    all(is.na(as.numeric(vals)))
+compress.ad.matrix <- function(ad.df, action, weights=NULL,
+                               na.behavior="threshold", na.frac=0.05){
+  if(na.behavior == "all"){
+    na.fx <- all
+  }else if(na.behavior == "any"){
+    na.fx <- any
+  }else if(na.behavior == "threshold"){
+    na.fx <- function(tf){length(which(tf)) / length(tf) > na.frac}
+  }else{
+    stop(paste("compress.ad.matrix does not recognize", na.behavior,
+               "as a valid option for 'na.behavior'."))
+  }
+  col.na <- apply(ad.df, 2, function(vals){
+    na.fx(is.na(as.numeric(vals)))
   })
 
   # Reorder weights, fill missing weights, and apply weights to all ACs
@@ -140,7 +165,9 @@ compress.ad.matrix <- function(ad.df, action, weights=NULL){
       sum(as.numeric(vals), na.rm=T)
     })
   }
-  query.res[col.all.na] <- NA
+  if(length(col.na) > 0 & action != "verbose"){
+    query.res[col.na] <- NA
+  }
   names(query.res) <- colnames(ad.df)
   return(query.res)
 }
@@ -156,6 +183,7 @@ compress.ad.matrix <- function(ad.df, action, weights=NULL){
 #' @param action Action to apply to query. See [query.ad.matrix].
 #' @param weights Optional named vector of weights for each variant. Variants
 #' not present in this vector will be assigned weight = 1. \[default: no weighting\]
+#' @param padding Number of bp to pad each breakpoint for query \[default: 5\]
 #'
 #' @return Data.frame or vector depending on value of `action`
 #'
@@ -163,10 +191,10 @@ compress.ad.matrix <- function(ad.df, action, weights=NULL){
 #'
 #' @export query.ad.from.sv.bed
 #' @export
-query.ad.from.sv.bed <- function(ad, bed, action="verbose", weights=NULL){
+query.ad.from.sv.bed <- function(ad, bed, action="verbose", weights=NULL, padding=5){
   # Make query intervals list from BED
   query.regions <- lapply(1:nrow(bed), function(i){
-    c(bed[i, "chrom"], bed[i, "start"] - 5, bed[i, "start"] + 5)
+    c(bed[i, "chrom"], bed[i, "start"] - padding, bed[i, "start"] + padding)
   })
   query.ids <- rownames(bed)
 

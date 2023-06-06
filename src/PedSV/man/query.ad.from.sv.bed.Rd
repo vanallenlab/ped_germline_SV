@@ -4,7 +4,7 @@
 \alias{query.ad.from.sv.bed}
 \title{Query allele dosage matrix using an SV BED file}
 \usage{
-query.ad.from.sv.bed(ad, bed, action = "verbose", weights = NULL)
+query.ad.from.sv.bed(ad, bed, action = "verbose", weights = NULL, padding = 5)
 }
 \arguments{
 \item{ad}{Allele dosage matrix. See \link{query.ad.matrix}.}
@@ -15,6 +15,8 @@ query.ad.from.sv.bed(ad, bed, action = "verbose", weights = NULL)
 
 \item{weights}{Optional named vector of weights for each variant. Variants
 not present in this vector will be assigned weight = 1. [default: no weighting]}
+
+\item{padding}{Number of bp to pad each breakpoint for query [default: 5]}
 }
 \value{
 Data.frame or vector depending on value of \code{action}

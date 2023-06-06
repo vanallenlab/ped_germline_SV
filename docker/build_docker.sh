@@ -10,16 +10,16 @@
 set -eu -o pipefail
 
 TAG=$1
-IMAGES=$2
+if [ -z ${2:-} ]; then
+  echo "No images specified; building all images by default"
+  IMAGES="pedsv,pedsv-r"
+else
+  IMAGES=$2
+fi
 
 if [ -z $TAG ]; then
   echo "ERROR: Must provide desired image tag as a positional argument. Exiting."
   exit 1
-fi
-
-if [ -z $IMAGES ]; then
-  echo "No images specified; building all images by default"
-  IMAGES=pedsv,pedsv-r
 fi
 
 # Get various directories
@@ -40,6 +40,7 @@ if [ $( echo $IMAGES | sed 's/,/\n/g' | awk '{ if ($1=="pedsv") print }' | wc -l
   echo -e "\nPROGRESS: Now building PedSV image\n"
   docker build \
     -f $SCRIPT_DIR/PedSV/Dockerfile \
+    --platform linux/x86_64 \
     --progress plain \
     --tag vanallenlab/pedsv:$TAG \
     $BUILD_DIR
@@ -50,6 +51,7 @@ if [ $( echo $IMAGES | sed 's/,/\n/g' | awk '{ if ($1=="pedsv-r") print }' | wc 
   echo -e "\nPROGRESS: Now building PedSV-R image\n"
   docker build \
     -f $SCRIPT_DIR/PedSV-R/Dockerfile \
+    --platform linux/x86_64 \
     --progress plain \
     --tag vanallenlab/pedsv-r:$TAG \
     $BUILD_DIR
