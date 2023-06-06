@@ -18,7 +18,7 @@ ADD ped_germline_SV /opt/ped_germline_SV
 
 # Create default python environment (environment must be present in build context)
 ENV CONDA_SUBDIR=linux-64
-RUN conda config --env --set subdir osx-64 && \
+RUN conda config --env --set subdir linux-64 && \
     mamba update --all && \
     mamba env create --file=/opt/ped_germline_SV/config/environment.pedsv.yml
 
