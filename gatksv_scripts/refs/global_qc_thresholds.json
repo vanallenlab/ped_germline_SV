@@ -1,0 +1,37 @@
+{
+	"high WGD" : {
+		"feature" : "wgd_score",
+		"equality" : ">",
+		"value" : "Q3+(8*MAD)"
+	},
+	"low WGD" : {
+		"feature" : "wgd_score",
+		"equality" : "<",
+		"value" : "Q1-(8*MAD)"
+	},
+	"high coverage" : {
+		"feature" : "median_coverage",
+		"equality" : ">",
+		"value" : "60"
+	},
+	"low_coverage" : {
+		"feature" : "median_coverage",
+		"equality" : "<",
+		"value" : "15"
+	},
+	"large insert size" : {
+		"feature" : "melt_insert_size",
+		"equality" : ">",
+		"value" : "Q3+(8*MAD)"
+	},
+	"small insert size" : {
+		"feature" : "melt_insert_size",
+		"equality" : "<",
+		"value" : "Q1-(8*MAD)"
+	},
+	"highly variable ploidy" : {
+		"feature" : "median_abs_ploidy_dev",
+		"equality" : ">",
+		"value" : "Q3+(8*MAD)"
+	}
+}

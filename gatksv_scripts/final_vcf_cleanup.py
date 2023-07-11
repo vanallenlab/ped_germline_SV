@@ -19,6 +19,7 @@ filters_to_info = [('BOTHSIDES_SUPPORT',
 
 
 import argparse
+import numpy as np
 import pysam
 from sys import stdin, stdout
 
@@ -47,6 +48,39 @@ def check_duplicate(record, records_seen):
         is_dup = True
 
     return is_dup, records_seen
+
+
+def calc_ncr(record):
+    """
+    Calculate no-call rate for a record's genotypes
+    """
+
+    total = 0
+    nocalls = 0
+    for sinfo in record.samples.values():
+        total += 1
+
+        if all([a is None for a in sinfo.get('GT', (None, ))]):
+            nocalls += 1
+
+    if total > 0:
+        return nocalls / total
+    else:
+        return None
+
+def recalibrate_qual(record):
+    """
+    Recalibrate record QUAL (quality)
+    Defined as median GQ among all non-reference GTs
+    """
+
+    gqs = []
+    for sinfo in record.samples.values():
+        a = [a for a in sinfo.get('GT', (None, None)) if a is not None]
+        if np.nansum(a) > 0:
+            gqs.append(sinfo.get('GQ', None))
+
+    return np.nanmedian(gqs)
 
 
 def main():
@@ -78,7 +112,9 @@ def main():
             header.add_line('##INFO=<ID={},Number=0,Type=Flag,Description="{}">'.format(key, descrip))
     for key in mf_infos:
         header.info.remove_header(key)
+    header.filters.remove_header('HIGH_PCRMINUS_NOCALL_RATE')
     header.add_line('##INFO=<ID=AF,Number=A,Type=Float,Description="Allele frequency">')
+    header.add_line('##INFO=<ID=OLD_ID,Number=1,Type=String,Description="Original GATK-SV variant ID before polishing">')
 
     # Open connection to output vcf
     if args.vcf_out in '- stdout /dev/stdout':
@@ -87,6 +123,7 @@ def main():
         outvcf = pysam.VariantFile(args.vcf_out, 'w', header=header)
 
     # Iterate over records in invcf, clean up, and write to outvcf
+    svtype_counter = {}
     records_seen = {}
     for record in invcf.fetch():
 
@@ -95,24 +132,53 @@ def main():
         if is_dup:
             continue
 
+        # Get reused record info
+        svtype = record.info.get('SVTYPE')
+        svlen = record.info.get('SVLEN', 0)
+
         # Label small MCNVs as UNRESOLVED
-        if record.info.get('SVTYPE') == 'CNV' \
-        and record.info.get('SVLEN', 0) < 5000:
+        if (svtype == 'CNV' or 'MULTIALLELIC' in record.filter.keys()) \
+        and svlen < 5000:
             record.filter.add('UNRESOLVED')
 
         # Label large, common, complex SVs as UNRESOLVED
-        if record.info.get('SVTYPE') == 'CPX' \
-        and record.info.get('SVLEN', 0) >= 50000 \
-        and record.info.get('AF', 0) >= 0.1:
+        if svtype == 'CPX' \
+        and svlen >= 50000 \
+        and record.info.get('AF', 0)[0] >= 0.1:
+            record.filter.add('UNRESOLVED')
+
+        # Label very large, common, simple SVs as UNRESOLVED
+        if svtype in 'DEL DUP INS'.split() \
+        and svlen >= 1000000 \
+        and record.info.get('AF', 0)[0] >= 0.1:
+            record.filter.add('UNRESOLVED')
+
+        # Label common CTX as UNRESOLVED
+        if svtype == 'CTX' \
+        and record.info.get('AF', 0)[0] >= 0.01:
             record.filter.add('UNRESOLVED')
 
         # Apply stricter NCR filter for artifact deletion peak
-        if record.info.get('SVTYPE') == "DEL" \
-        and record.info.get('SVLEN', 0) > 400 \
-        and record.info.get('SVLEN', 0) < 1000 \
+        if svtype == "DEL" \
+        and svlen > 400 \
+        and svlen < 1000 \
         and record.info.get('AC', (0, ))[0] / record.info.get('AN', 1) < 0.1:
             if record.info.get('PCRMINUS_NCR', 0) > 0.01:
-                record.filter.add('HIGH_PCRMINUS_NOCALL_RATE')
+                record.filter.add('HIGH_NCR')
+
+        # Recompute NCR
+        if svtype != 'CNV' and 'MULTIALLELIC' not in record.filter.keys():
+            record.info['NCR'] = calc_ncr(record)
+
+        # Clear old high NCR FILTER and reannotate based on updated NCR
+        if 'HIGH_NCR' in record.filter.keys():
+            original_filters = [k for k in record.filter.keys()]
+            record.filter.clear()
+            for k in original_filters:
+                if k in 'HIGH_NCR HIGH_PCRMINUS_NOCALL_RATE'.split():
+                    record.filter.add(k)
+        if record.info.get('NCR', 0) >= 0.1:
+            record.filter.add('HIGH_NCR')
 
         # Clear all MALE/FEMALE AF annotations
         for key in mf_infos:
@@ -129,6 +195,20 @@ def main():
         record.filter.clear()
         for filt in old_filts:
             record.filter.add(filt)
+
+        # Recalibrate QUAL score
+        record.qual = recalibrate_qual(record)
+
+        # Rename record
+        if record.chrom not in svtype_counter.keys():
+            svtype_counter[record.chrom] = {}
+        if svtype not in svtype_counter[record.chrom].keys():
+            svtype_counter[record.chrom][svtype] = 0
+        svtype_counter[record.chrom][svtype] += 1
+        new_id = '_'.join(['YL_SV_v1.0', svtype, record.chrom,
+                           str(svtype_counter[record.chrom][svtype])])
+        record.info['OLD_ID'] = record.id
+        record.id = new_id
 
         # Write to outvcf
         outvcf.write(record)

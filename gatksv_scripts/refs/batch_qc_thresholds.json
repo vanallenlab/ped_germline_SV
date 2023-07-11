@@ -1,0 +1,22 @@
+{
+	"high WGD" : {
+		"feature" : "wgd_score",
+		"equality" : ">",
+		"value" : "max([Q3+(7*MAD), 0.3])"
+	},
+	"low WGD" : {
+		"feature" : "wgd_score",
+		"equality" : "<",
+		"value" : "min([Q1-(7*MAD), -0.3])"
+	},
+	"large insert size" : {
+		"feature" : "melt_insert_size",
+		"equality" : ">",
+		"value" : "Q3+(7*MAD)"
+	},
+	"small insert size" : {
+		"feature" : "melt_insert_size",
+		"equality" : "<",
+		"value" : "Q1-(7*MAD)"
+	}
+}
