@@ -8,7 +8,7 @@
 # Infer relatedness and ancestry for both cohorts in pediatric SV study
 
 # Set paths and global parameters
-export merged_vcf="gs://val-ped-nonterra-hail/PedSV_merged_cohorts.merged.vcf.gz"
+export polished_vcf="gs://val-ped-nonterra-hail/PedSV.v2.polished.postCohortFX.small_del_outliers_removed.vcf.gz"
 export WRKDIR=~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab
 export CODEDIR=$WRKDIR/ped_germline_SV/
 
@@ -34,9 +34,9 @@ hailctl dataproc submit \
   --region us-central1 \
   pedsv \
   $CODEDIR/gatksv_scripts/get_kinship_and_pcs.py \
-  --vcf-in $merged_vcf \
-  --pcs-out gs://val-ped-nonterra-hail/PedSV.merged.PCs.tsv.gz \
-  --kinship-out gs://val-ped-nonterra-hail/PedSV.merged.kinship.tsv.gz
+  --vcf-in $polished_vcf \
+  --pcs-out gs://val-ped-nonterra-hail/PedSV.v2.polished.PCs.tsv.gz \
+  --kinship-out gs://val-ped-nonterra-hail/PedSV.v2.polished.kinship.tsv.gz
 
 # Shut down Hail dataproc cluster
 hailctl dataproc stop pedsv --region us-central1 
@@ -51,32 +51,32 @@ for subdir in data data/ancestry_and_relatedness; do
   fi
 done
 gsutil -m cp \
-  gs://val-ped-nonterra-hail/PedSV.merged.*.tsv.gz \
+  gs://val-ped-nonterra-hail/PedSV.v2.polished.*.tsv.gz \
   $WRKDIR/data/ancestry_and_relatedness/
 
 # Assign ancestries using top 4 PCs
-if [ -e $WRKDIR/data/ancestry_and_relatedness/merged ]; then
-  rm -rf $WRKDIR/data/ancestry_and_relatedness/merged
+if [ -e $WRKDIR/data/ancestry_and_relatedness/v2 ]; then
+  rm -rf $WRKDIR/data/ancestry_and_relatedness/v2
 fi
-mkdir $WRKDIR/data/ancestry_and_relatedness/merged
+mkdir $WRKDIR/data/ancestry_and_relatedness/v2
 ${CODEDIR}/gatksv_scripts/assign_ancestry.R \
-  --PCs $WRKDIR/data/ancestry_and_relatedness/PedSV.merged.PCs.tsv.gz \
+  --PCs $WRKDIR/data/ancestry_and_relatedness/PedSV.v2.polished.PCs.tsv.gz \
   --training-labels $WRKDIR/data/ancestry_and_relatedness/1000G_HGDP_MESA_training_labels.tsv.gz \
   --testing-labels ${WRKDIR}/data/ancestry_and_relatedness/PedSV.SNV_ancestry_labels.tsv.gz \
-  --out-prefix $WRKDIR/data/ancestry_and_relatedness/merged/PedSV.merged \
+  --out-prefix $WRKDIR/data/ancestry_and_relatedness/v2/PedSV.v2.polished \
   --use-N-PCs 4 \
   --min-probability 0 \
   --plot
 
 # Visualize relationship labels from kinship metrics
-if [ -e $WRKDIR/data/ancestry_and_relatedness/merged ]; then
-  rm -rf $WRKDIR/data/ancestry_and_relatedness/merged
+if [ -e $WRKDIR/data/ancestry_and_relatedness/v2 ]; then
+  rm -rf $WRKDIR/data/ancestry_and_relatedness/v2
 fi
-mkdir $WRKDIR/data/ancestry_and_relatedness/merged
+mkdir $WRKDIR/data/ancestry_and_relatedness/v2
 ${CODEDIR}/gatksv_scripts/infer_relatives.R \
-  --metrics $WRKDIR/data/ancestry_and_relatedness/PedSV.merged.kinship.tsv.gz \
-  --training-labels $WRKDIR/data/ancestry_and_relatedness/PedSV.merged.known_relationships.tsv.gz \
-  --out-prefix $WRKDIR/data/ancestry_and_relatedness/merged/PedSV.merged \
+  --metrics $WRKDIR/data/ancestry_and_relatedness/PedSV.v2.polished.kinship.tsv.gz \
+  --training-labels $WRKDIR/data/ancestry_and_relatedness/PedSV.v2.polished.known_relationships.tsv.gz \
+  --out-prefix $WRKDIR/data/ancestry_and_relatedness/v2/PedSV.v2.polished \
   --plot
 
 # Prep files for final sample inclusion determination
@@ -85,7 +85,7 @@ gsutil -m cat \
   gs://fc-eefa28f4-a75d-4bbf-80d7-f37f98f4bb19/trio_cohort_ped_file_11_24_22_updated_for_sex_aneuploidies.ped.txt \
   gs://fc-47352478-ddb0-4040-802e-fc3349c50fdb/cohort_ped_file_gatk_sv_pediatric_cancers_validation_cases_with_selected_discovery_trios_2_16_23_no_header.ped.txt \
 | cut -f2-4 | sort -Vk1,1 -k2,2V -k3,3V | uniq \
-> $WRKDIR/data/ancestry_and_relatedness/PedSV.merged.ped_trunc
+> $WRKDIR/data/ancestry_and_relatedness/PedSV.v2.polished.ped_trunc
 # Write list of 1000G samples
 zcat ${WRKDIR}/data/ancestry_and_relatedness/1000G_HGDP_training_labels.tsv.gz \
 | cut -f1 | fgrep -v "#" \
@@ -98,11 +98,11 @@ gsutil -m cp \
 
 # Prune sample inclusion lists based on relatedness
 ${CODEDIR}/gatksv_scripts/optimize_sample_inclusion_lists.py \
-  --kinship $WRKDIR/data/ancestry_and_relatedness/PedSV.merged.kinship.tsv.gz \
-  --predicted-relatives $WRKDIR/data/ancestry_and_relatedness/merged/PedSV.merged.relatedness_labels.tsv \
-  --pedfile $WRKDIR/data/ancestry_and_relatedness/PedSV.merged.ped_trunc \
+  --kinship $WRKDIR/data/ancestry_and_relatedness/PedSV.v2.polished.kinship.tsv.gz \
+  --predicted-relatives $WRKDIR/data/ancestry_and_relatedness/v2/PedSV.v2.polished.relatedness_labels.tsv \
+  --pedfile $WRKDIR/data/ancestry_and_relatedness/PedSV.v2.polished.ped_trunc \
   --samples-from-1000g $WRKDIR/data/ancestry_and_relatedness/1000G_samples.list \
-  --ancestry-labels $WRKDIR/data/ancestry_and_relatedness/merged/PedSV.merged.ancestry_labels.tsv \
+  --ancestry-labels $WRKDIR/data/ancestry_and_relatedness/v2/PedSV.v2.polished.ancestry_labels.tsv \
   --phenotype-labels $WRKDIR/data/PedSV.all_samples.phenotype_labels.tsv \
   --trio-callset-samples $WRKDIR/data/ancestry_and_relatedness/minGQ_v7_FDR2pct_NCR10pct.no_outliers.cleaned.samples.list \
   --validation-callset-samples $WRKDIR/data/ancestry_and_relatedness/minGQ_v1_trioCutoffs_FDR2pct_NCR10pct.no_outliers.cleaned.samples.list \

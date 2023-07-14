@@ -58,7 +58,7 @@ def main():
 
     # Subset to  high-quality, biallelic, well-genotyped, autosomal variants
     mt = mt.filter_rows((mt.filters.size() == 0) & \
-                        (mt.qual > 100) & \
+                        (mt.qual > 10) & \
                         (mt.variant_qc.call_rate > 0.99) & \
                         (mt.variant_qc.p_value_hwe > 10e-6) & \
                         (mt.variant_qc.AF[0] >= 0.001) & \

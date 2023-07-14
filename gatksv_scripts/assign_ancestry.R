@@ -81,6 +81,8 @@ parser$add_argument("--min-probability", metavar="float", type="double", default
                     help=paste("minimum prediction probability required to assign",
                                "a sample to an ancestry [default: 0.8]"))
 parser$add_argument("--plot", action="store_true", help="generate diagnostic plots")
+parser$add_argument("--plot-cex", default=0.3, metavar="float", type="numeric",
+                    help="point expansion factor for --plot [default: 0.3]")
 args <- parser$parse_args()
 
 # # DEV
@@ -91,7 +93,8 @@ args <- parser$parse_args()
 #           "out_prefix" = "~/scratch/ancestry_test",
 #           "use_N_PCs" = 4,
 #           "min_probability" = 0,
-#           "plot" = TRUE)
+#           "plot" = TRUE,
+#           "plot_cex" = 0.3)
 
 # Load PCs
 pcs <- load.pc.matrix(args$PCs, args$use_N_PCs)
@@ -111,7 +114,7 @@ pred.labels <- assign.ancestries(pcs, classifier, args$min_probability)
 # Evaluate accuracy vs. training labels
 train.acc <- length(which(train$pop == pred.labels[rownames(train)])) / nrow(train)
 cat(paste("\nClassification accuracy vs. training labels: ",
-            formatC(round(100 * train.acc, 2), digits=4), "%\n\n", sep=""))
+          formatC(round(100 * train.acc, 2), digits=4), "%\n\n", sep=""))
 
 # Evaluate accuracy vs. testing labels (if provided)
 if(!is.null(args$testing_labels)){
@@ -131,8 +134,11 @@ write.table(pred.labels,
 
 # If optioned, generate diagnostic plots
 png.dim <- 3.5
+
 if(args$plot){
-  sapply(list(c(1, 2), c(3, 4)), function(pc.idxs){
+  sapply(0:(floor(ncol(pcs) / 2) - 1), function(i){
+    pc.idxs <- c((2*i)+1, (2*i)+2)
+
     # All samples
     png(paste(args$out_prefix, ".all_samples.pc", pc.idxs[1], "_vs_pc",
               pc.idxs[2], ".png", sep=""), res=300, height=png.dim*300,
@@ -140,7 +146,7 @@ if(args$plot){
     pc.scatterplot(pcs, pc.idxs[1], pc.idxs[2],
                    colors=pop.colors[pred.labels[rownames(pcs)]],
                    title="All Samples w/Predicted Labels",
-                   legend.vals=pop.colors)
+                   legend.vals=pop.colors, cex=args$plot_cex)
     dev.off()
 
     # Training samples colored by training labels
@@ -149,7 +155,7 @@ if(args$plot){
         width=png.dim*300)
     pc.scatterplot(train, pc.idxs[1], pc.idxs[2], colors=pop.colors[train$pop],
                    title="Training Samples w/Training Labels",
-                   legend.vals=pop.colors)
+                   legend.vals=pop.colors, cex=args$plot_cex)
     dev.off()
 
     # Non-training samples with inferred labels
@@ -160,8 +166,7 @@ if(args$plot){
     pc.scatterplot(non.train, pc.idxs[1], pc.idxs[2],
                    colors=pop.colors[pred.labels[rownames(non.train)]],
                    title="New Samples w/Predicted Labels",
-                   legend.vals=pop.colors)
+                   legend.vals=pop.colors, cex=args$plot_cex)
     dev.off()
   })
 }
-

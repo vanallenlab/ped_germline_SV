@@ -68,6 +68,7 @@ def calc_ncr(record):
     else:
         return None
 
+
 def recalibrate_qual(record):
     """
     Recalibrate record QUAL (quality)
@@ -80,7 +81,10 @@ def recalibrate_qual(record):
         if np.nansum(a) > 0:
             gqs.append(sinfo.get('GQ', None))
 
-    return np.nanmedian(gqs)
+    if len(gqs) > 0:
+        return np.nanmedian(gqs)
+    else:
+        return 0
 
 
 def main():
@@ -112,7 +116,7 @@ def main():
             header.add_line('##INFO=<ID={},Number=0,Type=Flag,Description="{}">'.format(key, descrip))
     for key in mf_infos:
         header.info.remove_header(key)
-    header.filters.remove_header('HIGH_PCRMINUS_NOCALL_RATE')
+    # header.filters.remove_header('HIGH_PCRMINUS_NOCALL_RATE')
     header.add_line('##INFO=<ID=AF,Number=A,Type=Float,Description="Allele frequency">')
     header.add_line('##INFO=<ID=OLD_ID,Number=1,Type=String,Description="Original GATK-SV variant ID before polishing">')
 
@@ -136,35 +140,37 @@ def main():
         svtype = record.info.get('SVTYPE')
         svlen = record.info.get('SVLEN', 0)
 
+        # Skip empty records
+        if record.info.get('AC', (1, ))[0] == 0 \
+        and (svtype != 'CNV' or 'MULTIALLELIC' not in record.filter.keys()):
+            continue
+
         # Label small MCNVs as UNRESOLVED
         if (svtype == 'CNV' or 'MULTIALLELIC' in record.filter.keys()) \
         and svlen < 5000:
             record.filter.add('UNRESOLVED')
 
-        # Label large, common, complex SVs as UNRESOLVED
-        if svtype == 'CPX' \
-        and svlen >= 50000 \
-        and record.info.get('AF', 0)[0] >= 0.1:
-            record.filter.add('UNRESOLVED')
-
-        # Label very large, common, simple SVs as UNRESOLVED
-        if svtype in 'DEL DUP INS'.split() \
-        and svlen >= 1000000 \
-        and record.info.get('AF', 0)[0] >= 0.1:
+        # Label very large, common, unbalanced SVs as UNRESOLVED
+        if svtype in 'DEL DUP INS CPX'.split() \
+        and svlen >= 500000 \
+        and record.info.get('AF', (0, ))[0] >= 0.05:
             record.filter.add('UNRESOLVED')
 
         # Label common CTX as UNRESOLVED
         if svtype == 'CTX' \
-        and record.info.get('AF', 0)[0] >= 0.01:
+        and record.info.get('AF', (0, ))[0] >= 0.01:
             record.filter.add('UNRESOLVED')
 
         # Apply stricter NCR filter for artifact deletion peak
-        if svtype == "DEL" \
-        and svlen > 400 \
-        and svlen < 1000 \
-        and record.info.get('AC', (0, ))[0] / record.info.get('AN', 1) < 0.1:
-            if record.info.get('PCRMINUS_NCR', 0) > 0.01:
-                record.filter.add('HIGH_NCR')
+        try:
+            if svtype == "DEL" \
+            and svlen > 400 \
+            and svlen < 1000 \
+            and record.info.get('AC', (0, ))[0] / record.info.get('AN', 1) < 0.1:
+                if record.info.get('PCRMINUS_NCR', 0) > 0.01:
+                    record.filter.add('HIGH_NCR')
+        except:
+            import pdb; pdb.set_trace()
 
         # Recompute NCR
         if svtype != 'CNV' and 'MULTIALLELIC' not in record.filter.keys():
@@ -197,7 +203,8 @@ def main():
             record.filter.add(filt)
 
         # Recalibrate QUAL score
-        record.qual = recalibrate_qual(record)
+        if svtype != 'CNV' and 'MULTIALLELIC' not in record.filter.keys():
+            record.qual = recalibrate_qual(record)
 
         # Rename record
         if record.chrom not in svtype_counter.keys():
@@ -205,7 +212,7 @@ def main():
         if svtype not in svtype_counter[record.chrom].keys():
             svtype_counter[record.chrom][svtype] = 0
         svtype_counter[record.chrom][svtype] += 1
-        new_id = '_'.join(['YL_SV_v1.0', svtype, record.chrom,
+        new_id = '_'.join(['PedSV.v2.0', svtype, record.chrom,
                            str(svtype_counter[record.chrom][svtype])])
         record.info['OLD_ID'] = record.id
         record.id = new_id
