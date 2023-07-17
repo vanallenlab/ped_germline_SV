@@ -173,6 +173,14 @@ load.sv.bed <- function(bed.in, keep.coords=TRUE, pass.only=TRUE,
   }
   df[, drop.cols] <- NULL
 
+  # Backfill missing PREDICTED_NEAREST_TSS using PREDICTED_PROMOTER
+  if(intersect(c("PREDICTED_NEAREST_TSS", "PREDICTED_PROMOTER"), colnames(df))){
+    ntss_missing <- is.na(df$PREDICTED_NEAREST_TSS)
+    if(any(ntss_missing)){
+      df$PREDICTED_NEAREST_TSS[which(ntss_missing)] <- df$PREDICTED_PROMOTER[which(ntss_missing)]
+    }
+  }
+
   # Parse list-style columns, if optioned
   list.cols <- setdiff(colnames(df)[grep("^PREDICTED_", colnames(df))], "PREDICTED_INTERGENIC")
   if(!split.coding){

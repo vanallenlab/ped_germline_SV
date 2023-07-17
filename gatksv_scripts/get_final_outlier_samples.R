@@ -21,6 +21,9 @@ require(beeswarm)
 # Load data
 x <- read.table("~/scratch/PedSV_v2_minGQ_postGQR_July_2023.rare.counts.tsv", header=T, sep="\t", comment.char="")
 y <- read.table("~/scratch/PedSV_v2_minGQ_postGQR_July_2023.common.counts.tsv", header=T, sep="\t", comment.char="")
+r <- read.table("~/scratch/PedSV_v2_minGQ_postGQR_July_2023.artifact_del.counts.tsv", header=T, sep="\t", comment.char="")
+r$svtype <- "Artifact DEL"
+x <- rbind(x, r)
 m <- read.table("/Users/ryan/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_v2_callset_generation/v2_mega_batching/gatk_sv_pediatric_cancers_combined_sample_data_model_updated_links_6_2_23_with_annotations_for_batching.w_batch_assignments.tsv.gz",
                 header=T, sep="\t", comment.char="")
 rownames(m) <- m$entity.sample_id
@@ -42,7 +45,7 @@ outlier.cex <- c("FALSE" = 0.15, "TRUE" = 0.6)
 
 # Define outliers
 x$OUTLIER <- FALSE
-for(svtype in c("DUP", "INS", "DEL", "CPX", "BND")){
+for(svtype in c("DUP", "INS", "DEL", "CPX", "BND", "Artifact DEL")){
   for(pop in unique(x$reported_or_SNV_ancestry)){
     idx <- which(x$svtype == svtype & x$reported_or_SNV_ancestry == pop)
     vals <- x[idx, "count"]
@@ -55,7 +58,7 @@ for(svtype in c("DUP", "INS", "DEL", "CPX", "BND")){
 
 # Plot SVTYPE x POP
 png("~/scratch/PedSV.v2.rare_counts.by_pop.png", height=2.4*300, width=8*300, res=300)
-par(mfrow=c(1, 6), mar=c(0.1, 2, 1, 1))
+par(mfrow=c(1, 7), mar=c(0.1, 2, 1, 1))
 sapply(setdiff(unique(x$svtype), c("CTX")), function(svtype){
   idxs <- which(x$svtype == svtype)
   boxplot(count ~ reported_or_SNV_ancestry, data=x[idxs, ], main=svtype, xlab="", ylab="",
@@ -71,7 +74,7 @@ dev.off()
 
 # Plot COHORT x POP
 png("~/scratch/PedSV.v2.rare_counts.by_cohort.png", height=3*300, width=10*300, res=300)
-par(mfrow=c(1, 6), mar=c(4, 2, 1, 1))
+par(mfrow=c(1, 7), mar=c(4, 2, 1, 1))
 sapply(setdiff(unique(x$svtype), c("CTX")), function(svtype){
   idxs <- which(x$svtype == svtype)
   boxplot(count ~ study, data=x[idxs, ], main=svtype, xlab="", ylab="",
@@ -113,5 +116,5 @@ dev.off()
 
 # Write list of samples
 bad.ids <- unique(x$sample[which(x$OUTLIER)])
-write.table(bad.ids, "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_v2_callset_generation/PedSV.v2.rare_sv_outliers.list",
+write.table(bad.ids, "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_v2_callset_generation/PedSV.v2.rare_sv_outliers.wArtifactDELs.list",
             col.names=F, row.names=F, quote=F)

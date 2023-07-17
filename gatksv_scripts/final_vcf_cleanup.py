@@ -166,8 +166,8 @@ def main():
             if svtype == "DEL" \
             and svlen > 400 \
             and svlen < 1000 \
-            and record.info.get('AC', (0, ))[0] / record.info.get('AN', 1) < 0.1:
-                if record.info.get('PCRMINUS_NCR', 0) > 0.01:
+            and record.info.get('AC', (0, ))[0] / record.info.get('AN', 1) < 0.05:
+                if record.info.get('PCRMINUS_NCR', 0) > 1/250:
                     record.filter.add('HIGH_NCR')
         except:
             import pdb; pdb.set_trace()
