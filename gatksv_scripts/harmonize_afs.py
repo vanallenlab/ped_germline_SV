@@ -142,9 +142,13 @@ def pool_freqs(record, sub_prefixes, new_prefix):
 
         record.info[new_prefix + 'CN_NUMBER'] = CN_n
         record.info[new_prefix + 'CN_COUNT'] = CN_k
-        record.info[new_prefix + 'CN_FREQ'] = tuple(np.array(CN_k) / CN_n)
         record.info[new_prefix + 'CN_NONREF_COUNT'] = NONDIP
-        record.info[new_prefix + 'CN_NONREF_FREQ'] = NONDIP / CN_n
+        if CN_n > 0:
+            record.info[new_prefix + 'CN_FREQ'] = tuple(np.array(CN_k) / CN_n)
+            record.info[new_prefix + 'CN_NONREF_FREQ'] = NONDIP / CN_n
+        else:
+            record.info[new_prefix + 'CN_FREQ'] = tuple([np.NaN] * max_cn)
+            record.info[new_prefix + 'CN_NONREF_FREQ'] = np.NaN
 
     else:
 

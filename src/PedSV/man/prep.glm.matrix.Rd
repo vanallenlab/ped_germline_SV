@@ -17,7 +17,7 @@ prep.glm.matrix(meta, X, Y, use.N.pcs = 5, extra.terms = NULL)
 model [default: 5]}
 
 \item{extra.terms}{Specify if any extra terms should be added to the model.
-Named options include: "study", "cohort", "coverage, "read.length", "insert.size",
+Named options include: "study", "cohort", "coverage, "insert.size",
 and "wgd". Custom terms can be passed using their exact column names in \code{meta}.}
 }
 \value{

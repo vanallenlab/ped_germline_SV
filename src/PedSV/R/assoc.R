@@ -23,7 +23,7 @@
 #' @param use.N.pcs Specify how many principal components should be adjusted in
 #' model \[default: 5\]
 #' @param extra.terms Specify if any extra terms should be added to the model.
-#' Named options include: "study", "cohort", "coverage, "read.length", "insert.size",
+#' Named options include: "study", "cohort", "coverage, "insert.size",
 #' and "wgd". Custom terms can be passed using their exact column names in `meta`.
 #'
 #' @details There are several options for providing `X` and `Y` values:
@@ -55,16 +55,13 @@ prep.glm.matrix <- function(meta, X, Y, use.N.pcs=5, extra.terms=NULL){
     if("coverage" %in% extra.terms){
       df$coverage = scale(as.numeric(meta$median_coverage))
     }
-    if("read.length" %in% extra.terms){
-      df$read.length <- scale(as.numeric(meta$read_length))
-    }
     if("insert.size" %in% extra.terms){
       df$insert.size <- scale(as.numeric(meta$insert_size))
     }
     if("wgd" %in% extra.terms){
       df$abs.wgd = scale(abs(as.numeric(meta$wgd_score)))
     }
-    other.terms <- setdiff(extra.terms, c("cohort", "coverage", "read.length", "insert.size", "wgd"))
+    other.terms <- setdiff(extra.terms, c("cohort", "coverage", "insert.size", "wgd"))
     for(term in other.terms){
       df[, term] <- scale(meta[, term])
     }

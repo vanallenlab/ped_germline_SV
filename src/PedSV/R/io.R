@@ -113,8 +113,8 @@ load.sample.metadata <- function(tsv.in, keep.samples=NULL, reassign.parents=TRU
   df[sort(rownames(df)),
      c("study_phase", "batch", "study", "disease", "proband", "family_id",
        colnames(df)[grep("_control$", colnames(df))],
-       "reported_ancestry", "inferred_ancestry", "inferred_sex", "read_length",
-       "insert_size", "median_coverage", "melt_coverage", "wgd_score",
+       "reported_ancestry", "inferred_ancestry", "inferred_sex",
+       "insert_size", "median_coverage", "wgd_score",
        colnames(df)[grep("^PC", colnames(df))],
        colnames(df)[grep("_CopyNumber$", colnames(df))])]
 }
