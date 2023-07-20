@@ -102,7 +102,7 @@ trios <- get.complete.trios(meta)
 
 # DEV:
 bed <- bed[which(bed$ALGORITHMS != "depth" & !(bed$EVIDENCE %in% c("RD", "BAF,RD"))), ]
-rare.lof.bed <- filter.bed(bed, "rare.lof", af.field=args$af_field, ac.field=args$ac_field)
+rare.lof.bed <- filter.bed(bed, "rare.lof", af.field=args$af_field, ac.field=args$ac_field, autosomal=TRUE)
 variant.weights <- sapply(bed$PREDICTED_LOF, length) + sapply(bed$PREDICTED_PARTIAL_EXON_DUP, length)
 names(variant.weights) <- rownames(bed)
 lof.ad <- query.ad.from.sv.bed(args$ad, rare.lof.bed, action="count")
@@ -141,7 +141,7 @@ abline(0, 1, col="gray", lty=5)
 constr <- read.table("~/scratch/PedSV_gene_lists/gnomad.v2.1.1.LoF_constrained.genes.list",
                      header=F, sep="\t")[, 1]
 constr.lof <- which(sapply(bed$PREDICTED_LOF, function(g){any(g %in% constr)}))
-constr.rare.lof.bed <- filter.bed(bed, "rare.lof", keep.idx=constr.lof)
+constr.rare.lof.bed <- filter.bed(bed, "rare.lof", keep.idx=constr.lof, autosomal=TRUE)
 lof.ac <- query.ad.from.sv.bed(args$ad, constr.rare.lof.bed, action="sum")
 ac.vals <- get.trio.values(trios, lof.ac)
 ac.vals$control <- rownames(ac.vals) %in% control.trios

@@ -24,6 +24,7 @@ workflow DenseVcf2AnalysisFiles {
     File vcf_idx
     String prefix
     File? exclude_samples_list
+    File? bcftools_filter_options
     String pedsv_docker
     String pedsv_r_docker
   }
@@ -32,8 +33,9 @@ workflow DenseVcf2AnalysisFiles {
     call exclude.ExcludeSamples as ExcludeSamples {
       input:
         vcf = vcf,
-        exclude_samples_list = exclude_samples_list,
+        exclude_samples_list = select_first([exclude_samples_list]),
         update_info = false,
+        bcftools_filter_options = bcftools_filter_options,
         docker = pedsv_docker
     }
   }
@@ -132,8 +134,8 @@ task MakeSitesVcf {
   >>>
 
   output {
-    File bed = "~{out_filename}"
-    File bed_idx = "~{out_filename}.tbi"
+    File vcf_out = "~{out_filename}"
+    File vcf_out_idx = "~{out_filename}.tbi"
   }
   
   runtime {

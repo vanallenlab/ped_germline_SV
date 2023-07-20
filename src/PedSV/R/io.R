@@ -133,6 +133,10 @@ load.sample.metadata <- function(tsv.in, keep.samples=NULL, reassign.parents=TRU
 #' comma-delimited strings to character vectors? \[Default: FALSE\]
 #' @param drop.vids Either a vector or a path to a file containing variant IDs
 #' to be excluded drop the input file. \[Default: Keep all IDs\]
+#' @param drop.cohort.frequencies A character vector of one or more prefixes
+#' corresponding to cohort names for which cohort-specific frequencies should be
+#' dropped. Useful for reducing in-memory size. Examples include "case_control"
+#' and "trio". \[default: Keep all frequencies\]
 #'
 #' @returns data.frame
 #'
@@ -142,7 +146,7 @@ load.sample.metadata <- function(tsv.in, keep.samples=NULL, reassign.parents=TRU
 #' @export
 load.sv.bed <- function(bed.in, keep.coords=TRUE, pass.only=TRUE,
                         split.coding=TRUE, split.noncoding=FALSE,
-                        drop.vids=NULL){
+                        drop.vids=NULL, drop.cohort.frequencies=c()){
   # Load data
   df <- read.table(bed.in, header=T, comment.char="", sep="\t", check.names=F,
                    stringsAsFactors=F)
@@ -166,20 +170,43 @@ load.sv.bed <- function(bed.in, keep.coords=TRUE, pass.only=TRUE,
   df$name <- NULL
 
   # Drop unnecessary columns
-  drop.cols <- c("svtype", "STRANDS")
+  drop.cols <- c("svtype", "STRANDS", "MINSL", "NCN",
+                 "GENOTYPE_CONCORDANCE", "NON_REF_GENOTYPE_CONCORDANCE",
+                 "PCRMINUS_NCR",
+                 colnames(df)[grep("^TRUTH_", colnames(df))],
+                 colnames(df)[grep("^VAR_", colnames(df))])
   if(!keep.coords){
     drop.cols <- c(drop.cols, "chrom", "start", "end", "CHR2", "END", "END2",
                    "CPX_INTERVALS", "SOURCE")
   }
-  df[, drop.cols] <- NULL
+  for(prefix in drop.cohort.frequencies){
+    prefix.cols <- grep(paste("^", prefix, "_", sep=""), colnames(df))
+    if(length(prefix.cols) > 0){
+      drop.cols <- c(drop.cols, colnames(df)[prefix.cols])
+    }else{
+      cat(paste("Warning: could not find any columns with the prefix '",
+                prefix, "_' in ", bed.in, sep=""))
+    }
+  }
+  df[, intersect(drop.cols, colnames(df))] <- NULL
 
   # Backfill missing PREDICTED_NEAREST_TSS using PREDICTED_PROMOTER
-  if(intersect(c("PREDICTED_NEAREST_TSS", "PREDICTED_PROMOTER"), colnames(df))){
+  if(length(intersect(c("PREDICTED_NEAREST_TSS", "PREDICTED_PROMOTER"), colnames(df))) == 2){
     ntss_missing <- is.na(df$PREDICTED_NEAREST_TSS)
     if(any(ntss_missing)){
       df$PREDICTED_NEAREST_TSS[which(ntss_missing)] <- df$PREDICTED_PROMOTER[which(ntss_missing)]
     }
   }
+
+  # Fill gnomAD annotation info for variants with no match in gnomAD
+  gnomad.idxs <- intersect(grep("^gnom", colnames(df)), grep("_AF$", colnames(df)))
+  if(length(gnomad.idxs) > 0){
+    df[, gnomad.idxs] <- apply(df[, gnomad.idxs], 2, function(vals){
+      vals[which(is.na(vals))] <- 0
+      return(vals)
+    })
+  }
+
 
   # Parse list-style columns, if optioned
   list.cols <- setdiff(colnames(df)[grep("^PREDICTED_", colnames(df))], "PREDICTED_INTERGENIC")

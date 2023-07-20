@@ -70,6 +70,9 @@ query.ad.matrix <- function(ad, query.regions=NULL, query.ids=NULL,
       })
       tabix.query <- bedr.merge.region(bedr.sort.region(tabix.query, verbose=FALSE),
                                        verbose=FALSE)
+      incon <- gzfile(ad, open="r")
+      ad.header <- unlist(strsplit(readLines(incon, 1), split="\t"))
+      close(incon)
       ad <- bedr::tabix(region=tabix.query, file.name=ad)
       if(!is.null(query.ids)){
         ad <- ad[which(ad[, 4] %in% query.ids), ]
@@ -78,7 +81,9 @@ query.ad.matrix <- function(ad, query.regions=NULL, query.ids=NULL,
     ad <- as.data.frame(ad)
     ad <- ad[!duplicated(ad[, 1:4]), ]
     ad[, -c(1:4)] <- apply(ad[, -c(1:4)], 2, as.numeric)
+    colnames(ad) <- ad.header
     rownames(ad) <- ad[, 4]
+
     ad <- ad[, -c(1:4)]
   }
 

@@ -7,11 +7,14 @@
 filter.bed(
   bed,
   query,
-  af.field = "AF",
+  af.field = "POPMAX_AF",
   ac.field = "AC",
-  autosomal = TRUE,
+  use.gnomad.freqs = TRUE,
+  gnomad.column = "gnomad_v2.1_sv_POPMAX_AF",
+  autosomal = FALSE,
   pass.only = TRUE,
-  keep.idx = NULL
+  keep.idx = NULL,
+  return.idxs = FALSE
 )
 }
 \arguments{
@@ -19,17 +22,26 @@ filter.bed(
 
 \item{query}{Terms to indicate what kind of filtering should be performed. See \code{details}.}
 
-\item{af.field}{BED column to use for allele frequencies [default: AF]}
+\item{af.field}{BED column to use for allele frequencies [default: POPMAX_AF]}
 
 \item{ac.field}{BED column to use for allele counts [default: AC]}
 
-\item{autosomal}{Keep only autosomal variants [default: TRUE]}
+\item{use.gnomad.freqs}{Should gnomAD SV AFs also be applied for
+frequency filtering? [default: TRUE]}
+
+\item{gnomad.column}{Specify the column header to use for gnomAD frequency
+filtering. Only used if \code{use.gnomad.freqs == TRUE}. [default: "gnomad_v2.1_sv_POPMAX_AF"]}
+
+\item{autosomal}{Keep only autosomal variants [default: FALSE]}
 
 \item{pass.only}{Keep only variants where FILTER is PASS [default: TRUE]}
 
 \item{keep.idx}{Optional vector to specify which row numbers from \code{bed} should
 be retained. Can be useful for applying more complex or custom filtering in addition
 to the basic functions in \code{query}.}
+
+\item{return.idxs}{Should row indexes be returned instead of a filtered version
+of \code{bed}? [default: FALSE]}
 }
 \value{
 data.frame
@@ -42,9 +54,10 @@ The \code{query} argument can be passed as either a character vector or a
 single character string. In both cases, the argument should indicate what filter(s)
 should be applied to \code{bed}. Recognized filters currently include:
 \itemize{
+\item \code{DEL}|\code{DUP}|\code{CNV}|\code{INS}|\code{INV}|\code{CPX}|\code{CTX} : retain only this SV type
 \item \code{rare} : AF < 1\%
 \item \code{vrare} : AF < 0.1\%
-\item \code{singleton} : AC = 1
+\item \code{singleton} : AC = 1 & gnomAD AF = 0 (if \code{use.gnomad.freqs} is \code{TRUE})
 \item \code{large} : SVLEN > 1,000,000
 \item \code{gene_disruptive} or \code{genes_disrupted} : any SV with predicted LoF, PED, CG, or IED
 \item \code{single_gene_disruptive} : as above, but further restricting to SVs impacting just one gene

@@ -10,6 +10,8 @@
 - Dropped 1000 Genomes samples from study for all downstream disease association analyses
 - Updated gene reference file from MANE v0.95 to MANE v1.2
 - Added variant frequency annotations from gnomAD-SV v2.1
+- Incremented version of PedSV R package to v0.0.2
+- Inplemented fallback to Firth's bias-reduced logistic regression in `PedSV::pedsv.glm`
 
 #### Version 1.1 (April 7, 2023)  
 - Dropped empty records (i.e., those with no non-ref samples remaining)  

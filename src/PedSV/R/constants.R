@@ -290,7 +290,10 @@ load.constants <- function(subset, envir=.GlobalEnv){
                    "INV" = "Inversion",
                    "CPX" = "Complex SV",
                    "CTX" = "Translocation",
-                   "OTH" = "Other SV")
+                   "OTH" = "Other SV"),
+    "freq.names" = c("rare" = "Rare",
+                     "vrare" = "V. Rare",
+                     "singleton" = "Singleton")
   )
 
   # Assign constants to global environment
