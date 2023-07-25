@@ -1,5 +1,11 @@
 ## Change logs for study callset versions
 
+#### Version 2.1 (release date TBD)
+- Added new FILTER tag to mark predicted gene retroduplication splice junctions  
+- Masked RD-only GTs in ~5% of samples that were determined to be outliers for rare RD-only events
+- Added new non-PASS FILTER tag for RD-only records that had ≥50% of all non-ref GTs contributed by rare RD-only outliers
+- Added final layer of outlier exclusion after all site-level filtering targeted at rare exonic deletions (≥30 per sample) & rare copy-gain duplications (≥15 per sample)
+
 #### Version 2.0 (July 20, 2023)
 - Major restructuring of study and callset
 - Added 2,842 new ancestry- & sex-matched adult controls from TOPMed-BioMe cohort

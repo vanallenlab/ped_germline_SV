@@ -50,6 +50,82 @@ def check_duplicate(record, records_seen):
     return is_dup, records_seen
 
 
+def is_multiallelic(record):
+    """
+    Reports whether a pysam.VariantRecord is an mCNV
+    """
+
+    return len(record.alleles) > 2 \
+           or 'MULTIALLELIC' in record.filter.keys() \
+           or record.info.get('SVTYPE') in 'CNV MCNV'.split()
+
+
+def is_depth_only(record):
+    """
+    Checks whether a record is a read depth-only CNV
+    """
+
+    if record.info['ALGORITHMS'] == ('depth', ) \
+    and 'PE' not in record.info['EVIDENCE'] \
+    and 'SR' not in record.info['EVIDENCE']:
+        return True
+    else:
+        return False
+
+
+def clean_rd_genos(record, bad_rd_samples):
+    """
+    Clean up RD genotypes for depth-only records
+    """
+
+    # Count proportion of non-ref GTs contributed by bad_rd_samples
+    all_nonref = 0
+    bad_nonref = 0
+    revised_ac = 0
+    for sid, sdat in record.samples.items():
+        GT = sdat['GT']
+        if None in GT:
+            continue
+        if any([a > 0 for a in GT]):
+            all_nonref += 1
+            if sid in bad_rd_samples \
+            and sdat['EV'] == ('RD', ):
+                bad_nonref += 1
+            else:
+                revised_ac += sum(GT)
+
+    # Tag sample as non-PASS if at least half of all original non-ref GTs were from bad_rd_samples
+    if all_nonref > 0:
+        if bad_nonref / all_nonref >= 0.5:
+            record.filter.add('UNRELIABLE_RD_GENOTYPES')
+        
+    # Mask RD-only genotypes for bad_rd_samples
+    for sid in bad_rd_samples:
+        if record.samples[sid]['EV'] == ('RD', ):
+            record.samples[sid]['GT'] = (None, None)
+
+    # Update AC
+    record.info['AC'] = revised_ac
+
+    return record
+
+
+def is_artifact_deletion(record):
+    """
+    Checks whether a record is a deletion in the artifact zone
+    """
+
+    svtype = record.info['SVTYPE']
+    svlen = record.info['SVLEN']
+    if svtype == "DEL" \
+    and svlen > 400 \
+    and svlen < 1000 \
+    and record.info.get('AC', (0, ))[0] / record.info.get('AN', 1) < 0.05:
+        return True
+    else:
+        return False
+
+
 def calc_ncr(record):
     """
     Calculate no-call rate for a record's genotypes
@@ -96,6 +172,8 @@ def main():
              formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('vcf_in', help='input .vcf')
     parser.add_argument('vcf_out', help='output .vcf')
+    parser.add_argument('--bad-rd-samples', help='list of samples with ' +
+                        'unreliable RD genotypes')
     args = parser.parse_args()
 
     # Open connection to input vcf
@@ -119,12 +197,23 @@ def main():
     # header.filters.remove_header('HIGH_PCRMINUS_NOCALL_RATE')
     header.add_line('##INFO=<ID=AF,Number=A,Type=Float,Description="Allele frequency">')
     header.add_line('##INFO=<ID=OLD_ID,Number=1,Type=String,Description="Original GATK-SV variant ID before polishing">')
+    new_filt = '##FILTER=<ID=UNRELIABLE_RD_GENOTYPES,Description="This variant is ' + \
+               'enriched for non-reference GTs in unreliable samples and is ' + \
+               'therefore less reliable overall.">'
+    header.add_line(new_filt)
 
     # Open connection to output vcf
     if args.vcf_out in '- stdout /dev/stdout':
         outvcf = pysam.VariantFile(stdout, 'w', header=header)
     else:
         outvcf = pysam.VariantFile(args.vcf_out, 'w', header=header)
+
+    # Read list of samples with unreliable RD genotypes and intersect with VCF header
+    bad_rd_samples = set()
+    if args.bad_rd_samples is not None:
+        with open(args.bad_rd_samples) as fin:
+            bad_rd_samples = set([s.rstrip() for s in fin.readlines()])
+            bad_rd_samples = bad_rd_samples.intersection(set(header.samples))
 
     # Iterate over records in invcf, clean up, and write to outvcf
     svtype_counter = {}
@@ -140,14 +229,18 @@ def main():
         svtype = record.info.get('SVTYPE')
         svlen = record.info.get('SVLEN', 0)
 
+        # Clean up RD genotypes
+        if svtype in 'DEL DUP'.split() \
+        and len(bad_rd_samples) > 0:
+            record = clean_rd_genos(record, bad_rd_samples)
+
         # Skip empty records
         if record.info.get('AC', (1, ))[0] == 0 \
-        and (svtype != 'CNV' or 'MULTIALLELIC' not in record.filter.keys()):
+        and not is_multiallelic(record):
             continue
 
         # Label small MCNVs as UNRESOLVED
-        if (svtype == 'CNV' or 'MULTIALLELIC' in record.filter.keys()) \
-        and svlen < 5000:
+        if is_multiallelic(record) and svlen < 5000:
             record.filter.add('UNRESOLVED')
 
         # Label very large, common, unbalanced SVs as UNRESOLVED
@@ -161,29 +254,23 @@ def main():
         and record.info.get('AF', (0, ))[0] >= 0.01:
             record.filter.add('UNRESOLVED')
 
-        # Apply stricter NCR filter for artifact deletion peak
-        try:
-            if svtype == "DEL" \
-            and svlen > 400 \
-            and svlen < 1000 \
-            and record.info.get('AC', (0, ))[0] / record.info.get('AN', 1) < 0.05:
-                if record.info.get('PCRMINUS_NCR', 0) > 1/250:
-                    record.filter.add('HIGH_NCR')
-        except:
-            import pdb; pdb.set_trace()
-
         # Recompute NCR
-        if svtype != 'CNV' and 'MULTIALLELIC' not in record.filter.keys():
+        if not is_multiallelic(record):
             record.info['NCR'] = calc_ncr(record)
 
         # Clear old high NCR FILTER and reannotate based on updated NCR
-        if 'HIGH_NCR' in record.filter.keys():
-            original_filters = [k for k in record.filter.keys()]
-            record.filter.clear()
-            for k in original_filters:
-                if k in 'HIGH_NCR HIGH_PCRMINUS_NOCALL_RATE'.split():
-                    record.filter.add(k)
-        if record.info.get('NCR', 0) >= 0.1:
+        original_filters = [k for k in record.filter.keys()]
+        record.filter.clear()
+        for k in original_filters:
+            if k not in 'HIGH_NCR HIGH_PCRMINUS_NOCALL_RATE'.split():
+                record.filter.add(k)
+        if is_depth_only(record):
+            if record.info.get('NCR', 0) >= 0.08:
+                record.filter.add('HIGH_NCR')
+        elif is_artifact_deletion(record):
+            if record.info.get('NCR', 0) > 1/250:
+                record.filter.add('HIGH_NCR')
+        elif record.info.get('NCR', 0) >= 0.1:
             record.filter.add('HIGH_NCR')
 
         # Clear all MALE/FEMALE AF annotations
@@ -203,7 +290,9 @@ def main():
             record.filter.add(filt)
 
         # Recalibrate QUAL score
-        if svtype != 'CNV' and 'MULTIALLELIC' not in record.filter.keys():
+        if is_multiallelic(record):
+            record.qual = 99
+        else:
             record.qual = recalibrate_qual(record)
 
         # Rename record

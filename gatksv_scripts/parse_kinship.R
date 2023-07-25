@@ -40,13 +40,14 @@ sids <- sids[c(which(sids %in% meta[which(meta$disease == "control"), 1]),
 
 # Iterative pruning
 for(sid in sids){
-  print(paste("Remaining pairs:", nrow(kin)))
+  # print(paste("Remaining pairs:", nrow(kin)))
   if(sid %in% c(kin$X.sample_1, kin$sample_2)){
     pruned <- c(pruned, sid)
     kin <- kin[-which(kin$X.sample_1 == sid | kin$sample_2 == sid), ]
-  }else{
-    print(paste("Not found in remaining pairs:", sid))
   }
+  # }else{
+    # print(paste("Not found in remaining pairs:", sid))
+  # }
   if(nrow(kin) == 0){
     break
   }
