@@ -196,7 +196,10 @@ def pool_freqs_per_cohort(record, cohort):
     field_prefixes.remove(cohort + '_')
 
     # Pool frequency information across populations for this cohort
-    record = pool_freqs(record, field_prefixes, cohort + '_')
+    try:
+        record = pool_freqs(record, field_prefixes, cohort + '_')
+    except:
+        import pdb; pdb.set_trace()
 
     # Pool sex-specific frequencies
     for sex in 'MALE FEMALE'.split():

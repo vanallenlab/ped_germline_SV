@@ -42,7 +42,7 @@ get.ad.values <- function(data, query, action, af.fields, ac.fields, keep.idx.li
     info <- data[[i]]
     query.bed <- filter.bed(info$bed, query, af.fields[i], ac.fields[i],
                             keep.idx=keep.idx.list[[i]], autosomal=TRUE)
-    if(query %in% c("rare.genes_disrupted")){
+    if("genes_disrupted" %in% unlist(strsplit(query, split=".", fixed=T))){
       weights <- apply(query.bed[, c("PREDICTED_LOF", "PREDICTED_COPY_GAIN",
                                      "PREDICTED_INTRAGENIC_EXON_DUP")],
                        1, function(vals){sum(sapply(vals, length), na.rm=T)})
@@ -227,15 +227,15 @@ parser$add_argument("--out-prefix", metavar="path", type="character", required=T
 args <- parser$parse_args()
 
 # # DEV:
-# args <- list("bed" = c("~/scratch/PedSV.v2.case_control_cohort.analysis_samples.sites.bed.gz"),
-#              "ad" = c("~/scratch/PedSV.v2.case_control_cohort.analysis_samples.allele_dosages.bed.gz"),
-#              "metadata" = "~/scratch/PedSV.v2.cohort_metadata.w_control_assignments.tsv.gz",
+# args <- list("bed" = c("~/scratch/PedSV.v2.1.case_control_cohort.analysis_samples.sites.bed.gz"),
+#              "ad" = c("~/scratch/PedSV.v2.1.case_control_cohort.analysis_samples.allele_dosages.bed.gz"),
+#              "metadata" = "~/scratch/PedSV.v2.1.cohort_metadata.w_control_assignments.tsv.gz",
 #              "gene_lists" = "~/scratch/PedSV.gene_lists.tsv",
-#              "subset_samples" = "/Users/ryan/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_v2_callset_generation/PedSV.v2.case_control_analysis_cohort.samples.list",
+#              "subset_samples" = "/Users/ryan/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_v2_callset_generation/PedSV.v2.1.case_control_analysis_cohort.samples.list",
 #              "exclude_variants" = NULL,
 #              "af_field" = "POPMAX_AF",
-#              "ac_field" = "case_control_AC",
-#              "out_prefix" = "~/scratch/PedSV.v2.case_control.dev")
+#              "ac_field" = "AC",
+#              "out_prefix" = "~/scratch/PedSV.v2.1.case_control.dev")
 # args <- list("bed" = c("~/scratch/PedSV.v1.1.trio_cohort.analysis_samples.wAFs.bed.gz"),
 #              "ad" = c("~/scratch/PedSV.v1.1.trio_cohort.analysis_samples.wAFs.allele_dosages.bed.gz"),
 #              "metadata" = "~/scratch/gatk_sv_pediatric_cancers_combined_cohort_metadata_3_31_23.w_control_assignments.txt",
@@ -293,7 +293,6 @@ barplot.width <- 3
 # Absolute sum of nucleotides rearranged per genome by SV type
 # TODO: implement this (need to weight AD matrix by query ID)
 
-
 # Count of large variants per genome by SV type
 sv.subsets <- lapply(c("DEL", "DUP", "INV", "CPX"), function(svtype){
   list(svtype,
@@ -343,7 +342,7 @@ for(freq in c("rare", "vrare", "singleton")){
          as.character(unlist(sapply(data, function(info){
            rownames(info$bed)[which(sapply(info$bed$PREDICTED_LOF, length) > 0)]
          }))),
-         paste(freq.names, "LoF SVs per Sample")),
+         paste(freq.names[freq], "LoF SVs per Sample")),
     list(paste(freq, "LoF_DELs", sep="_"),
          as.character(unlist(sapply(data, function(info){
            rownames(info$bed)[which(sapply(info$bed$PREDICTED_LOF, length) > 0
@@ -360,7 +359,7 @@ for(freq in c("rare", "vrare", "singleton")){
          as.character(unlist(sapply(data, function(info){
            rownames(info$bed)[which(sapply(info$bed$PREDICTED_COPY_GAIN, length) > 0)]
          }))),
-         paste(freq.names, "CG SVs per Sample")),
+         paste(freq.names[freq], "CG SVs per Sample")),
     list(paste(freq, "IED_SVs", sep="_"),
          as.character(unlist(sapply(data, function(info){
            rownames(info$bed)[which(sapply(info$bed$PREDICTED_INTRAGENIC_EXON_DUP, length) > 0)]
@@ -381,54 +380,59 @@ for(freq in c("rare", "vrare", "singleton")){
 }
 
 
-# Number of single-gene rare LoF, CG, IEDs per genome
-sv.subsets <- list(
-  list("rare_single_gene_LoF_SVs",
-       as.character(unlist(sapply(data, function(info){
-         rownames(info$bed)[which(sapply(info$bed$PREDICTED_LOF, length) == 1)]
-       }))),
-       "Rare Single-Gene LoF SVs"),
-  list("rare_single_gene_LoF_DELs",
-       as.character(unlist(sapply(data, function(info){
-         rownames(info$bed)[which(sapply(info$bed$PREDICTED_LOF, length) == 1
-                                  & info$bed$SVTYPE == "DEL")]
-       }))),
-       "Rare Single-Gene LoF Dels."),
-  list("rare_single_gene_LoF_nonDELs",
-       as.character(unlist(sapply(data, function(info){
-         rownames(info$bed)[which(sapply(info$bed$PREDICTED_LOF, length) == 1
-                                  & info$bed$SVTYPE != "DEL")]
-       }))),
-       "Rare Single-Gene LoF SVs (No Dels.)"),
-  list("rare_single_gene_CG_SVs",
-       as.character(unlist(sapply(data, function(info){
-         rownames(info$bed)[which(sapply(info$bed$PREDICTED_COPY_GAIN, length) == 1)]
-       }))),
-       "Rare Single-Gene CG SVs"),
-  list("rare_single_gene_IED_SVs",
-       as.character(unlist(sapply(data, function(info){
-         rownames(info$bed)[which(sapply(info$bed$PREDICTED_INTRAGENIC_EXON_DUP, length) == 1)]
-       }))),
-       "Rare Single-Gene IED SVs")
-)
-all.stats <- main.burden.wrapper(data, query="rare.single_gene_disruptive", meta, action="count",
-                                 af.fields, ac.fields, sv.subsets=sv.subsets, all.stats,
-                                 paste(args$out_prefix, "rare_single_gene_disruptive_sv_per_genome.by_cancer", sep="."),
-                                 main.title="Rare Single-Gene-Disruptive SVs",
-                                 barplot.height=barplot.height, barplot.width=barplot.width)
+# Number of single-gene rare/vrare/singleton LoF, CG, IEDs per genome
+for(freq in c("rare", "vrare", "singleton")){
+  sv.subsets <- list(
+    list(paste(freq, "single_gene_LoF_SVs", sep="_"),
+         as.character(unlist(sapply(data, function(info){
+           rownames(info$bed)[which(sapply(info$bed$PREDICTED_LOF, length) == 1)]
+         }))),
+         paste(freq.names[freq], "Single-Gene LoF SVs")),
+    list(paste(freq, "single_gene_LoF_DELs", sep="_"),
+         as.character(unlist(sapply(data, function(info){
+           rownames(info$bed)[which(sapply(info$bed$PREDICTED_LOF, length) == 1
+                                    & info$bed$SVTYPE == "DEL")]
+         }))),
+         paste(freq.names[freq], "Single-Gene LoF Dels.")),
+    list(paste(freq, "single_gene_LoF_nonDELs", sep="_"),
+         as.character(unlist(sapply(data, function(info){
+           rownames(info$bed)[which(sapply(info$bed$PREDICTED_LOF, length) == 1
+                                    & info$bed$SVTYPE != "DEL")]
+         }))),
+         paste(freq.names[freq], "Single-Gene LoF SVs (No Dels.)")),
+    list(paste(freq, "single_gene_CG_SVs", sep="_"),
+         as.character(unlist(sapply(data, function(info){
+           rownames(info$bed)[which(sapply(info$bed$PREDICTED_COPY_GAIN, length) == 1)]
+         }))),
+         paste(freq.names[freq], "Single-Gene CG SVs")),
+    list(paste(freq, "single_gene_IED_SVs", sep="_"),
+         as.character(unlist(sapply(data, function(info){
+           rownames(info$bed)[which(sapply(info$bed$PREDICTED_INTRAGENIC_EXON_DUP, length) == 1)]
+         }))),
+         paste(freq.names[freq], "Single-Gene IED SVs"))
+  )
+  all.stats <- main.burden.wrapper(data, query=paste(freq, "single_gene_disruptive", sep="."),
+                                   meta, action="count",
+                                   af.fields, ac.fields, sv.subsets=sv.subsets, all.stats,
+                                   paste(args$out_prefix, paste(freq, "single_gene_disruptive_sv_per_genome.by_cancer", sep="_"), sep="."),
+                                   main.title=paste(freq.names[freq], "Single-Gene-Disruptive SVs"),
+                                   barplot.height=barplot.height, barplot.width=barplot.width)
+}
 
 
 # Number of genes impacted by rare LoF per genome
-ad.vals <- get.ad.values(data, query="rare.genes_disrupted.lof",
-                         action="sum", af.fields, ac.fields)
-new.stats <- burden.test(data, "rare.genes_disrupted.lof",
-                         meta, ad.vals, binomial(), af.fields, ac.fields)
-all.stats <- rbind(all.stats, new.stats)
-pdf(paste(args$out_prefix, "rare.n_genes_disrupted_per_genome.by_cancer.pdf", sep="."),
-    height=barplot.height, width=barplot.width)
-barplot.by.phenotype(stats2plot(new.stats, ci.mode="normal"),
-                     title="# Genes with Rare LoF SV per Sample")
-dev.off()
+for(freq in c("rare", "vrare", "singleton")){
+  ad.vals <- get.ad.values(data, query=paste(freq, "genes_disrupted.lof", sep="."),
+                           action="sum", af.fields, ac.fields)
+  new.stats <- burden.test(data, paste(freq, "genes_disrupted.lof", sep="."),
+                           meta, ad.vals, binomial(), af.fields, ac.fields)
+  all.stats <- rbind(all.stats, new.stats)
+  pdf(paste(args$out_prefix, freq, "n_genes_disrupted_per_genome.by_cancer.pdf", sep="."),
+      height=barplot.height, width=barplot.width)
+  barplot.by.phenotype(stats2plot(new.stats, ci.mode="normal"),
+                       title=paste("# Genes with", freq.names[freq], "LoF SV per Sample"))
+  dev.off()
+}
 
 # Carrier rates of LoF/CG/IED in gene lists
 if(!is.null(args$gene_lists)){

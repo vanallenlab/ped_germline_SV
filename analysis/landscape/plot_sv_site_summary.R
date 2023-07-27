@@ -39,15 +39,16 @@ get.counts.table <- function(bed, af.field="POPMAX_AF", ac.field="AC"){
   sapply(rev(svtypes), function(svtype){
     if(svtype=="CNV"){
       rev(c(0, 0, length(which(bed$SVTYPE == "CNV"))))
-    }
-    single.idx <- filter.bed(bed, query=paste(svtype, "singleton", sep="."),
+    }else{
+      single.idx <- filter.bed(bed, query=paste(svtype, "singleton", sep="."),
+                               af.field, ac.field, return.idxs=TRUE)
+      rare.idx <- filter.bed(bed, query=paste(svtype, "rare", sep="."),
                              af.field, ac.field, return.idxs=TRUE)
-    rare.idx <- filter.bed(bed, query=paste(svtype, "rare", sep="."),
-                           af.field, ac.field, return.idxs=TRUE)
-    all.idx <- filter.bed(bed, query=svtype, af.field, ac.field, return.idxs=TRUE)
-    rev(c(length(single.idx),
-          length(setdiff(rare.idx, single.idx)),
-          length(setdiff(all.idx, rare.idx))))
+      all.idx <- filter.bed(bed, query=svtype, af.field, ac.field, return.idxs=TRUE)
+      rev(c(length(single.idx),
+            length(setdiff(rare.idx, single.idx)),
+            length(setdiff(all.idx, rare.idx))))
+    }
   })
 }
 
@@ -268,16 +269,16 @@ parser$add_argument("--out-prefix", metavar="path", type="character", required=T
 args <- parser$parse_args()
 
 # # DEV:
-# args <- list("bed" = "~/scratch/PedSV.v2.case_control_cohort.analysis_samples.sites.bed.gz",
+# args <- list("bed" = "~/scratch/PedSV.v2.1.case_control_cohort.analysis_samples.sites.bed.gz",
 #              "cohort_prefix" = "case_control",
 #              "af_field" = "POPMAX_AF",
 #              "ac_field" = "AC",
-#              "out_prefix" = "~/scratch/PedSV.v2.dev.case_control")
-# args <- list("bed" = "~/scratch/PedSV.v2.trio_cohort.analysis_samples.sites.bed.gz",
+#              "out_prefix" = "~/scratch/PedSV.v2.1.dev.case_control")
+# args <- list("bed" = "~/scratch/PedSV.v2.1.trio_cohort.analysis_samples.sites.bed.gz",
 #              "cohort_prefix" = "trio",
 #              "af_field" = "POPMAX_AF",
-#              "ac_field" = "trio_AC",
-#              "out_prefix" = "~/scratch/PedSV.v2.dev.trio")
+#              "ac_field" = "AC",
+#              "out_prefix" = "~/scratch/PedSV.v2.1.dev.trio")
 
 # Infer frequency columns to use
 if(is.null(args$af_field)){
