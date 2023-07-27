@@ -1,6 +1,6 @@
 ## Change logs for study callset versions
 
-#### Version 2.1 (release date TBD)
+#### Version 2.1 (release date July 26, 2023)
 - Added new FILTER tag to mark predicted gene retroduplication splice junctions  
 - Masked RD-only GTs in ~5% of samples that were determined to be outliers for rare RD-only events
 - Added new non-PASS FILTER tag for RD-only records that had ≥50% of all non-ref GTs contributed by rare RD-only outliers
