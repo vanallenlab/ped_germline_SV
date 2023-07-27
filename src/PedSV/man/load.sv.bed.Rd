@@ -10,7 +10,8 @@ load.sv.bed(
   pass.only = TRUE,
   split.coding = TRUE,
   split.noncoding = FALSE,
-  drop.vids = NULL
+  drop.vids = NULL,
+  drop.cohort.frequencies = c()
 )
 }
 \arguments{
@@ -26,6 +27,11 @@ comma-delimited strings to character vectors? [Default: FALSE]}
 
 \item{drop.vids}{Either a vector or a path to a file containing variant IDs
 to be excluded drop the input file. [Default: Keep all IDs]}
+
+\item{drop.cohort.frequencies}{A character vector of one or more prefixes
+corresponding to cohort names for which cohort-specific frequencies should be
+dropped. Useful for reducing in-memory size. Examples include "case_control"
+and "trio". [default: Keep all frequencies]}
 
 \item{keep.coordinates}{Should coordinates be retained? [Default: TRUE]}
 }

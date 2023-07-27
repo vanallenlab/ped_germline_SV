@@ -35,14 +35,19 @@ sv.dens.bw <- c("DEL" = 3/4,
 # Data functions #
 ##################
 # Collect a table of counts per SV type stratified by frequency bins
-get.counts.table <- function(bed, af.field="AF", ac.field="AC"){
+get.counts.table <- function(bed, af.field="POPMAX_AF", ac.field="AC"){
   sapply(rev(svtypes), function(svtype){
-    if(svtype == "CNV"){
-      rev(c(0, 0, length(which(bed$SVTYPE == svtype))))
+    if(svtype=="CNV"){
+      rev(c(0, 0, length(which(bed$SVTYPE == "CNV"))))
     }else{
-      rev(c(length(which(bed$SVTYPE == svtype & bed[, ac.field] <= 1)),
-            length(which(bed$SVTYPE == svtype & bed[, ac.field] > 1 & bed[, af.field] < 0.01)),
-            length(which(bed$SVTYPE == svtype & bed[, af.field] >= 0.01))))
+      single.idx <- filter.bed(bed, query=paste(svtype, "singleton", sep="."),
+                               af.field, ac.field, return.idxs=TRUE)
+      rare.idx <- filter.bed(bed, query=paste(svtype, "rare", sep="."),
+                             af.field, ac.field, return.idxs=TRUE)
+      all.idx <- filter.bed(bed, query=svtype, af.field, ac.field, return.idxs=TRUE)
+      rev(c(length(single.idx),
+            length(setdiff(rare.idx, single.idx)),
+            length(setdiff(all.idx, rare.idx))))
     }
   })
 }
@@ -171,10 +176,12 @@ plot.HWE <- function(bed, pop=NULL, title=NULL, full.legend=F, lab.cex=1,
 
   #Gather HW p-values & colors
   HWE.mat <- make.hwe.mat(bed, prefix=pop)
-  HW.p <- HardyWeinberg::HWChisqStats(X=HWE.mat, x.linked=F, pvalues=T)
-  HW.cols <- rep(colors[1], times=length(HW.p))
-  HW.cols[which(HW.p<0.05)] <- colors[2]
-  HW.cols[which(HW.p<0.05/length(HW.p))] <- colors[3]
+  if(nrow(HWE.mat) > 0){
+    HW.p <- HardyWeinberg::HWChisqStats(X=HWE.mat, x.linked=F, pvalues=T)
+    HW.cols <- rep(colors[1], times=length(HW.p))
+    HW.cols[which(HW.p<0.05)] <- colors[2]
+    HW.cols[which(HW.p<0.05/length(HW.p))] <- colors[3]
+  }
 
   # Generate HW plot frame
   par(mar=c(1, 1, 1, 1), bty="n")
@@ -183,49 +190,61 @@ plot.HWE <- function(bed, pop=NULL, title=NULL, full.legend=F, lab.cex=1,
   segments(x0=c(-1/sqrt(3), 0, 1/sqrt(3)),
            x1=c(0, 1/sqrt(3), -1/sqrt(3)),
            y0=c(0, 1, 0), y1=c(1, 0, 0))
-  HWTernaryPlot(X=HWE.mat, n=max(HWE.mat, na.rm=T), newframe=F,
-                vbounds=F, mafbounds=F,
-                region=1, vertexlab=NA,
-                alpha=0.05,
-                curvecols=c(colors[1:2], NA, NA), pch=NA)
+  if(nrow(HWE.mat) > 0){
+    HWTernaryPlot(X=HWE.mat, n=max(HWE.mat, na.rm=T), newframe=F,
+                  vbounds=F, mafbounds=F,
+                  region=1, vertexlab=NA,
+                  alpha=0.05,
+                  curvecols=c(colors[1:2], NA, NA), pch=NA)
+  }
 
   #Add axes
-  text(x=c(-1/sqrt(3), 1/sqrt(3)), y=0, labels=c("0/0", "1/1"),
+  text(x=c(-1/sqrt(3), 1/sqrt(3)), y=0, labels=c("Ref/Ref", "Alt/Alt"),
        pos=1, cex=0.8, xpd=T, font=2)
-  text(x=0, y=1, labels="0/1", pos=3, cex=0.8, xpd=T, font=2)
+  text(x=0, y=1, labels="Ref/Alt", pos=3, cex=0.8, xpd=T, font=2)
 
   #Finish HW plot
-  HWTernaryPlot(X=HWE.mat, n=max(HWE.mat, na.rm=T), newframe=F,
-                vbounds=F, mafbounds=F,
-                region=1, vertexlab=NA,
-                alpha=0.03/nrow(HWE.mat),
-                curvecols=c(colors[1], colors[3], NA, NA),
-                pch=21, cex=0.3, signifcolour=F, markercol=NA,
-                markerbgcol=adjustcolor(HW.cols, alpha=0.25))
+  if(nrow(HWE.mat) > 0){
+    HWTernaryPlot(X=HWE.mat, n=max(HWE.mat, na.rm=T), newframe=F,
+                  vbounds=F, mafbounds=F,
+                  region=1, vertexlab=NA,
+                  alpha=0.03/nrow(HWE.mat),
+                  curvecols=c(colors[1], colors[3], NA, NA),
+                  pch=21, cex=0.3, signifcolour=F, markercol=NA,
+                  markerbgcol=adjustcolor(HW.cols, alpha=0.25))
+  }
   segments(x0=c(-1/sqrt(3), 0, 1/sqrt(3)),
            x1=c(0, 1/sqrt(3), -1/sqrt(3)),
            y0=c(0, 1, 0), y1=c(1, 0, 0))
 
   #Add legend
-  n.pass <- length(which(HW.p>=0.05))
-  cat(paste("PASS: ", n.pass/length(HW.p), "\n", sep=""))
-  n.nom <- length(which(HW.p<0.05 & HW.p>=0.05/nrow(HWE.mat)))
-  cat(paste("NOMINAL FAILS: ", n.nom/length(HW.p), "\n", sep=""))
-  n.bonf <- length(which(HW.p<0.05/nrow(HWE.mat)))
-  cat(paste("BONFERRONI FAILS: ", n.bonf/length(HW.p), "\n", sep=""))
-  legend("right", pch=19, col=colors, pt.cex=1.3,
-         legend=c(paste(round(100*(n.pass/nrow(HWE.mat)), 0), "%", sep=""),
-                  paste(round(100*(n.nom/nrow(HWE.mat)), 0), "%", sep=""),
-                  paste(round(100*(n.bonf/nrow(HWE.mat)), 0), "%", sep="")),
-         bty="n", bg=NA, cex=0.7)
+  if(nrow(HWE.mat) > 0){
+    n.pass <- length(which(HW.p>=0.05))
+    cat(paste("PASS: ", n.pass/length(HW.p), "\n", sep=""))
+    n.nom <- length(which(HW.p<0.05 & HW.p>=0.05/nrow(HWE.mat)))
+    cat(paste("NOMINAL FAILS: ", n.nom/length(HW.p), "\n", sep=""))
+    n.bonf <- length(which(HW.p<0.05/nrow(HWE.mat)))
+    cat(paste("BONFERRONI FAILS: ", n.bonf/length(HW.p), "\n", sep=""))
+    n.samples <- max(apply(HWE.mat, 1, sum), na.rm=T)
+    n.SV <- nrow(HWE.mat)
+    legend("right", pch=19, col=colors, pt.cex=1.3,
+           legend=c(paste(round(100*(n.pass/nrow(HWE.mat)), 0), "%", sep=""),
+                    paste(round(100*(n.nom/nrow(HWE.mat)), 0), "%", sep=""),
+                    paste(round(100*(n.bonf/nrow(HWE.mat)), 0), "%", sep="")),
+           bty="n", bg=NA, cex=0.7)
+  }else{
+    cat(paste("No SVs with AC>0 found for population '", pop, "'\n", sep=""))
+    n.samples <- 0
+    n.SV <- 0
+  }
   text(x=par("usr")[2], y=par("usr")[4]-(0.2*(par("usr")[4]-par("usr")[3])),
        pos=2, cex=0.7, labels=paste(title, "\n \n ", sep=""), font=2)
   text(x=par("usr")[2], y=par("usr")[4]-(0.2*(par("usr")[4]-par("usr")[3])),
        pos=2, cex=0.7,
-       labels=paste(" \n", prettyNum(max(apply(HWE.mat, 1, sum), na.rm=T), big.mark=","),
+       labels=paste(" \n", prettyNum(n.samples, big.mark=","),
                     " Samples\n ", sep=""))
   text(x=par("usr")[2], y=par("usr")[4]-(0.2*(par("usr")[4]-par("usr")[3])),
-       pos=2, cex=0.7, labels=paste(" \n \n", prettyNum(nrow(HWE.mat), big.mark=","),
+       pos=2, cex=0.7, labels=paste(" \n \n", prettyNum(n.SV, big.mark=","),
                                     " SVs", sep=""))
 }
 
@@ -237,26 +256,49 @@ plot.HWE <- function(bed, pop=NULL, title=NULL, full.legend=F, lab.cex=1,
 parser <- ArgumentParser(description="Plot SV counts and sizes")
 parser$add_argument("bed", metavar=".tsv", type="character",
                     help="SV sites .bed")
+parser$add_argument("--cohort-prefix", default="", metavar="string", type="character",
+                    help="String prefix to append to frequency columns")
 parser$add_argument("--af-field", default="AF", metavar="string", type="character",
-                    help="column header to use for AF-related analyses")
+                    help=paste("Column header to use for AF-related analyses.",
+                               "Overrides --cohort-prefix."))
 parser$add_argument("--ac-field", default="AC", metavar="string", type="character",
-                    help="column header to use for AF-related analyses")
+                    help=paste("Column header to use for AF-related analyses.",
+                               "Overrides --cohort-prefix."))
 parser$add_argument("--out-prefix", metavar="path", type="character", required=TRUE,
-                    help="path/prefix for all output files")
+                    help="Path/prefix for all output files")
 args <- parser$parse_args()
 
 # # DEV:
-# args <- list("bed" = "~/scratch/PedSV.v1.1.validation_cohort.analysis_samples.wAFs.bed.gz",
-#              "af_field" = "AF",
+# args <- list("bed" = "~/scratch/PedSV.v2.1.case_control_cohort.analysis_samples.sites.bed.gz",
+#              "cohort_prefix" = "case_control",
+#              "af_field" = "POPMAX_AF",
 #              "ac_field" = "AC",
-#              "out_prefix" = "~/scratch/PedSV.dev")
-# args <- list("bed" = "~/scratch/PedSV.v1.1.trio_cohort.analysis_samples.wAFs.bed.gz",
-#              "af_field" = "parent_AF",
-#              "ac_field" = "parent_AC",
-#              "out_prefix" = "~/scratch/PedSV.dev")
+#              "out_prefix" = "~/scratch/PedSV.v2.1.dev.case_control")
+# args <- list("bed" = "~/scratch/PedSV.v2.1.trio_cohort.analysis_samples.sites.bed.gz",
+#              "cohort_prefix" = "trio",
+#              "af_field" = "POPMAX_AF",
+#              "ac_field" = "AC",
+#              "out_prefix" = "~/scratch/PedSV.v2.1.dev.trio")
+
+# Infer frequency columns to use
+if(is.null(args$af_field)){
+  args$af_field <- paste(args$cohort_prefix, "AF", sep="_")
+}
+if(is.null(args$ac_field)){
+  args$ac_field <- paste(args$cohort_prefix, "AC", sep="_")
+}
+if(args$cohort_prefix == "trio"
+   & length(grep("case_control", c(args$af_field, args$ac_field), fixed=T)) == 0){
+  drop.cohort.freqs <- c("case_control")
+}else if(args$cohort_prefix == "case_control"
+         & length(grep("trio", c(args$af_field, args$ac_field), fixed=T)) == 0){
+  drop.cohort.freqs <- c("trio")
+}else{
+  drop.cohort.freqs <- c()
+}
 
 # Load BED
-bed <- PedSV::load.sv.bed(args$bed)
+bed <- PedSV::load.sv.bed(args$bed, drop.cohort.frequencies=drop.cohort.freqs)
 
 # Plot stacked bar colored by frequency and type
 pdf(paste(args$out_prefix, "sv_site_counts.pdf", sep="."),
@@ -294,7 +336,7 @@ for(pop in intersect(names(pop.colors), pops.in.bed)){
   cat(paste("HWE for ", pop, ":\n", sep=""))
   png(paste(args$out_prefix, pop, "HWE.png", sep="."),
       height=1000, width=1000, res=400)
-  plot.HWE(bed, pop=paste(pop, "parent", sep="_"),
+  plot.HWE(bed, pop=paste(args$cohort_prefix, pop, sep="_"),
            title=pop.names.short[pop], full.legend=T)
   dev.off()
 }

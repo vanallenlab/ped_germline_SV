@@ -16,7 +16,7 @@ $ R
 
 In an R session:  
 ```
-> install.packages("/path/to/PedSV_0.0.1.tar.gz", repos=NULL, type="source")
+> install.packages("/path/to/PedSV_0.0.2.tar.gz", repos=NULL, type="source")
 ```
 
 After installing the package, you can load it as any other R library with `library(PedSV)` or `require(PedSV)`.  

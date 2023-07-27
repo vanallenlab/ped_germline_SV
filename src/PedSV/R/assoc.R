@@ -21,9 +21,9 @@
 #' @param X Vector of values for primary independent variable. See `Details`.
 #' @param Y Vector of values for dependent variable. See `Details`.
 #' @param use.N.pcs Specify how many principal components should be adjusted in
-#' model \[default: 5\]
+#' model \[default: 3\]
 #' @param extra.terms Specify if any extra terms should be added to the model.
-#' Named options include: "study", "cohort", "coverage, "read.length", "insert.size",
+#' Named options include: "study", "cohort", "coverage, "insert.size",
 #' and "wgd". Custom terms can be passed using their exact column names in `meta`.
 #'
 #' @details There are several options for providing `X` and `Y` values:
@@ -40,7 +40,7 @@
 #'
 #' @export prep.glm.matrix
 #' @export
-prep.glm.matrix <- function(meta, X, Y, use.N.pcs=5, extra.terms=NULL){
+prep.glm.matrix <- function(meta, X, Y, use.N.pcs=3, extra.terms=NULL){
   # Standard covariates
   df <- data.frame("is.female" = as.numeric(meta$inferred_sex == "FEMALE"
                                             | meta$chrX_CopyNumber > 1.5),
@@ -55,16 +55,13 @@ prep.glm.matrix <- function(meta, X, Y, use.N.pcs=5, extra.terms=NULL){
     if("coverage" %in% extra.terms){
       df$coverage = scale(as.numeric(meta$median_coverage))
     }
-    if("read.length" %in% extra.terms){
-      df$read.length <- scale(as.numeric(meta$read_length))
-    }
     if("insert.size" %in% extra.terms){
       df$insert.size <- scale(as.numeric(meta$insert_size))
     }
     if("wgd" %in% extra.terms){
       df$abs.wgd = scale(abs(as.numeric(meta$wgd_score)))
     }
-    other.terms <- setdiff(extra.terms, c("cohort", "coverage", "read.length", "insert.size", "wgd"))
+    other.terms <- setdiff(extra.terms, c("cohort", "coverage", "insert.size", "wgd"))
     for(term in other.terms){
       df[, term] <- scale(meta[, term])
     }
@@ -91,6 +88,9 @@ prep.glm.matrix <- function(meta, X, Y, use.N.pcs=5, extra.terms=NULL){
   if(length(drop.idx) > 0){
     df <- df[, -drop.idx]
   }
+
+  # Standard normalize all covariates
+  df[, setdiff(colnames(df), c("X", "Y"))] <- apply(df[, setdiff(colnames(df), c("X", "Y"))], 2, scale)
 
   # Ensure X and Y have at least two distinct values
   if(!all(c("X", "Y") %in% colnames(df))){
@@ -125,10 +125,10 @@ get.eligible.samples <- function(meta, cancer){
   }else{
     case.idx <- which(metadata.cancer.label.map[meta$disease] == cancer
                       & (meta$proband | is.na(meta$proband)))
-    control.cname <- paste(cancer, "control", sep="_")
-    if(control.cname %in% colnames(meta)){
-      control.idx <- which(meta[, control.cname])
-    }
+  }
+  control.cname <- paste(cancer, "control", sep="_")
+  if(control.cname %in% colnames(meta)){
+    control.idx <- which(meta[, control.cname])
   }
   list("cases" = rownames(meta)[case.idx],
        "controls" = rownames(meta)[control.idx])
@@ -166,6 +166,17 @@ get.phenotype.vector <- function(case.ids, control.ids){
 #' model \[default: 10\]
 #' @param family `family` parameter passed to [glm]
 #' @param extra.terms Extra covariate terms to include in model. See [PedSV::prep.glm.matrix].
+#' @param firth.fallback Attempt to use Firth bias-reduced logistic regression when
+#' traditional logistic regression fails to converge or dataset is quasi-separable
+#' \[default: TRUE\]
+#' @param strict.fallback Implement Firth regression if a standard logit model returns
+#' any errors or warnings. Setting this to `FALSE` will only default to Firth
+#' regression if logit returns any errors or if the standard error of the genotype
+#' coefficient exceeds `nonstrict.se.tolerance` \[default: TRUE\]
+#' @param nonstrict.se.tolerance If `strict.fallback` is `FALSE`, only use Firth
+#' regression if a standard logit model produces a genotype effect standard error
+#' exceeding this value \[default: 10\]
+#' @param firth.always Always use Firth regression \[default: FALSE\]
 #'
 #' @return Named vector of test statsitics corresponding to independent variable
 #'
@@ -173,13 +184,64 @@ get.phenotype.vector <- function(case.ids, control.ids){
 #'
 #' @export pedsv.glm
 #' @export
-pedsv.glm <- function(meta, X, Y, use.N.pcs=10, family=gaussian(), extra.terms=NULL){
+pedsv.glm <- function(meta, X, Y, use.N.pcs=10, family=gaussian(), extra.terms=NULL,
+                      firth.fallback=TRUE, strict.fallback=TRUE,
+                      nonstrict.se.tolerance=10, firth.always=FALSE){
+  # Ensure Firth package is loaded
+  require(logistf, quietly=TRUE)
+
   # Build dataframe of covariates
   test.df <- prep.glm.matrix(meta, X, Y, use.N.pcs, extra.terms)
 
   # Fit GLM
-  fit <- glm(Y ~ X + ., data=test.df, family=family)
+  logit.regression <- function(data){
+    glm(Y ~ ., data=data, family=family)
+  }
+  firth.regression <- function(data){
+    tryCatch(logistf(Y ~ ., data=data, control=logistf.control(maxit=100, maxstep=-1), flic=TRUE),
+             error=function(e){
+               tryCatch(logit.regression(data),
+                        error=function(e){
+                          c(NA, NA, NA, NA, "flic")
+                        })
+             })
+  }
+  if(firth.always & family$family == "binomial"){
+    fit <- tryCatch(firth.regression(test.df),
+                    error=function(e){logit.regression(test.df)})
+  }else{
+    if(firth.fallback & family$family == "binomial"){
+      if(strict.fallback){
+        fit <- tryCatch(logit.regression(test.df),
+                        warning=function(w){firth.regression(test.df)},
+                        error=function(e){firth.regression(test.df)})
+      }else{
+        fit <- tryCatch(logit.regression(test.df),
+                        error=function(e){firth.regression(test.df)})
+        if(fit$method == "glm.fit"){
+          if(summary(fit)$coefficients["X", 2] > nonstrict.se.tolerance){
+            fit <- firth.regression(test.df)
+          }
+        }
+      }
+    }else{
+      fit <- logit.regression(test.df)
+    }
+  }
+  if(length(fit) == 5 & is.na(fit[1])){
+    return(fit)
+  }else{
+    firth <- if(fit$method != "glm.fit"){TRUE}else{FALSE}
+  }
 
   # Extract coefficient corresponding to independent variable
-  summary(fit)[["coefficients"]]["X", ]
+  # Point estimate, stderr, test statistic, P-value
+  if(firth){
+    c(as.numeric(c(fit$coefficients["X"],
+                   sqrt(diag(vcov(fit)))["X"],
+                   qchisq(1-fit$prob, df=1)["X"],
+                   fit$prob["X"])), "flic")
+  }else{
+    c(summary(fit)[["coefficients"]]["X", ], "glm")
+  }
 }

@@ -4,7 +4,7 @@
 \alias{load.pc.matrix}
 \title{Load a principal components matrix}
 \usage{
-load.pc.matrix(tsv.in, keep.n = 1e+11)
+load.pc.matrix(tsv.in, keep.n = 100000000000)
 }
 \arguments{
 \item{tsv.in}{Path to input PC matrix .tsv}

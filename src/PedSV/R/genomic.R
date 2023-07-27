@@ -19,20 +19,27 @@
 #'
 #' @param bed SV BED file loaded by [load.sv.bed]
 #' @param query Terms to indicate what kind of filtering should be performed. See `details`.
-#' @param af.field BED column to use for allele frequencies \[default: AF\]
+#' @param af.field BED column to use for allele frequencies \[default: POPMAX_AF\]
 #' @param ac.field BED column to use for allele counts \[default: AC\]
-#' @param autosomal Keep only autosomal variants \[default: TRUE\]
+#' @param use.gnomad.freqs Should gnomAD SV AFs also be applied for
+#' frequency filtering? \[default: TRUE\]
+#' @param gnomad.column Specify the column header to use for gnomAD frequency
+#' filtering. Only used if `use.gnomad.freqs == TRUE`. \[default: "gnomad_v2.1_sv_POPMAX_AF"\]
+#' @param autosomal Keep only autosomal variants \[default: FALSE\]
 #' @param pass.only Keep only variants where FILTER is PASS \[default: TRUE\]
 #' @param keep.idx Optional vector to specify which row numbers from `bed` should
 #' be retained. Can be useful for applying more complex or custom filtering in addition
 #' to the basic functions in `query`.
+#' @param return.idxs Should row indexes be returned instead of a filtered version
+#' of `bed`? \[default: FALSE\]
 #'
 #' @details The `query` argument can be passed as either a character vector or a
 #' single character string. In both cases, the argument should indicate what filter(s)
 #' should be applied to `bed`. Recognized filters currently include:
+#' * `DEL`|`DUP`|`CNV`|`INS`|`INV`|`CPX`|`CTX` : retain only this SV type
 #' * `rare` : AF < 1%
 #' * `vrare` : AF < 0.1%
-#' * `singleton` : AC = 1
+#' * `singleton` : AC = 1 & gnomAD AF = 0 (if `use.gnomad.freqs` is `TRUE`)
 #' * `large` : SVLEN > 1,000,000
 #' * `gene_disruptive` or `genes_disrupted` : any SV with predicted LoF, PED, CG, or IED
 #' * `single_gene_disruptive` : as above, but further restricting to SVs impacting just one gene
@@ -48,9 +55,16 @@
 #'
 #' @export filter.bed
 #' @export
-filter.bed <- function(bed, query, af.field="AF", ac.field="AC",
-                       autosomal=TRUE, pass.only=TRUE, keep.idx=NULL){
-  query.parts <- unlist(strsplit(query, split=".", fixed=T))
+filter.bed <- function(bed, query, af.field="POPMAX_AF", ac.field="AC",
+                       use.gnomad.freqs=TRUE, gnomad.column="gnomad_v2.1_sv_POPMAX_AF",
+                       autosomal=FALSE, pass.only=TRUE,
+                       keep.idx=NULL, return.idxs=FALSE){
+  if(length(query) == 1 & length(grep(".", query, fixed=T)) > 0){
+    query.parts <- unlist(strsplit(query, split=".", fixed=T))
+  }else{
+    query.parts <- query
+  }
+  has.gnomad <- gnomad.column %in% colnames(bed)
   if(is.null(keep.idx)){
     keep.idx <- 1:nrow(bed)
   }
@@ -60,14 +74,28 @@ filter.bed <- function(bed, query, af.field="AF", ac.field="AC",
   if(pass.only){
     keep.idx <- intersect(keep.idx, which(bed$FILTER == "PASS"))
   }
+  for(svtype in c("DEL", "DUP", "CNV", "INS", "INV", "CPX", "CTX")){
+    if(svtype %in% query.parts){
+      keep.idx <- intersect(keep.idx, which(bed$SVTYPE == svtype))
+    }
+  }
   if("rare" %in% query.parts){
     keep.idx <- intersect(keep.idx, which(bed[, af.field] < 0.01 & bed$SVTYPE != "CNV"))
+    if(use.gnomad.freqs & has.gnomad){
+      keep.idx <- intersect(keep.idx, which(bed[, gnomad.column] < 0.01))
+    }
   }
   if("vrare" %in% query.parts){
     keep.idx <- intersect(keep.idx, which(bed[, af.field] < 0.001 & bed$SVTYPE != "CNV"))
+    if(use.gnomad.freqs & has.gnomad){
+      keep.idx <- intersect(keep.idx, which(bed[, gnomad.column] < 0.001))
+    }
   }
   if("singleton" %in% query.parts){
     keep.idx <- intersect(keep.idx, which(bed[, ac.field] <= 1 & bed$SVTYPE != "CNV"))
+    if(use.gnomad.freqs & has.gnomad){
+      keep.idx <- intersect(keep.idx, which(bed[, gnomad.column] == 0))
+    }
   }
   if("large" %in% query.parts){
     keep.idx <- intersect(keep.idx, which(bed$SVLEN > 1000000 | bed$SVTYPE == "CTX"))
@@ -97,6 +125,10 @@ filter.bed <- function(bed, query, af.field="AF", ac.field="AC",
   if("cg_and_ied" %in% query.parts){
     keep.idx <- intersect(keep.idx, which(cg.count > 0 | ied.count > 0))
   }
-  bed[keep.idx, ]
+  if(return.idxs){
+    keep.idx
+  }else{
+    bed[keep.idx, ]
+  }
 }
 

@@ -65,7 +65,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN /opt/ped_germline_SV/config/install_gcloud.sh
 
 # Install PedSV R package
-ARG PEDSV_VERSION=0.0.1
+ARG PEDSV_VERSION=0.0.2
 RUN Rscript -e "install.packages('/opt/ped_germline_SV/src/PedSV_${PEDSV_VERSION}.tar.gz', type='source', repos=NULL)"
 
 # Developer aliases, etc (for convenience)

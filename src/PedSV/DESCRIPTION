@@ -1,7 +1,7 @@
 Type: Package
 Package: PedSV
 Title: Helper R functions for studies of germline SVs in pediatric cancers
-Version: 0.0.1
+Version: 0.0.2
 Author: Ryan Collins <Ryan_Collins@dfci.harvard.edu>
 Maintainer: Ryan Collins <Ryan_Collins@dfci.harvard.edu>
 Description: This package contains various utility functions used in a
@@ -17,7 +17,8 @@ Suggests:
     HardyWeinberg,
     Hmisc
 Imports:
-    bedr
+    bedr,
+    logistf
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)

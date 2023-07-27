@@ -4,7 +4,18 @@
 \alias{pedsv.glm}
 \title{PedSV generic association test}
 \usage{
-pedsv.glm(meta, X, Y, use.N.pcs = 10, family = gaussian(), extra.terms = NULL)
+pedsv.glm(
+  meta,
+  X,
+  Y,
+  use.N.pcs = 10,
+  family = gaussian(),
+  extra.terms = NULL,
+  firth.fallback = TRUE,
+  strict.fallback = TRUE,
+  nonstrict.se.tolerance = 10,
+  firth.always = FALSE
+)
 }
 \arguments{
 \item{meta}{Sample metadata loaded with \link{load.sample.metadata}}
@@ -19,6 +30,21 @@ model [default: 10]}
 \item{family}{\code{family} parameter passed to \link{glm}}
 
 \item{extra.terms}{Extra covariate terms to include in model. See \link{prep.glm.matrix}.}
+
+\item{firth.fallback}{Attempt to use Firth bias-reduced logistic regression when
+traditional logistic regression fails to converge or dataset is quasi-separable
+[default: TRUE]}
+
+\item{strict.fallback}{Implement Firth regression if a standard logit model returns
+any errors or warnings. Setting this to \code{FALSE} will only default to Firth
+regression if logit returns any errors or if the standard error of the genotype
+coefficient exceeds \code{nonstrict.se.tolerance} [default: TRUE]}
+
+\item{nonstrict.se.tolerance}{If \code{strict.fallback} is \code{FALSE}, only use Firth
+regression if a standard logit model produces a genotype effect standard error
+exceeding this value [default: 10]}
+
+\item{firth.always}{Always use Firth regression [default: FALSE]}
 }
 \value{
 Named vector of test statsitics corresponding to independent variable

@@ -1,5 +1,24 @@
 ## Change logs for study callset versions
 
+#### Version 2.1 (release date TBD)
+- Added new FILTER tag to mark predicted gene retroduplication splice junctions  
+- Masked RD-only GTs in ~5% of samples that were determined to be outliers for rare RD-only events
+- Added new non-PASS FILTER tag for RD-only records that had ≥50% of all non-ref GTs contributed by rare RD-only outliers
+- Added final layer of outlier exclusion after all site-level filtering targeted at rare exonic deletions (≥30 per sample) & rare copy-gain duplications (≥15 per sample)
+
+#### Version 2.0 (July 20, 2023)
+- Major restructuring of study and callset
+- Added 2,842 new ancestry- & sex-matched adult controls from TOPMed-BioMe cohort
+- Re-batched & joint-called all 10,590 samples in a single GATK-SV cohort
+- Forced uniform proportions of cases & controls in each GATK-SV batch
+- Improved genotype filtering with GATK GQRecalibrator trained on All of Us matching short- & long-read WGS data daisy-chained to trio-based minGQ model targeting 5% false discovery rate
+- Added methods to identify and correct batch- or cohort-specific variants appearing at appreciable (>50%) frequencies
+- Dropped 1000 Genomes samples from study for all downstream disease association analyses
+- Updated gene reference file from MANE v0.95 to MANE v1.2
+- Added variant frequency annotations from gnomAD-SV v2.1
+- Incremented version of PedSV R package to v0.0.2
+- Inplemented fallback to Firth's bias-reduced logistic regression in `PedSV::pedsv.glm`
+
 #### Version 1.1 (April 7, 2023)  
 - Dropped empty records (i.e., those with no non-ref samples remaining)  
 - Corrected nomenclature for mCNV frequencies in VCF INFO / BED header  

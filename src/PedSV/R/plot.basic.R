@@ -65,7 +65,7 @@ pc.scatterplot <- function(pcs, pc.X, pc.Y, colors, title=NULL, x.title=NULL,
   }
   clean.axis(2, title=y.title, infinite=T, title.line=y.title.line)
 
-  points(x, y, pch=19, cex=0.3, col=colors, xpd=T)
+  points(x, y, pch=19, cex=cex, col=colors, xpd=T)
 
   # Add legend, if optioned
   if(!is.null(legend.vals)){

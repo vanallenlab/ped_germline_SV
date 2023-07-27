@@ -6,7 +6,7 @@
 # Contact: Ryan L. Collins <Ryan_Collins@dfci.harvard.edu>
 
 """
-Development code to run KING and PCA in Hail
+Hail script to run PCA & ancestry inference on common high-quality SVs
 """
 
 
@@ -58,13 +58,13 @@ def main():
 
     # Subset to  high-quality, biallelic, well-genotyped, autosomal variants
     mt = mt.filter_rows((mt.filters.size() == 0) & \
-                        (mt.qual > 100) & \
-                        (mt.variant_qc.call_rate > 0.99) & \
+                        (mt.qual > 10) & \
+                        (mt.variant_qc.call_rate > 0.995) & \
                         (mt.variant_qc.p_value_hwe > 10e-6) & \
-                        (mt.variant_qc.AF[0] >= 0.001) & \
-                        (mt.variant_qc.AF[1] >= 0.001) & \
-                        (mt.variant_qc.AF[0] <= 0.999) & \
-                        (mt.variant_qc.AF[1] <= 0.999), 
+                        (mt.variant_qc.AF[0] >= 0.005) & \
+                        (mt.variant_qc.AF[1] >= 0.005) & \
+                        (mt.variant_qc.AF[0] <= 0.995) & \
+                        (mt.variant_qc.AF[1] <= 0.995), 
                         keep=True)
     mt = hl.filter_intervals(mt, [hl.parse_locus_interval(x, reference_genome='GRCh38') for x in autosomes])
 
