@@ -27,7 +27,7 @@ sv.dens.bw <- c("DEL" = 3/4,
                 "DUP" = 1,
                 "CNV" = 0.5,
                 "INS" = 10,
-                "INV" = 2/3,
+                "INV" = 3/4,
                 "CPX" = 1/3)
 
 
@@ -269,6 +269,11 @@ parser$add_argument("--out-prefix", metavar="path", type="character", required=T
 args <- parser$parse_args()
 
 # # DEV:
+# args <- list("bed" = "~/scratch/PedSV.v2.1.full_cohort_w_relatives_1000G.sites.bed.gz",
+#              "cohort_prefix" = "full_cohort",
+#              "af_field" = "POPMAX_AF",
+#              "ac_field" = "AC",
+#              "out_prefix" = "~/scratch/PedSV.v2.1.dev.full_cohort")
 # args <- list("bed" = "~/scratch/PedSV.v2.1.case_control_cohort.analysis_samples.sites.bed.gz",
 #              "cohort_prefix" = "case_control",
 #              "af_field" = "POPMAX_AF",
