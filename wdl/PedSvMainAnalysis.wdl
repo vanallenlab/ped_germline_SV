@@ -30,14 +30,14 @@ workflow PedSvMainAnalysis {
 		File trio_samples_list
     File? trio_variant_exclusion_list
 
-    File validation_sites_vcf
-    File validation_sites_vcf_idx
-		File validation_bed
-		File validation_bed_idx
-		File validation_ad_matrix
-		File validation_ad_matrix_idx
-		File validation_samples_list
-    File? validation_variant_exclusion_list
+    File case_control_sites_vcf
+    File case_control_sites_vcf_idx
+		File case_control_bed
+		File case_control_bed_idx
+		File case_control_ad_matrix
+		File case_control_ad_matrix_idx
+		File case_control_samples_list
+    File? case_control_variant_exclusion_list
 
     Array[File]? gene_lists
     Array[String]? gene_list_names
@@ -50,17 +50,17 @@ workflow PedSvMainAnalysis {
 
   call ConcatTextFiles as ConcatSampleLists {
     input:
-      infiles = [trio_samples_list, validation_samples_list],
+      infiles = [trio_samples_list, case_control_samples_list],
       outfile_name = study_prefix + ".both_cohorts.samples.list",
       docker = ubuntu_docker
   }
   File all_samples_list = ConcatSampleLists.outfile
 
-  if (length([trio_variant_exclusion_list, validation_variant_exclusion_list]) > 0) {
+  if (length([trio_variant_exclusion_list, case_control_variant_exclusion_list]) > 0) {
     call ConcatTextFiles as ConcatVariantExclusionLists {
       input:
         infiles = select_all([trio_variant_exclusion_list, 
-                              validation_variant_exclusion_list]),
+                              case_control_variant_exclusion_list]),
         outfile_name = study_prefix + ".both_cohorts.variant_exclusion.list",
         docker = ubuntu_docker
     }
@@ -77,14 +77,14 @@ workflow PedSvMainAnalysis {
 
   call BurdenTests as StudyWideBurdenTests {
     input:
-      beds = [trio_bed, validation_bed],
-      bed_idxs = [trio_bed_idx, validation_bed_idx],
-      ad_matrixes = [trio_ad_matrix, validation_ad_matrix],
-      ad_matrix_idxs = [trio_ad_matrix_idx, validation_ad_matrix_idx],
+      beds = [trio_bed, case_control_bed],
+      bed_idxs = [trio_bed_idx, case_control_bed_idx],
+      ad_matrixes = [trio_ad_matrix, case_control_ad_matrix],
+      ad_matrix_idxs = [trio_ad_matrix_idx, case_control_ad_matrix_idx],
       sample_metadata_tsv = sample_metadata_tsv,
       samples_list = all_samples_list,
-      af_fields = ["POPMAX_parent_AF", "POPMAX_AF"],
-      ac_fields = ["parent_AC", "AC"],
+      af_fields = ["POPMAX_AF", "POPMAX_AF"],
+      ac_fields = ["AC", "AC"],
       variant_exclusion_list = sv_exclusion_list,
       gene_lists = gene_lists,
       gene_list_names = gene_list_names,
@@ -108,12 +108,12 @@ workflow PedSvMainAnalysis {
 
     call GetSVsPerSample as GetValidationSVsPerSample {
       input:
-        sv_bed = validation_bed,
-        sv_bed_idx = validation_bed_idx,
-        ad_matrix = validation_ad_matrix,
-        ad_matrix_idx = validation_ad_matrix_idx,
+        sv_bed = case_control_bed,
+        sv_bed_idx = case_control_bed_idx,
+        ad_matrix = case_control_ad_matrix,
+        ad_matrix_idx = case_control_ad_matrix_idx,
         contig = contig,
-        prefix = study_prefix + ".validation_cohort." + contig,
+        prefix = study_prefix + ".case_control_cohort." + contig,
         docker = pedsv_r_docker
     }
   }
@@ -129,8 +129,8 @@ workflow PedSvMainAnalysis {
   call MergeSVsPerSample as MergeValidationSVsPerSample {
     input:
       tarballs = GetValidationSVsPerSample.per_sample_tarball,
-      sample_list = validation_samples_list,
-      prefix = study_prefix + ".validation_cohort",
+      sample_list = case_control_samples_list,
+      prefix = study_prefix + ".case_control_cohort",
       docker = ubuntu_docker
   }
 
@@ -149,12 +149,12 @@ workflow PedSvMainAnalysis {
 
   call CohortSummaryPlots as ValidationCohortSummaryPlots {
     input:
-      bed = validation_bed,
-      bed_idx = validation_bed_idx,
+      bed = case_control_bed,
+      bed_idx = case_control_bed_idx,
       sample_metadata_tsv = sample_metadata_tsv,
-      sample_list = validation_samples_list,
+      sample_list = case_control_samples_list,
       per_sample_tarball = MergeValidationSVsPerSample.per_sample_tarball,
-      prefix = study_prefix + ".validation_cohort",
+      prefix = study_prefix + ".case_control_cohort",
       docker = pedsv_r_docker
   }
 
@@ -177,18 +177,18 @@ workflow PedSvMainAnalysis {
 
   call BurdenTests as ValidationCohortBurdenTests {
     input:
-      beds = [validation_bed],
-      bed_idxs = [validation_bed_idx],
-      ad_matrixes = [validation_ad_matrix],
-      ad_matrix_idxs = [validation_ad_matrix_idx],
+      beds = [case_control_bed],
+      bed_idxs = [case_control_bed_idx],
+      ad_matrixes = [case_control_ad_matrix],
+      ad_matrix_idxs = [case_control_ad_matrix_idx],
       sample_metadata_tsv = sample_metadata_tsv,
-      samples_list = validation_samples_list,
+      samples_list = case_control_samples_list,
       af_fields = ["POPMAX_AF"],
       ac_fields = ["AC"],
       variant_exclusion_list = sv_exclusion_list,
       gene_lists = gene_lists,
       gene_list_names = gene_list_names,
-      prefix = study_prefix + ".validation_cohort",
+      prefix = study_prefix + ".case_control_cohort",
       docker = pedsv_r_docker
   }
 
