@@ -1,6 +1,13 @@
-name: base
+name: pedsv-r
 channels:
+  - bioconda
+  - r
   - conda-forge
+  - nodefaults
+subdir: linux-64
+subdirs:
+    - linux-64
+    - noarch
 dependencies:
   - _libgcc_mutex=0.1=conda_forge
   - _openmp_mutex=4.5=2_gnu
@@ -219,4 +226,4 @@ dependencies:
   - zlib=1.2.13=hd590300_5
   - zstandard=0.19.0=py310h1275a96_2
   - zstd=1.5.2=hfc55251_7
-prefix: /opt/conda
+prefix: /opt/conda/envs/pedsv-r
