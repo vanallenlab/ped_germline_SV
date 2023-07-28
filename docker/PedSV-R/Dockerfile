@@ -22,54 +22,54 @@ RUN conda config --env --set subdir linux-64 && \
     mamba update --all && \
     mamba env create --file=/opt/ped_germline_SV/config/environment.pedsv-r.yml
 
-# # Use conda-pack to create a standalone enviornment
-# RUN mamba install conda-pack && \
-#     conda-pack -n pedsv-r -o /tmp/env.tar && \
-#     mkdir /venv && cd /venv && tar -xf /tmp/env.tar && \
-#     rm /tmp/env.tar && \
-#     /venv/bin/conda-unpack
+# Use conda-pack to create a standalone enviornment
+RUN mamba install conda-pack && \
+    conda-pack -n pedsv-r -o /tmp/env.tar && \
+    mkdir /venv && cd /venv && tar -xf /tmp/env.tar && \
+    rm /tmp/env.tar && \
+    /venv/bin/conda-unpack
 
 
-# ##############################
-# # BUILD STAGE 2: RUNTIME IMAGE
-# ##############################
+##############################
+# BUILD STAGE 2: RUNTIME IMAGE
+##############################
 
-# # Base image: debian bullseye (for smaller runtime image)
-# FROM ubuntu:focal-20230301 AS runtime
-# MAINTAINER "Ryan Collins <Ryan_Collins@dfci.harvard.edu>"
+# Base image: debian bullseye (for smaller runtime image)
+FROM ubuntu:focal-20230301 AS runtime
+MAINTAINER "Ryan Collins <Ryan_Collins@dfci.harvard.edu>"
 
-# # Copy /venv, git repo, and GATK-SV from the build stage
-# COPY --from=build /venv /venv
-# COPY --from=build /opt/ped_germline_SV /opt/ped_germline_SV
+# Copy /venv, git repo, and GATK-SV from the build stage
+COPY --from=build /venv /venv
+COPY --from=build /opt/ped_germline_SV /opt/ped_germline_SV
 
-# # Make bash default shell & load conda environment on container startup
-# RUN rm /bin/sh && ln -s /bin/bash /bin/sh
-# RUN echo "source /venv/bin/activate" >> ~/.bashrc
-# ENV VIRTUAL_ENV=/venv
-# ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+# Make bash default shell & load conda environment on container startup
+RUN rm /bin/sh && ln -s /bin/bash /bin/sh
+RUN echo "source /venv/bin/activate" >> ~/.bashrc
+ENV VIRTUAL_ENV=/venv
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
-# # Install make and zlib
-# RUN apt-get clean && \
-#     apt-get -qqy update && \
-#     apt-get -qqy install --fix-missing \
-#       apt-utils \
-#       build-essential \
-#       zlib1g-dev \
-#       less \
-#       default-libmysqlclient-dev \
-#       curl \
-#       wget
+# Install make and zlib
+RUN apt-get clean && \
+    apt-get -qqy update && \
+    apt-get -qqy install --fix-missing \
+      apt-utils \
+      build-essential \
+      zlib1g-dev \
+      less \
+      default-libmysqlclient-dev \
+      curl \
+      wget
 
-# # Install gcloud
-# ARG DEBIAN_FRONTEND=noninteractive
-# RUN /opt/ped_germline_SV/config/install_gcloud.sh
+# Install gcloud
+ARG DEBIAN_FRONTEND=noninteractive
+RUN /opt/ped_germline_SV/config/install_gcloud.sh
 
-# # Install PedSV R package
-# ARG PEDSV_VERSION=0.0.2
-# RUN Rscript -e "install.packages('/opt/ped_germline_SV/src/PedSV_${PEDSV_VERSION}.tar.gz', type='source', repos=NULL)"
+# Install PedSV R package
+ARG PEDSV_VERSION=0.0.2
+RUN Rscript -e "install.packages('/opt/ped_germline_SV/src/PedSV_${PEDSV_VERSION}.tar.gz', type='source', repos=NULL)"
 
-# # Developer aliases, etc (for convenience)
-# RUN echo 'alias l="ls -ltrha"' >> ~/.bashrc
+# Developer aliases, etc (for convenience)
+RUN echo 'alias l="ls -ltrha"' >> ~/.bashrc
 
 # Launch bash
 CMD ["/bin/bash"]
