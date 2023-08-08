@@ -240,7 +240,12 @@ barplot.by.phenotype <- function(plot.df, bar.hex=0.5, case.control.sep=1/3,
 
   # Add P values
   sapply(1:nrow(plot.df), function(i){
-    p.col <- if(plot.df[i, 7] < 0.05){"black"}else{control.colors[["main"]]}
+    if(color.by.sig){
+      pval <- plot.df[i, 7]
+      p.col <- if(pval < 0.05){"black"}else{control.colors[["main"]]}
+    }else{
+      p.col <- "black"
+    }
     axis(4, at=y.mids[i], tick=F, line=-0.9, las=2, cex.axis=5/6,
          labels=PedSV::format.pval(plot.df[i, 7], nsmall=0),
          col.axis=p.col)

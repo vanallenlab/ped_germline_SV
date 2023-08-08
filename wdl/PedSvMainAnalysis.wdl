@@ -39,8 +39,13 @@ workflow PedSvMainAnalysis {
 		File case_control_samples_list
     File? case_control_variant_exclusion_list
 
+    File full_cohort_bed
+    File full_cohort_bed_idx
+    File full_cohort_samples_list
+
     Array[File]? gene_lists
     Array[String]? gene_list_names
+    File? genomic_disorder_bed
 
     String pedsv_r_docker
     String ubuntu_docker = "ubuntu:latest"
@@ -75,6 +80,18 @@ workflow PedSvMainAnalysis {
       docker = pedsv_r_docker
   }
 
+  call CohortSummaryPlots as FullCohortSummaryPlots {
+    input:
+      bed = full_cohort_bed,
+      bed_idx = full_cohort_bed_idx,
+      prefix = study_prefix + ".full_cohort",
+      sample_metadata_tsv = sample_metadata_tsv,
+      sample_list = full_cohort_samples_list,
+      af_field = "POPMAX_AF",
+      ac_field = "AC",
+      docker = pedsv_r_docker
+  }
+
   call BurdenTests as StudyWideBurdenTests {
     input:
       beds = [trio_bed, case_control_bed],
@@ -88,6 +105,7 @@ workflow PedSvMainAnalysis {
       variant_exclusion_list = sv_exclusion_list,
       gene_lists = gene_lists,
       gene_list_names = gene_list_names,
+      genomic_disorder_bed = genomic_disorder_bed,
       prefix = study_prefix,
       docker = pedsv_r_docker
   }
@@ -142,8 +160,8 @@ workflow PedSvMainAnalysis {
       sample_metadata_tsv = sample_metadata_tsv,
       sample_list = trio_samples_list,
       per_sample_tarball = MergeTrioSVsPerSample.per_sample_tarball,
-      af_field = "POPMAX_parent_AF",
-      ac_field = "parent_AC",
+      af_field = "POPMAX_AF",
+      ac_field = "AC",
       docker = pedsv_r_docker
   }
 
@@ -166,11 +184,12 @@ workflow PedSvMainAnalysis {
       ad_matrix_idxs = [trio_ad_matrix_idx],
       sample_metadata_tsv = sample_metadata_tsv,
       samples_list = trio_samples_list,
-      af_fields = ["POPMAX_parent_AF"],
-      ac_fields = ["parent_AC"],
+      af_fields = ["POPMAX_AF"],
+      ac_fields = ["AC"],
       variant_exclusion_list = sv_exclusion_list,
       gene_lists = gene_lists,
       gene_list_names = gene_list_names,
+      genomic_disorder_bed = genomic_disorder_bed,
       prefix = study_prefix + ".trio_cohort",
       docker = pedsv_r_docker
   }
@@ -188,6 +207,7 @@ workflow PedSvMainAnalysis {
       variant_exclusion_list = sv_exclusion_list,
       gene_lists = gene_lists,
       gene_list_names = gene_list_names,
+      genomic_disorder_bed = genomic_disorder_bed,
       prefix = study_prefix + ".case_control_cohort",
       docker = pedsv_r_docker
   }
@@ -195,6 +215,7 @@ workflow PedSvMainAnalysis {
   call UnifyOutputs {
     input:
       tarballs = [StudyWideSummaryPlots.plots_tarball,
+                  FullCohortSummaryPlots.plots_tarball,
                   StudyWideBurdenTests.plots_tarball,
                   TrioCohortSummaryPlots.plots_tarball,
                   ValidationCohortSummaryPlots.plots_tarball,
@@ -300,6 +321,7 @@ task BurdenTests {
     File? variant_exclusion_list
     Array[File]? gene_lists
     Array[String]? gene_list_names
+    File? genomic_disorder_bed
     String prefix
     String docker
   }
@@ -335,6 +357,18 @@ task BurdenTests {
       cmd="$cmd --exclude-variants ~{variant_exclusion_list}"
     fi
     cmd="$cmd --out-prefix ~{prefix}.BurdenTests/~{prefix}"
+
+    # Prep list of SVs to evaluate for genomic disorder analyses, if optioned
+    if [ ~{defined(genomic_disorder_bed)} == "true" ]; then
+      while read bed; do
+        bedtools intersect \
+          -r -wa -wb -f 0.8 \
+          -a $bed -b ~{select_first(genomic_disorder_bed)} \
+        | awk '{ if ($5==$NF) print $4 }'
+      done < ~{write_lines(beds)} \
+      | sort -V | uniq > gd_hits.vids.list
+      cmd="$cmd --genomic-disorder-hits gd_hits.vids.list"
+    fi
 
     # Run burden tests
     echo -e "\n\nNow running burden tests with the following command:\n$cmd\n"
@@ -455,7 +489,7 @@ task CohortSummaryPlots {
     File bed_idx
     File sample_metadata_tsv
     File sample_list
-    File per_sample_tarball
+    File? per_sample_tarball
     String prefix
     
     String af_field = "POPMAX_AF"
@@ -480,21 +514,23 @@ task CohortSummaryPlots {
       ~{bed}
 
     # Format SV counts per sample
-    mkdir perSample_data
-    tar -xzvf ~{per_sample_tarball} -C perSample_data/
-    while read sample; do
-      find perSample_data/ -name "$sample.SV_IDs.list.gz" \
-      | xargs -I {} zcat {} | wc -l \
-      | paste <( echo $sample ) -
-    done < ~{sample_list} \
-    | cat <( echo -e "sample\tcount" ) - \
-    > sv_counts_per_sample.tsv
+    if [ ~{defined(per_sample_tarball)} == "true" ]; then
+      mkdir perSample_data
+      tar -xzvf ~{select_first(per_sample_tarball)} -C perSample_data/
+      while read sample; do
+        find perSample_data/ -name "$sample.SV_IDs.list.gz" \
+        | xargs -I {} zcat {} | wc -l \
+        | paste <( echo $sample ) -
+      done < ~{sample_list} \
+      | cat <( echo -e "sample\tcount" ) - \
+      > sv_counts_per_sample.tsv
 
-    # Plot SVs per sample
-    /opt/ped_germline_SV/analysis/landscape/plot_svs_per_sample.R \
-      --metadata ~{sample_metadata_tsv} \
-      --out-prefix ~{prefix}.SummaryPlots/~{prefix} \
-      sv_counts_per_sample.tsv
+      # Plot SVs per sample
+      /opt/ped_germline_SV/analysis/landscape/plot_svs_per_sample.R \
+        --metadata ~{sample_metadata_tsv} \
+        --out-prefix ~{prefix}.SummaryPlots/~{prefix} \
+        sv_counts_per_sample.tsv
+     fi
 
     # Compress output
     find ~{prefix}.SummaryPlots/ -name "*.tsv" | xargs -I {} gzip -f {}

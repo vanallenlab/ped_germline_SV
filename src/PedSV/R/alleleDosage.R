@@ -204,5 +204,9 @@ query.ad.from.sv.bed <- function(ad, bed, action="verbose", weights=NULL, paddin
   query.ids <- rownames(bed)
 
   # Query AD matrix
-  query.ad.matrix(ad, query.regions, query.ids, action, weights)
+  if(length(query.regions) > 0){
+    query.ad.matrix(ad, query.regions, query.ids, action, weights)
+  }else{
+    data.frame()
+  }
 }

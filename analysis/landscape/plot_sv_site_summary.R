@@ -338,10 +338,15 @@ write.table(tabulate.sizes(bed),
 pops.in.bed <- unique(sapply(colnames(bed)[grep("_AF$", colnames(bed))],
                              function(col.name){unlist(strsplit(col.name, split="_"))[1]}))
 for(pop in intersect(names(pop.colors), pops.in.bed)){
-  cat(paste("HWE for ", pop, ":\n", sep=""))
-  png(paste(args$out_prefix, pop, "HWE.png", sep="."),
-      height=1000, width=1000, res=400)
-  plot.HWE(bed, pop=paste(args$cohort_prefix, pop, sep="_"),
-           title=pop.names.short[pop], full.legend=T)
-  dev.off()
+  col.prefix <- paste(args$cohort_prefix, pop, sep="_")
+  if(!col.prefix %in% colnames(bed)){
+    col.prefix <- pop
+  }
+  if(col.prefix %in% colnames(bed)){
+    cat(paste("HWE for ", pop, ":\n", sep=""))
+    png(paste(args$out_prefix, pop, "HWE.png", sep="."),
+        height=1000, width=1000, res=400)
+    plot.HWE(bed, pop=col.prefix, title=pop.names.short[pop], full.legend=T)
+    dev.off()
+  }
 }

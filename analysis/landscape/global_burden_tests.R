@@ -71,7 +71,7 @@ burden.test <- function(data, query, meta, ad.vals, family,
   }
   # Run one comparison for each cancer type with at least one sample present in data
   cancers <- setdiff(unique(meta[names(ad.vals), "disease"]), "control")
-  cancers <- c("pancan", metadata.cancer.label.map[cancers])
+  cancers <- c("pancan", metadata.cancer.label.map[cancers[which(!is.na(cancers))]])
   res <- lapply(cancers, function(cancer){
     # Get list of eligible samples
     elig.sids <- get.eligible.samples(meta, cancer)
@@ -84,23 +84,26 @@ burden.test <- function(data, query, meta, ad.vals, family,
     overlapping.ids <- intersect(names(X[which(!is.na(X))]), names(Y))
     X <- X[overlapping.ids]
     Y <- Y[overlapping.ids]
-    c(cancer, length(case.ids), mean(X[case.ids], na.rm=T),
-      sd(X[case.ids], na.rm=T), length(control.ids),
+    n.carrier.ctrl <- length(which(Y[which(X == 1)] == 0))
+    n.carrier.case <- length(which(Y[which(X == 1)] == 1))
+    c(cancer, length(case.ids), n.carrier.case, mean(X[case.ids], na.rm=T),
+      sd(X[case.ids], na.rm=T), length(control.ids), n.carrier.ctrl,
       mean(X[control.ids], na.rm=T), sd(X[control.ids], na.rm=T),
       pedsv.glm(meta, X, Y, family=family, extra.terms=extra.terms))
   })
 
   # Format and return data.frame of test statistics
   res.df <- as.data.frame(do.call("rbind", res), row.names=NULL)
-  colnames(res.df) <- c("disease", "n.case", "case.mean", "case.stdev",
-                        "n.control", "control.mean", "control.stdev",
-                        "coefficient", "std.err",
-                        "test.statistic", "P.value", "test")
+  colnames(res.df) <- c("disease", "n.case", "n.case.carrier", "case.mean",
+                        "case.stdev", "n.control", "n.control.carrier",
+                        "control.mean", "control.stdev", "coefficient",
+                        "std.err", "test.statistic", "P.value", "test")
   res.df$hypothesis <- query
   res.df$model <- if(family$family=="binomial"){"logit"}else{"linear"}
-  res.df[, c("hypothesis", "disease", "model", "n.case", "case.mean", "case.stdev",
-             "n.control", "control.mean", "control.stdev",
-             "coefficient", "std.err", "test.statistic", "P.value", "test")]
+  res.df[, c("hypothesis", "disease", "model", "n.case", "n.case.carrier",
+             "case.mean", "case.stdev", "n.control", "n.control.carrier",
+             "control.mean", "control.stdev", "coefficient", "std.err",
+             "test.statistic", "P.value", "test")]
 }
 
 # Supercategory burden test for a category to prepare for rapid re-testing of subsets
@@ -149,7 +152,7 @@ stats2plot <- function(stats, ci.mode="normal"){
 main.burden.wrapper <- function(data, query, meta, action, af.fields, ac.fields,
                                 sv.subsets, all.stats, out.prefix, keep.idx.list=NULL,
                                 extra.terms=NULL, main.title="Values", barplot.height=2.5,
-                                barplot.width=3, barplot.units=NULL){
+                                barplot.width=3, barplot.units=NULL, custom.hypothesis=NULL){
   # Get other parameters dictated by value of action
   family <- binomial()
   if(action == "any"){
@@ -165,6 +168,9 @@ main.burden.wrapper <- function(data, query, meta, action, af.fields, ac.fields,
                                                  keep.idx.list=keep.idx.list,
                                                  extra.terms=extra.terms)
   new.stats <- supercategory.res[["new.stats"]]
+  if(!is.null(custom.hypothesis)){
+    new.stats$hypothesis <- custom.hypothesis
+  }
   all.stats <- rbind(all.stats, new.stats)
   pdf(paste(out.prefix, "ALL.pdf", sep="."),
       height=barplot.height, width=barplot.width)
@@ -173,18 +179,24 @@ main.burden.wrapper <- function(data, query, meta, action, af.fields, ac.fields,
   dev.off()
   ad.dfs <- supercategory.res[["ad.df"]]
   for(subset.info in sv.subsets){
-    ad.vals <- unlist(lapply(ad.dfs, function(df){
-      compress.ad.matrix(df[intersect(rownames(df), subset.info[[2]]), ],
-                         action=action)
-    }))
-    new.stats <- burden.test(data, query, meta, ad.vals, family, af.fields, ac.fields, extra.terms)
-    new.stats$hypothesis <- paste(new.stats$hypothesis, subset.info[[1]], sep=".")
-    all.stats <- rbind(all.stats, new.stats)
-    pdf(paste(out.prefix, subset.info[[1]], "pdf", sep="."),
-        height=barplot.height, width=barplot.width)
-    barplot.by.phenotype(stats2plot(new.stats, ci.mode), title=subset.info[[3]],
-                         top.axis.units=barplot.units)
-    dev.off()
+    if(any(subset.info[[2]] %in% as.vector(unlist(sapply(ad.dfs, function(df){rownames(df)}))))){
+      ad.vals <- unlist(lapply(ad.dfs, function(df){
+        compress.ad.matrix(df[intersect(rownames(df), subset.info[[2]]), ],
+                           action=action)
+      }))
+      new.stats <- burden.test(data, query, meta, ad.vals, family, af.fields, ac.fields, extra.terms)
+      if(!is.null(custom.hypothesis)){
+        new.stats$hypothesis <- paste(custom.hypothesis, subset.info[[1]], sep=".")
+      }else{
+        new.stats$hypothesis <- paste(new.stats$hypothesis, subset.info[[1]], sep=".")
+      }
+      all.stats <- rbind(all.stats, new.stats)
+      pdf(paste(out.prefix, subset.info[[1]], "pdf", sep="."),
+          height=barplot.height, width=barplot.width)
+      barplot.by.phenotype(stats2plot(new.stats, ci.mode), title=subset.info[[3]],
+                           top.axis.units=barplot.units)
+      dev.off()
+    }
   }
   return(all.stats)
 }
@@ -207,6 +219,8 @@ parser$add_argument("--metadata", metavar=".tsv", type="character",
                     help="sample metadata .tsv", required=TRUE)
 parser$add_argument("--gene-lists", metavar=".tsv", type="character",
                     help="Two-column .tsv of gene lists (set name and path to gene list)")
+parser$add_argument("--genomic-disorder-hits", metavar=".txt", type="character",
+                    help=".txt of variant IDs to be treated as genomic disorder CNVs")
 parser$add_argument("--subset-samples", metavar=".tsv", type="character",
                     help="list of samples to subset [default: use all samples]")
 parser$add_argument("--exclude-variants", metavar=".txt", type="character",
@@ -231,6 +245,7 @@ args <- parser$parse_args()
 #              "ad" = c("~/scratch/PedSV.v2.1.case_control_cohort.analysis_samples.allele_dosages.bed.gz"),
 #              "metadata" = "~/scratch/PedSV.v2.1.cohort_metadata.w_control_assignments.tsv.gz",
 #              "gene_lists" = "~/scratch/PedSV.gene_lists.tsv",
+#              "genomic_disorder_hits" = "~/scratch/PedSV.v2.1.case_control_cohort.gd_vids.list",
 #              "subset_samples" = "/Users/ryan/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_v2_callset_generation/PedSV.v2.1.case_control_analysis_cohort.samples.list",
 #              "exclude_variants" = NULL,
 #              "af_field" = "POPMAX_AF",
@@ -240,6 +255,7 @@ args <- parser$parse_args()
 #              "ad" = c("~/scratch/PedSV.v1.1.trio_cohort.analysis_samples.wAFs.allele_dosages.bed.gz"),
 #              "metadata" = "~/scratch/gatk_sv_pediatric_cancers_combined_cohort_metadata_3_31_23.w_control_assignments.txt",
 #              "gene_lists" = "~/scratch/PedSV.gene_lists.tsv",
+#              "genomic_disorder_hits" = NULL,
 #              "subset_samples" = "/Users/collins/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/data/ancestry_and_relatedness/PedSV.v1.trio_cohort_final_samples.list",
 #              "af_field" = "POPMAX_parent_AF",
 #              "ac_field" = "parent_AC",
@@ -335,6 +351,33 @@ for(freq in c("rare", "vrare", "singleton")){
 }
 
 
+# Genomic disorder analysis, if optioned
+if(!is.null(args$genomic_disorder_hits)){
+  gd.ids <- unique(read.table(args$genomic_disorder_hits, header=F)[, 1])
+  if(length(gd.ids) > 0){
+    for(freq in c("rare", "vrare")){
+      sv.subsets <- lapply(c("DEL", "DUP"), function(svtype){
+        list(svtype,
+             as.character(unlist(sapply(data, function(info){
+               intersect(rownames(info$bed)[which(info$bed$SVTYPE == svtype)],
+                         gd.ids)
+             }))),
+             paste("Samples w/", freq.names[freq], " GD ", sv.abbreviations[svtype]), sep="")
+      })
+      keep.idx.list <- lapply(data, function(d){which(rownames(d$bed) %in% gd.ids)})
+      all.stats <- main.burden.wrapper(data, query=freq, meta, action="any",
+                                       af.fields, ac.fields, sv.subsets=sv.subsets, all.stats,
+                                       out.prefix=paste(args$out_prefix, paste(freq, "genomic_disorders.by_cancer", sep="_"), sep="."),
+                                       keep.idx.list=keep.idx.list,
+                                       main.title=paste("Samples with", freq.names[freq], "Genomic Disorder"),
+                                       barplot.height=barplot.height, barplot.width=barplot.width,
+                                       barplot.units="percent",
+                                       custom.hypothesis=paste("genomic_disorders", freq, sep="."))
+    }
+  }
+}
+
+
 # Number of rare/vrare/singleton LoF, CG, IEDs per genome
 for(freq in c("rare", "vrare", "singleton")){
   sv.subsets <- list(
@@ -354,7 +397,7 @@ for(freq in c("rare", "vrare", "singleton")){
            rownames(info$bed)[which(sapply(info$bed$PREDICTED_LOF, length) > 0
                                     & info$bed$SVTYPE != "DEL")]
          }))),
-         paste(freq.names[freq], "LoF SVs (No Dels.)")),
+         paste(freq.names[freq], "Non-Del. LoF SVs")),
     list(paste(freq, "CG_SVs", sep="_"),
          as.character(unlist(sapply(data, function(info){
            rownames(info$bed)[which(sapply(info$bed$PREDICTED_COPY_GAIN, length) > 0)]
@@ -399,7 +442,7 @@ for(freq in c("rare", "vrare", "singleton")){
            rownames(info$bed)[which(sapply(info$bed$PREDICTED_LOF, length) == 1
                                     & info$bed$SVTYPE != "DEL")]
          }))),
-         paste(freq.names[freq], "Single-Gene LoF SVs (No Dels.)")),
+         paste(freq.names[freq], "Single-Gene Non-Del. LoF SVs")),
     list(paste(freq, "single_gene_CG_SVs", sep="_"),
          as.character(unlist(sapply(data, function(info){
            rownames(info$bed)[which(sapply(info$bed$PREDICTED_COPY_GAIN, length) == 1)]
@@ -420,7 +463,7 @@ for(freq in c("rare", "vrare", "singleton")){
 }
 
 
-# Number of genes impacted by rare LoF per genome
+# Number of genes impacted by rare/vrare/singleton LoF per genome
 for(freq in c("rare", "vrare", "singleton")){
   ad.vals <- get.ad.values(data, query=paste(freq, "genes_disrupted.lof", sep="."),
                            action="sum", af.fields, ac.fields)
@@ -434,107 +477,114 @@ for(freq in c("rare", "vrare", "singleton")){
   dev.off()
 }
 
-# Carrier rates of LoF/CG/IED in gene lists
+
+# Carrier rates of rare/vrare/singleton LoF/CG/IED in gene lists
 if(!is.null(args$gene_lists)){
   gene.lists <- load.gene.lists(args$gene_lists)
-  for(i in 1:length(gene.lists)){
+  for(freq in c("rare", "vrare")){
+    for(i in 1:length(gene.lists)){
 
-    set.name <- names(gene.lists)[i]
-    set.lower <- tolower(gsub(" ", "_", set.name, fixed=T))
-    gene.list <- gene.lists[[i]]
+      set.name <- names(gene.lists)[i]
+      set.lower <- tolower(gsub(" ", "_", set.name, fixed=T))
+      gene.list <- gene.lists[[i]]
 
-    # Get indexes for SVs with predicted effects on any gene in gene set
-    lof.idx.list <- lapply(data, function(info){
-      lof <- which(sapply(info$bed[, c("PREDICTED_LOF")], function(g){any(gene.list %in% g)}))
-      ped <- which(sapply(info$bed[, c("PREDICTED_PARTIAL_EXON_DUP")], function(g){any(gene.list %in% g)}))
-      sort(unique(c(lof, ped)))
-    })
-    cg.idx.list <- lapply(data, function(info){
-      sort(unique(which(sapply(info$bed[, c("PREDICTED_COPY_GAIN")], function(g){any(gene.list %in% g)}))))
-    })
-    ied.idx.list <- lapply(data, function(info){
-      sort(unique(which(sapply(info$bed[, c("PREDICTED_INTRAGENIC_EXON_DUP")], function(g){any(gene.list %in% g)}))))
-    })
-    all.idx.list <- lapply(1:length(data), function(k){
-      sort(unique(c(lof.idx.list[[k]], cg.idx.list[[k]], ied.idx.list[[k]])))
-    })
-    sv.subsets <- list(
-      list(paste("rare", set.lower, "LoF", sep="_"),
-           unlist(lapply(1:length(data), function(k){rownames(data[[k]]$bed)[lof.idx.list[[k]]]})),
-           paste("Samples w/", set.name, "LoF")),
-      list(paste("rare", set.lower, "CG", sep="_"),
-           unlist(lapply(1:length(data), function(k){rownames(data[[k]]$bed)[cg.idx.list[[k]]]})),
-           paste("Samples w/", set.name, "CG")),
-      list(paste("rare", set.lower, "IED", sep="_"),
-           unlist(lapply(1:length(data), function(k){rownames(data[[k]]$bed)[ied.idx.list[[k]]]})),
-           paste("Samples w/", set.name, "IED"))
-    )
-    all.stats <- main.burden.wrapper(data, query=paste("rare", set.lower, "gene_disruptive", sep="."),
-                                     meta, action="any",
-                                     af.fields, ac.fields, sv.subsets=sv.subsets, all.stats,
-                                     keep.idx.list=all.idx.list,
-                                     paste(args$out_prefix, "rare_disruptive_sv_carrier_rate",
-                                           set.lower, "by_cancer", sep="."),
-                                     main.title=paste("Samples w/", set.name, "Disruption"),
-                                     barplot.height=barplot.height, barplot.width=barplot.width,
-                                     barplot.units="percent")
+      # Get indexes for SVs with predicted effects on any gene in gene set
+      lof.idx.list <- lapply(data, function(info){
+        lof <- which(sapply(info$bed[, c("PREDICTED_LOF")], function(g){any(gene.list %in% g)}))
+        ped <- which(sapply(info$bed[, c("PREDICTED_PARTIAL_EXON_DUP")], function(g){any(gene.list %in% g)}))
+        sort(unique(c(lof, ped)))
+      })
+      cg.idx.list <- lapply(data, function(info){
+        sort(unique(which(sapply(info$bed[, c("PREDICTED_COPY_GAIN")], function(g){any(gene.list %in% g)}))))
+      })
+      ied.idx.list <- lapply(data, function(info){
+        sort(unique(which(sapply(info$bed[, c("PREDICTED_INTRAGENIC_EXON_DUP")], function(g){any(gene.list %in% g)}))))
+      })
+      all.idx.list <- lapply(1:length(data), function(k){
+        sort(unique(c(lof.idx.list[[k]], cg.idx.list[[k]], ied.idx.list[[k]])))
+      })
+      sv.subsets <- list(
+        list(paste(freq, set.lower, "LoF", sep="_"),
+             unlist(lapply(1:length(data), function(k){rownames(data[[k]]$bed)[lof.idx.list[[k]]]})),
+             paste(freq.names[freq], set.name, "LoF")),
+        list(paste(freq, set.lower, "CG", sep="_"),
+             unlist(lapply(1:length(data), function(k){rownames(data[[k]]$bed)[cg.idx.list[[k]]]})),
+             paste(freq.names[freq], set.name, "CG")),
+        list(paste(freq, set.lower, "IED", sep="_"),
+             unlist(lapply(1:length(data), function(k){rownames(data[[k]]$bed)[ied.idx.list[[k]]]})),
+             paste(freq.names[freq], set.name, "IED"))
+      )
+      all.stats <- main.burden.wrapper(data, query=paste(freq, set.lower, "gene_disruptive", sep="."),
+                                       meta, action="any",
+                                       af.fields, ac.fields, sv.subsets=sv.subsets, all.stats,
+                                       keep.idx.list=all.idx.list,
+                                       paste(args$out_prefix, paste(freq, "disruptive_sv_carrier_rate", sep="_"),
+                                             set.lower, "by_cancer", sep="."),
+                                       main.title=paste(freq.names[freq], set.name, "Disruption"),
+                                       barplot.height=barplot.height, barplot.width=barplot.width,
+                                       barplot.units="percent")
+    }
   }
 }
 
-# Carrier rates of LoF/CG/IED in gene lists after adjusting for baseline # of LoF & CG SVs
-lof.counts <- get.ad.values(data, query="rare.gene_disrputive.lof",
-                            action="count", af.fields, ac.fields)
-cg.counts <- get.ad.values(data, query="rare.gene_disrputive.cg",
-                            action="count", af.fields, ac.fields)
-meta.ext <- meta
-meta.ext$n.lof <- lof.counts[rownames(meta.ext)]
-meta.ext$n.cg <- cg.counts[rownames(meta.ext)]
-if(!is.null(args$gene_lists)){
-  gene.lists <- load.gene.lists(args$gene_lists)
-  for(i in 1:length(gene.lists)){
 
-    set.name <- names(gene.lists)[i]
-    set.lower <- tolower(gsub(" ", "_", set.name, fixed=T))
-    gene.list <- gene.lists[[i]]
-
-    # Get indexes for SVs with predicted effects on any gene in gene set
-    lof.idx.list <- lapply(data, function(info){
-      lof <- which(sapply(info$bed[, c("PREDICTED_LOF")], function(g){any(gene.list %in% g)}))
-      ped <- which(sapply(info$bed[, c("PREDICTED_PARTIAL_EXON_DUP")], function(g){any(gene.list %in% g)}))
-      sort(unique(c(lof, ped)))
-    })
-    cg.idx.list <- lapply(data, function(info){
-      sort(unique(which(sapply(info$bed[, c("PREDICTED_COPY_GAIN")], function(g){any(gene.list %in% g)}))))
-    })
-    ied.idx.list <- lapply(data, function(info){
-      sort(unique(which(sapply(info$bed[, c("PREDICTED_INTRAGENIC_EXON_DUP")], function(g){any(gene.list %in% g)}))))
-    })
-    all.idx.list <- lapply(1:length(data), function(k){
-      sort(unique(c(lof.idx.list[[k]], cg.idx.list[[k]], ied.idx.list[[k]])))
-    })
-    sv.subsets <- list(
-      list(paste("rare", set.lower, "LoF", sep="_"),
-           unlist(lapply(1:length(data), function(k){rownames(data[[k]]$bed)[lof.idx.list[[k]]]})),
-           paste("Samples w/", set.name, "LoF")),
-      list(paste("rare", set.lower, "CG", sep="_"),
-           unlist(lapply(1:length(data), function(k){rownames(data[[k]]$bed)[cg.idx.list[[k]]]})),
-           paste("Samples w/", set.name, "CG")),
-      list(paste("rare", set.lower, "IED", sep="_"),
-           unlist(lapply(1:length(data), function(k){rownames(data[[k]]$bed)[ied.idx.list[[k]]]})),
-           paste("Samples w/", set.name, "IED"))
-    )
-    all.stats <- main.burden.wrapper(data, query=paste("rare", set.lower, "gene_disruptive", sep="."),
-                                     meta.ext, action="any",
-                                     af.fields, ac.fields, sv.subsets=sv.subsets, all.stats,
-                                     keep.idx.list=all.idx.list,
-                                     paste(args$out_prefix, "rare_disruptive_sv_carrier_rate",
-                                           set.lower, "baseline_adjusted.by_cancer", sep="."),
-                                     extra.terms=c("n.lof", "n.cg"),
-                                     main.title=paste("Samples w/", set.name, "Disruption"),
-                                     barplot.height=barplot.height, barplot.width=barplot.width,
-                                     barplot.units="percent")
-  }
-}
+# # Carrier rates of rare/vrare/singleton LoF/CG/IED in gene lists
+# # after adjusting for baseline # of LoF & CG SVs
+# for(freq in c("rare", "vrare")){
+#   lof.counts <- get.ad.values(data, query=paste(freq, "gene_disrputive.lof", sep="."),
+#                               action="count", af.fields, ac.fields)
+#   cg.counts <- get.ad.values(data, query=paste(freq, "gene_disrputive.cg", sep="."),
+#                              action="count", af.fields, ac.fields)
+#   meta.ext <- meta
+#   meta.ext$n.lof <- lof.counts[rownames(meta.ext)]
+#   meta.ext$n.cg <- cg.counts[rownames(meta.ext)]
+#   if(!is.null(args$gene_lists)){
+#     gene.lists <- load.gene.lists(args$gene_lists)
+#     for(i in 1:length(gene.lists)){
+#
+#       set.name <- names(gene.lists)[i]
+#       set.lower <- tolower(gsub(" ", "_", set.name, fixed=T))
+#       gene.list <- gene.lists[[i]]
+#
+#       # Get indexes for SVs with predicted effects on any gene in gene set
+#       lof.idx.list <- lapply(data, function(info){
+#         lof <- which(sapply(info$bed[, c("PREDICTED_LOF")], function(g){any(gene.list %in% g)}))
+#         ped <- which(sapply(info$bed[, c("PREDICTED_PARTIAL_EXON_DUP")], function(g){any(gene.list %in% g)}))
+#         sort(unique(c(lof, ped)))
+#       })
+#       cg.idx.list <- lapply(data, function(info){
+#         sort(unique(which(sapply(info$bed[, c("PREDICTED_COPY_GAIN")], function(g){any(gene.list %in% g)}))))
+#       })
+#       ied.idx.list <- lapply(data, function(info){
+#         sort(unique(which(sapply(info$bed[, c("PREDICTED_INTRAGENIC_EXON_DUP")], function(g){any(gene.list %in% g)}))))
+#       })
+#       all.idx.list <- lapply(1:length(data), function(k){
+#         sort(unique(c(lof.idx.list[[k]], cg.idx.list[[k]], ied.idx.list[[k]])))
+#       })
+#       sv.subsets <- list(
+#         list(paste("rare", set.lower, "LoF", sep="_"),
+#              unlist(lapply(1:length(data), function(k){rownames(data[[k]]$bed)[lof.idx.list[[k]]]})),
+#              paste("Samples w/", set.name, "LoF")),
+#         list(paste("rare", set.lower, "CG", sep="_"),
+#              unlist(lapply(1:length(data), function(k){rownames(data[[k]]$bed)[cg.idx.list[[k]]]})),
+#              paste("Samples w/", set.name, "CG")),
+#         list(paste("rare", set.lower, "IED", sep="_"),
+#              unlist(lapply(1:length(data), function(k){rownames(data[[k]]$bed)[ied.idx.list[[k]]]})),
+#              paste("Samples w/", set.name, "IED"))
+#       )
+#       all.stats <- main.burden.wrapper(data, query=paste("rare", set.lower, "gene_disruptive", sep="."),
+#                                        meta.ext, action="any",
+#                                        af.fields, ac.fields, sv.subsets=sv.subsets, all.stats,
+#                                        keep.idx.list=all.idx.list,
+#                                        paste(args$out_prefix, "rare_disruptive_sv_carrier_rate",
+#                                              set.lower, "baseline_adjusted.by_cancer", sep="."),
+#                                        extra.terms=c("n.lof", "n.cg"),
+#                                        main.title=paste("Samples w/", set.name, "Disruption"),
+#                                        barplot.height=barplot.height, barplot.width=barplot.width,
+#                                        barplot.units="percent")
+#     }
+#   }
+# }
 
 # Write all stats to outfile
 colnames(all.stats)[1] <- paste("#", colnames(all.stats)[1], sep="")

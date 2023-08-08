@@ -8,13 +8,14 @@ pedsv.glm(
   meta,
   X,
   Y,
-  use.N.pcs = 10,
+  use.N.pcs = 3,
   family = gaussian(),
   extra.terms = NULL,
   firth.fallback = TRUE,
   strict.fallback = TRUE,
   nonstrict.se.tolerance = 10,
-  firth.always = FALSE
+  firth.always = FALSE,
+  return.all.coefficients = FALSE
 )
 }
 \arguments{
@@ -25,7 +26,7 @@ pedsv.glm(
 \item{Y}{Vector of values for dependent variable. See \link{prep.glm.matrix}.}
 
 \item{use.N.pcs}{Specify how many principal components should be adjusted in
-model [default: 10]}
+model [default: 3]}
 
 \item{family}{\code{family} parameter passed to \link{glm}}
 
@@ -45,6 +46,9 @@ regression if a standard logit model produces a genotype effect standard error
 exceeding this value [default: 10]}
 
 \item{firth.always}{Always use Firth regression [default: FALSE]}
+
+\item{return.fit.summary}{Return the full summary of the fitted model. Only recommended
+for debugging purposes. Not recommended for analysis. [default: FALSE]}
 }
 \value{
 Named vector of test statsitics corresponding to independent variable
