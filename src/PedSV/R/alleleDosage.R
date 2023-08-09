@@ -94,7 +94,8 @@ query.ad.matrix <- function(ad, query.regions=NULL, query.ids=NULL,
   }
 
   # Otherwise, apply various compression strategies prior to returning
-  compress.ad.matrix(ad, action, weights, na.behavior, na.frac)
+  compress.ad.matrix(ad[which(!is.na(colnames(ad)))],
+                     action, weights, na.behavior, na.frac)
 }
 
 
@@ -174,7 +175,7 @@ compress.ad.matrix <- function(ad.df, action, weights=NULL,
     query.res[col.na] <- NA
   }
   names(query.res) <- colnames(ad.df)
-  return(query.res)
+  return(query.res[which(!is.na(colnames(ad.df)))])
 }
 
 

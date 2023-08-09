@@ -3,9 +3,9 @@
 #   Pediatric Cancers   #
 #########################
 #
-# AnnotateAfs.wdl
+# PedSvMainAnalysis.wdl
 #
-# Annotate allele frequencies of all variants (with optional sample pruning)
+# Main analysis WDL for global/landscaping arm of pediatric cancer germline WGS study
 #
 # Copyright (c) 2023-Present, the Van Allen laboratory at Dana-Farber Cancer Institute
 # Contact: Ryan Collins <Ryan_Collins@dfci.harvard.edu>
@@ -363,7 +363,7 @@ task BurdenTests {
       while read bed; do
         bedtools intersect \
           -r -wa -wb -f 0.8 \
-          -a $bed -b ~{select_first(genomic_disorder_bed)} \
+          -a $bed -b ~{select_first([genomic_disorder_bed])} \
         | awk '{ if ($5==$NF) print $4 }'
       done < ~{write_lines(beds)} \
       | sort -V | uniq > gd_hits.vids.list
@@ -516,7 +516,7 @@ task CohortSummaryPlots {
     # Format SV counts per sample
     if [ ~{defined(per_sample_tarball)} == "true" ]; then
       mkdir perSample_data
-      tar -xzvf ~{select_first(per_sample_tarball)} -C perSample_data/
+      tar -xzvf ~{select_first([per_sample_tarball])} -C perSample_data/
       while read sample; do
         find perSample_data/ -name "$sample.SV_IDs.list.gz" \
         | xargs -I {} zcat {} | wc -l \
