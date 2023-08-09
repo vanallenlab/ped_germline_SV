@@ -514,8 +514,8 @@ task CohortSummaryPlots {
       ~{bed}
 
     # Format SV counts per sample
+    mkdir perSample_data
     if [ ~{defined(per_sample_tarball)} == "true" ]; then
-      mkdir perSample_data
       tar -xzvf ~{select_first([per_sample_tarball])} -C perSample_data/
       while read sample; do
         find perSample_data/ -name "$sample.SV_IDs.list.gz" \

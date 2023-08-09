@@ -7,6 +7,8 @@
 
 # Build project docker images
 
+# Expects two positional arguments: image tag and (optional) comma-delimited list of images to build
+
 set -eu -o pipefail
 
 TAG=$1

@@ -263,8 +263,12 @@ args <- parser$parse_args()
 
 # Load BEDs and pair AD paths with each
 data <- lapply(1:length(args$bed), function(i){
-  list("bed" = load.sv.bed(args$bed[i], drop.vids=args$exclude_variants),
-       "ad" = args$ad[i])
+  if(is.null(args$exclude_variants)){
+    bed <- load.sv.bed(args$bed[i])
+  }else{
+    load.sv.bed(args$bed[i], drop.vids=args$exclude_variants)
+  }
+  list("bed" = bed, "ad" = args$ad[i])
 })
 
 # Load metadata
