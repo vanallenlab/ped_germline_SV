@@ -40,7 +40,8 @@
 #' * `rare` : AF < 1%
 #' * `vrare` : AF < 0.1%
 #' * `singleton` : AC = 1 & gnomAD AF = 0 (if `use.gnomad.freqs` is `TRUE`)
-#' * `large` : SVLEN > 1,000,000
+#' * `large` : SVLEN > 1,000,000 or SVTYPE = CTX
+#' * `karyotypic` : SVLEN > 5,000,000 or SVTYPE = CTX
 #' * `gene_disruptive` or `genes_disrupted` : any SV with predicted LoF, PED, CG, or IED
 #' * `single_gene_disruptive` : as above, but further restricting to SVs impacting just one gene
 #' * `lof` : predicted LoF and/or PED consequences
@@ -99,6 +100,9 @@ filter.bed <- function(bed, query, af.field="POPMAX_AF", ac.field="AC",
   }
   if("large" %in% query.parts){
     keep.idx <- intersect(keep.idx, which(bed$SVLEN > 1000000 | bed$SVTYPE == "CTX"))
+  }
+  if("karyotypic" %in% query.parts){
+    keep.idx <- intersect(keep.idx, which(bed$SVLEN > 5000000 | bed$SVTYPE == "CTX"))
   }
   lof.count <- sapply(bed$PREDICTED_LOF, length) + sapply(bed$PREDICTED_PARTIAL_EXON_DUP, length)
   cg.count <- sapply(bed$PREDICTED_COPY_GAIN, length)

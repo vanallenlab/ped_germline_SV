@@ -26,22 +26,14 @@ PedSV::load.constants("all")
 ##################
 # Data functions #
 ##################
-# Wrapper to apply filter.bed over script input data format (list)
-filter.data <- function(data, query, af.fields, ac.fields, keep.idx=NULL){
-  lapply(1:length(data), function(i){
-    info <- data[[i]]
-    list("bed" = filter.bed(info$bed, query, af.fields[i], ac.fields[i],
-                            keep.idx=keep.idx, autosomal=TRUE),
-         "ad" = info$ad)})
-}
-
 # Wrapper to format AD values as a single vector for a given query
 # Note: will return list of data frames, one per cohort, if action=="verbose"
-get.ad.values <- function(data, query, action, af.fields, ac.fields, keep.idx.list=NULL){
+get.ad.values <- function(data, query, action, af.fields, ac.fields,
+                          keep.idx.list=NULL, autosomal=TRUE){
   res <- lapply(1:length(data), function(i){
     info <- data[[i]]
     query.bed <- filter.bed(info$bed, query, af.fields[i], ac.fields[i],
-                            keep.idx=keep.idx.list[[i]], autosomal=TRUE)
+                            keep.idx=keep.idx.list[[i]], autosomal=autosomal)
     if("genes_disrupted" %in% unlist(strsplit(query, split=".", fixed=T))){
       weights <- apply(query.bed[, c("PREDICTED_LOF", "PREDICTED_COPY_GAIN",
                                      "PREDICTED_INTRAGENIC_EXON_DUP")],
@@ -109,11 +101,25 @@ burden.test <- function(data, query, meta, ad.vals, family,
 # Supercategory burden test for a category to prepare for rapid re-testing of subsets
 supercategory.burden.test <- function(data, query, meta, action, family,
                                       af.fields, ac.fields, keep.idx.list=NULL,
-                                      extra.terms=NULL){
+                                      extra.terms=NULL, autosomal=TRUE){
   ad.df <- get.ad.values(data, query=query, action="verbose", af.fields, ac.fields,
-                         keep.idx.list=keep.idx.list)
+                         keep.idx.list=keep.idx.list, autosomal=autosomal)
   ad.df <- lapply(ad.df, function(df){df[, intersect(colnames(df), rownames(meta))]})
   ad.vals <- unlist(lapply(ad.df, compress.ad.matrix, action=action))
+  query.parts <- unlist(strsplit(query, split=".", fixed=T))
+  if(length(intersect(query.parts, c("large", "karyotypic"))) > 0
+     & length(intersect(names(sv.colors), query.parts)) == 0){
+    has.aneu <- intersect(rownames(meta)[which(meta$any_aneuploidy)], names(ad.vals))
+    if(length(has.aneu) > 0){
+      for(sid in has.aneu){
+        if(action == "any"){
+          ad.vals[sid] <- 1
+        }else if(action %in% c("count", "sum")){
+          ad.vals[sid] <- if(is.na(ad.vals[sid])){1}else{ad.vals[sid] + 1}
+        }
+      }
+    }
+  }
   new.stats <- burden.test(data, query=query, meta=meta, ad.vals=ad.vals,
                            family=family, extra.terms=extra.terms)
   return(list("ad.df" = ad.df, "new.stats" = new.stats))
@@ -152,7 +158,8 @@ stats2plot <- function(stats, ci.mode="normal"){
 main.burden.wrapper <- function(data, query, meta, action, af.fields, ac.fields,
                                 sv.subsets, all.stats, out.prefix, keep.idx.list=NULL,
                                 extra.terms=NULL, main.title="Values", barplot.height=2.5,
-                                barplot.width=3, barplot.units=NULL, custom.hypothesis=NULL){
+                                barplot.width=3, barplot.units=NULL,
+                                custom.hypothesis=NULL, autosomal=TRUE){
   # Get other parameters dictated by value of action
   family <- binomial()
   if(action == "any"){
@@ -166,7 +173,8 @@ main.burden.wrapper <- function(data, query, meta, action, af.fields, ac.fields,
                                                  action=action, family=family,
                                                  af.fields=af.fields, ac.fields=ac.fields,
                                                  keep.idx.list=keep.idx.list,
-                                                 extra.terms=extra.terms)
+                                                 extra.terms=extra.terms,
+                                                 autosomal=autosomal)
   new.stats <- supercategory.res[["new.stats"]]
   if(!is.null(custom.hypothesis)){
     new.stats$hypothesis <- custom.hypothesis
@@ -332,7 +340,7 @@ all.stats <- main.burden.wrapper(data, query="large", meta, action="any",
                                  paste(args$out_prefix, "large_sv_per_genome.by_cancer", sep="."),
                                  main.title="Samples with any SV >1Mb",
                                  barplot.height=barplot.height, barplot.width=barplot.width,
-                                 barplot.units="percent")
+                                 barplot.units="percent", autosomal=FALSE)
 
 
 # Carrier rate of rare/vrare/singleton large variants per genome by SV type
@@ -351,9 +359,8 @@ for(freq in c("rare", "vrare", "singleton")){
                                    main.title=paste("Samples with", freq.names[freq],
                                                     "SV >1Mb"),
                                    barplot.height=barplot.height, barplot.width=barplot.width,
-                                   barplot.units="percent")
+                                   barplot.units="percent", autosomal=FALSE)
 }
-
 
 # Genomic disorder analysis, if optioned
 if(!is.null(args$genomic_disorder_hits)){

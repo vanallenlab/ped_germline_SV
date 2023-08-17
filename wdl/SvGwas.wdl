@@ -3,7 +3,7 @@
 #   Pediatric Cancers   #
 #########################
 #
-# PedSvMainAnalysis.wdl
+# SvGwas.wdl
 #
 # Perform genome-wide case:control association testing for individual SVs
 #
@@ -43,6 +43,7 @@ workflow SvGwas {
         dense_vcf = dense_vcf,
         dense_vcf_idx = dense_vcf_idx,
         contig = contig,
+        samples_list = samples_list,
         bcftools_query_options = bcftools_query_options,
         prefix = prefix + "." + contig,
         docker = pedsv_docker
@@ -79,6 +80,7 @@ task PrepVariants {
     File dense_vcf
     File dense_vcf_idx
     String contig
+    File samples_list
     String bcftools_query_options
     String prefix
     String docker
@@ -92,6 +94,8 @@ task PrepVariants {
     # Fill missing annotations, filter, and extract variant IDs to test
     bcftools view \
       --regions "~{contig}" \
+      --samples-file ~{samples_list} \
+      --force-samples \
       ~{dense_vcf} \
     | bcftools +fill-tags - \
       -- -t HWE,F_MISSING \

@@ -58,7 +58,8 @@ should be applied to \code{bed}. Recognized filters currently include:
 \item \code{rare} : AF < 1\%
 \item \code{vrare} : AF < 0.1\%
 \item \code{singleton} : AC = 1 & gnomAD AF = 0 (if \code{use.gnomad.freqs} is \code{TRUE})
-\item \code{large} : SVLEN > 1,000,000
+\item \code{large} : SVLEN > 1,000,000 or SVTYPE = CTX
+\item \code{karyotypic} : SVLEN > 5,000,000 or SVTYPE = CTX
 \item \code{gene_disruptive} or \code{genes_disrupted} : any SV with predicted LoF, PED, CG, or IED
 \item \code{single_gene_disruptive} : as above, but further restricting to SVs impacting just one gene
 \item \code{lof} : predicted LoF and/or PED consequences

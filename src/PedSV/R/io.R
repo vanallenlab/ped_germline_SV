@@ -109,6 +109,14 @@ load.sample.metadata <- function(tsv.in, keep.samples=NULL, reassign.parents=TRU
     df[parent.idxs, "disease"] <- "control"
   }
 
+  # Infer whether each sample carries an aneuploidy
+  auto.aneu <- apply(df[, paste("chr", 1:22, "_CopyNumber", sep="")], 1,
+                     function(ploidies){any(ploidies > 2.9 | ploidies < 1.1)})
+  sex.aneu <- abs(df$chrX_CopyNumber + df$chrY_CopyNumber - 2) > 0.9
+  df$autosomal_aneuploidy <- auto.aneu
+  df$sex_aneuploidy <- sex.aneu
+  df$any_aneuploidy <- (auto.aneu | sex.aneu)
+
   # Reorder columns and sort on sample ID before returning
   df[sort(rownames(df)),
      c("study_phase", "batch", "study", "disease", "proband", "family_id",
@@ -116,7 +124,8 @@ load.sample.metadata <- function(tsv.in, keep.samples=NULL, reassign.parents=TRU
        "reported_ancestry", "inferred_ancestry", "inferred_sex",
        "insert_size", "median_coverage", "wgd_score",
        colnames(df)[grep("^PC", colnames(df))],
-       colnames(df)[grep("_CopyNumber$", colnames(df))])]
+       colnames(df)[grep("_CopyNumber$", colnames(df))],
+       colnames(df)[grep("_aneuploidy$", colnames(df))])]
 }
 
 
