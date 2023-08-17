@@ -23,7 +23,7 @@
 #' @param use.N.pcs Specify how many principal components should be adjusted in
 #' model \[default: 3\]
 #' @param extra.terms Specify if any extra terms should be added to the model.
-#' Named options include: "study", "cohort", "coverage, "insert.size",
+#' Named options include: "cohort", "batch", "coverage, "insert.size",
 #' and "wgd". Custom terms can be passed using their exact column names in `meta`.
 #'
 #' @details There are several options for providing `X` and `Y` values:
@@ -52,6 +52,9 @@ prep.glm.matrix <- function(meta, X, Y, use.N.pcs=3, extra.terms=NULL){
     if("cohort" %in% extra.terms){
       df$trio.phase = as.numeric(meta$study_phase == "trio")
     }
+    if("batch" %in% extra.terms){
+      df$batch = as.factor(meta$batch)
+    }
     if("coverage" %in% extra.terms){
       df$coverage = scale(as.numeric(meta$median_coverage))
     }
@@ -61,7 +64,8 @@ prep.glm.matrix <- function(meta, X, Y, use.N.pcs=3, extra.terms=NULL){
     if("wgd" %in% extra.terms){
       df$abs.wgd = scale(abs(as.numeric(meta$wgd_score)))
     }
-    other.terms <- setdiff(extra.terms, c("cohort", "coverage", "insert.size", "wgd"))
+    other.terms <- setdiff(extra.terms, c("cohort", "batch", "coverage",
+                                          "insert.size", "wgd"))
     for(term in other.terms){
       df[, term] <- scale(meta[, term])
     }
@@ -90,7 +94,7 @@ prep.glm.matrix <- function(meta, X, Y, use.N.pcs=3, extra.terms=NULL){
   }
 
   # Standard normalize all covariates
-  df[, setdiff(colnames(df), c("X", "Y"))] <- apply(df[, setdiff(colnames(df), c("X", "Y"))], 2, scale)
+  df[, setdiff(colnames(df), c("X", "Y", "batch"))] <- apply(df[, setdiff(colnames(df), c("X", "Y", "batch"))], 2, scale)
 
   # Ensure X and Y have at least two distinct values
   if(!all(c("X", "Y") %in% colnames(df))){

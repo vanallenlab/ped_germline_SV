@@ -21,8 +21,6 @@ workflow PedSvMainAnalysis {
     File ref_fai
     String study_prefix
 
-		File trio_sites_vcf
-		File trio_sites_vcf_idx
 		File trio_bed
 		File trio_bed_idx
 		File trio_ad_matrix
@@ -30,8 +28,6 @@ workflow PedSvMainAnalysis {
 		File trio_samples_list
     File? trio_variant_exclusion_list
 
-    File case_control_sites_vcf
-    File case_control_sites_vcf_idx
 		File case_control_bed
 		File case_control_bed_idx
 		File case_control_ad_matrix
@@ -41,6 +37,8 @@ workflow PedSvMainAnalysis {
 
     File full_cohort_bed
     File full_cohort_bed_idx
+    File full_cohort_ad_matrix
+    File full_cohort_ad_matrix_idx
     File full_cohort_samples_list
 
     Array[File]? gene_lists
@@ -61,7 +59,7 @@ workflow PedSvMainAnalysis {
   }
   File all_samples_list = ConcatSampleLists.outfile
 
-  if (length([trio_variant_exclusion_list, case_control_variant_exclusion_list]) > 0) {
+  if (defined(trio_variant_exclusion_list) || defined(case_control_variant_exclusion_list)) {
     call ConcatTextFiles as ConcatVariantExclusionLists {
       input:
         infiles = select_all([trio_variant_exclusion_list, 
@@ -70,25 +68,14 @@ workflow PedSvMainAnalysis {
         docker = ubuntu_docker
     }
   }
-  File? sv_exclusion_list = select_first([ConcatVariantExclusionLists.outfile])
+  File? sv_exclusion_list = ConcatVariantExclusionLists.outfile
 
   call StudyWideSummaryPlots {
     input:
       sample_metadata_tsv = sample_metadata_tsv,
-      samples_list = all_samples_list,
+      samples_list = full_cohort_samples_list,
+      analysis_samples_list = all_samples_list,
       prefix = study_prefix,
-      docker = pedsv_r_docker
-  }
-
-  call CohortSummaryPlots as FullCohortSummaryPlots {
-    input:
-      bed = full_cohort_bed,
-      bed_idx = full_cohort_bed_idx,
-      prefix = study_prefix + ".full_cohort",
-      sample_metadata_tsv = sample_metadata_tsv,
-      sample_list = full_cohort_samples_list,
-      af_field = "POPMAX_AF",
-      ac_field = "AC",
       docker = pedsv_r_docker
   }
 
@@ -113,6 +100,17 @@ workflow PedSvMainAnalysis {
   scatter ( contig_info in contiglist ) {
     String contig = contig_info[0]
 
+    call GetSVsPerSample as GetFullCohortSVsPerSample {
+      input:
+        sv_bed = full_cohort_bed,
+        sv_bed_idx = full_cohort_bed_idx,
+        ad_matrix = full_cohort_ad_matrix,
+        ad_matrix_idx = full_cohort_ad_matrix_idx,
+        contig = contig,
+        prefix = study_prefix + ".full_cohort." + contig,
+        docker = pedsv_r_docker
+    }
+
     call GetSVsPerSample as GetTrioSVsPerSample {
       input:
         sv_bed = trio_bed,
@@ -124,7 +122,7 @@ workflow PedSvMainAnalysis {
         docker = pedsv_r_docker
     }
 
-    call GetSVsPerSample as GetValidationSVsPerSample {
+    call GetSVsPerSample as GetCaseControlSVsPerSample {
       input:
         sv_bed = case_control_bed,
         sv_bed_idx = case_control_bed_idx,
@@ -136,6 +134,14 @@ workflow PedSvMainAnalysis {
     }
   }
 
+  call MergeSVsPerSample as MergeFullCohortSVsPerSample {
+    input:
+      tarballs = GetFullCohortSVsPerSample.per_sample_tarball,
+      sample_list = full_cohort_samples_list,
+      prefix = study_prefix + ".full_cohort",
+      docker = ubuntu_docker
+  }
+
   call MergeSVsPerSample as MergeTrioSVsPerSample {
     input:
       tarballs = GetTrioSVsPerSample.per_sample_tarball,
@@ -144,12 +150,25 @@ workflow PedSvMainAnalysis {
       docker = ubuntu_docker
   }
 
-  call MergeSVsPerSample as MergeValidationSVsPerSample {
+  call MergeSVsPerSample as MergeCaseControlSVsPerSample {
     input:
-      tarballs = GetValidationSVsPerSample.per_sample_tarball,
+      tarballs = GetCaseControlSVsPerSample.per_sample_tarball,
       sample_list = case_control_samples_list,
       prefix = study_prefix + ".case_control_cohort",
       docker = ubuntu_docker
+  }
+
+  call CohortSummaryPlots as FullCohortSummaryPlots {
+    input:
+      bed = full_cohort_bed,
+      bed_idx = full_cohort_bed_idx,
+      prefix = study_prefix + ".full_cohort",
+      sample_metadata_tsv = sample_metadata_tsv,
+      sample_list = full_cohort_samples_list,
+      per_sample_tarball = MergeFullCohortSVsPerSample.per_sample_tarball,
+      af_field = "POPMAX_AF",
+      ac_field = "AC",
+      docker = pedsv_r_docker
   }
 
   call CohortSummaryPlots as TrioCohortSummaryPlots {
@@ -165,13 +184,13 @@ workflow PedSvMainAnalysis {
       docker = pedsv_r_docker
   }
 
-  call CohortSummaryPlots as ValidationCohortSummaryPlots {
+  call CohortSummaryPlots as CaseControlCohortSummaryPlots {
     input:
       bed = case_control_bed,
       bed_idx = case_control_bed_idx,
       sample_metadata_tsv = sample_metadata_tsv,
       sample_list = case_control_samples_list,
-      per_sample_tarball = MergeValidationSVsPerSample.per_sample_tarball,
+      per_sample_tarball = MergeCaseControlSVsPerSample.per_sample_tarball,
       prefix = study_prefix + ".case_control_cohort",
       docker = pedsv_r_docker
   }
@@ -194,7 +213,7 @@ workflow PedSvMainAnalysis {
       docker = pedsv_r_docker
   }
 
-  call BurdenTests as ValidationCohortBurdenTests {
+  call BurdenTests as CaseControlCohortBurdenTests {
     input:
       beds = [case_control_bed],
       bed_idxs = [case_control_bed_idx],
@@ -218,9 +237,9 @@ workflow PedSvMainAnalysis {
                   FullCohortSummaryPlots.plots_tarball,
                   StudyWideBurdenTests.plots_tarball,
                   TrioCohortSummaryPlots.plots_tarball,
-                  ValidationCohortSummaryPlots.plots_tarball,
+                  CaseControlCohortSummaryPlots.plots_tarball,
                   TrioCohortBurdenTests.plots_tarball,
-                  ValidationCohortBurdenTests.plots_tarball],
+                  CaseControlCohortBurdenTests.plots_tarball],
       prefix = study_prefix + "_analysis_outputs",
       docker = ubuntu_docker,
       relocate_stats = true
@@ -267,6 +286,7 @@ task StudyWideSummaryPlots {
   input {
     File sample_metadata_tsv
     File samples_list
+    File analysis_samples_list
     String prefix
     String docker
   }
@@ -288,6 +308,9 @@ task StudyWideSummaryPlots {
       --out-prefix StudyWideSummaryPlots/pca/~{prefix} \
       ~{sample_metadata_tsv}
     gzip -f StudyWideSummaryPlots/pca/*.tsv
+
+    # Plot ploidy for analysis samples
+    # TODO: implement this
 
     # Compress output
     tar -czvf StudyWideSummaryPlots.tar.gz StudyWideSummaryPlots
@@ -374,6 +397,9 @@ task BurdenTests {
     echo -e "\n\nNow running burden tests with the following command:\n$cmd\n"
     eval $cmd
     gzip -f ~{prefix}.BurdenTests/*.tsv
+
+    # Generate summary plots based on the stats from burden test
+    # TODO: implement this
 
     # Compress output
     tar -czvf ~{prefix}.BurdenTests.tar.gz ~{prefix}.BurdenTests
@@ -513,23 +539,27 @@ task CohortSummaryPlots {
       --out-prefix ~{prefix}.SummaryPlots/~{prefix} \
       ~{bed}
 
-    # Format SV counts per sample
+    # Format autosomal, biallelic SV counts per sample
     mkdir perSample_data
     if [ ~{defined(per_sample_tarball)} == "true" ]; then
-      tar -xzvf ~{select_first([per_sample_tarball])} -C perSample_data/
+      tar -xzvf ~{per_sample_tarball} -C perSample_data/
       while read sample; do
         find perSample_data/ -name "$sample.SV_IDs.list.gz" \
-        | xargs -I {} zcat {} | wc -l \
+        | xargs -I {} zcat {} \
+        | fgrep -v "_CNV_" \
+        | fgrep -v "_chrX" \
+        | fgrep -v "_chrY" \
+        | wc -l \
         | paste <( echo $sample ) -
       done < ~{sample_list} \
       | cat <( echo -e "sample\tcount" ) - \
-      > sv_counts_per_sample.tsv
+      > ~{prefix}.SummaryPlots/sv_counts_per_sample.tsv
 
       # Plot SVs per sample
       /opt/ped_germline_SV/analysis/landscape/plot_svs_per_sample.R \
         --metadata ~{sample_metadata_tsv} \
         --out-prefix ~{prefix}.SummaryPlots/~{prefix} \
-        sv_counts_per_sample.tsv
+        ~{prefix}.SummaryPlots/sv_counts_per_sample.tsv
      fi
 
     # Compress output

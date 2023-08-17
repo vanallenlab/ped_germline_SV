@@ -57,7 +57,7 @@ tabulate.ancestries <- function(meta){
 # RScript #
 ###########
 # Parse command line arguments and options
-parser <- ArgumentParser(description="Assign sample ancestry")
+parser <- ArgumentParser(description="Plot sample PCs")
 parser$add_argument("metadata", metavar=".tsv", type="character",
                     help="sample metadata .tsv")
 parser$add_argument("--subset-samples", metavar=".tsv", type="character",

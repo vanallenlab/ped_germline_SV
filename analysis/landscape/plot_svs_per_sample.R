@@ -35,11 +35,11 @@ load.counts <- function(tsv.in){
 
 # ANOVA of SV counts per ancestry
 sv.count.anovas <- function(counts, meta){
-  # Join counts with meta and restrict to probands-only for trio cohort to control for relatedness
-  test.df <- prep.glm.matrix(meta, as.factor(meta$disease), counts, use.N.pcs=4)
-  test.df <- test.df[rownames(meta)[which(is.na(meta$proband) | meta$proband)], ]
+  # Join counts with meta
+  test.df <- prep.glm.matrix(meta, as.factor(meta$disease), counts,
+                             extra.terms=c("coverage", "insert.size", "wgd", "batch"))
 
-  # One ANOVA per ancestry, adjusted for top four PCs to control for cryptic pop strat
+  # One ANOVA per ancestry
   res <- do.call("rbind", lapply(sort(unique(meta$inferred_ancestry)), function(pop){
     fit <- aov(Y ~ X + ., data=test.df[rownames(meta)[which(meta$inferred_ancestry == pop)], ])
     c(pop, summary(fit)[[1]][["Pr(>F)"]][[1]])
@@ -129,9 +129,9 @@ parser$add_argument("--out-prefix", metavar="path", type="character", required=T
 args <- parser$parse_args()
 
 # # DEV:
-# args <- list("metadata" = "~/scratch/gatk_sv_pediatric_cancers_combined_cohort_metadata_3_31_23.txt",
+# args <- list("metadata" = "~/scratch/PedSV.v2.1.cohort_metadata.w_control_assignments.tsv.gz",
 #              "counts" = "~/scratch/sv_counts_per_sample.tsv",
-#              "out_prefix" = "~/scratch/PedSV.dev")
+#              "out_prefix" = "~/scratch/PedSV.v2.1.dev")
 
 # Load counts
 counts <- load.counts(args$counts)

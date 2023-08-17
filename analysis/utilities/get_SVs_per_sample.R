@@ -54,7 +54,8 @@ args <- parser$parse_args()
 #              "query" = "chr22")
 
 # Load BED and extract passing SV IDs
-query.bed <- load.sv.bed(args$bed, pass.only=TRUE, drop.cohort.frequencies=c("case_control", "trio"))
+query.bed <- load.sv.bed(args$bed, pass.only=TRUE,
+                         drop.cohort.frequencies=c("case_control", "trio"))
 
 # Load AD query into memory
 ad <- query.ad.from.sv.bed(args$ad_matrix, query.bed)

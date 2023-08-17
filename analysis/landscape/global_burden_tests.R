@@ -84,8 +84,8 @@ burden.test <- function(data, query, meta, ad.vals, family,
     overlapping.ids <- intersect(names(X[which(!is.na(X))]), names(Y))
     X <- X[overlapping.ids]
     Y <- Y[overlapping.ids]
-    n.carrier.ctrl <- length(which(Y[which(X == 1)] == 0))
-    n.carrier.case <- length(which(Y[which(X == 1)] == 1))
+    n.carrier.ctrl <- length(which(Y[which(X > 0 & !is.na(X))] == 0))
+    n.carrier.case <- length(which(Y[which(X > 0 & !is.na(X))] == 1))
     c(cancer, length(case.ids), n.carrier.case, mean(X[case.ids], na.rm=T),
       sd(X[case.ids], na.rm=T), length(control.ids), n.carrier.ctrl,
       mean(X[control.ids], na.rm=T), sd(X[control.ids], na.rm=T),
