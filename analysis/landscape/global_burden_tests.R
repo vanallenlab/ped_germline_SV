@@ -602,3 +602,4 @@ colnames(all.stats)[1] <- paste("#", colnames(all.stats)[1], sep="")
 write.table(all.stats,
             paste(args$out_prefix, "global_burden_tests.tsv", sep="."),
             col.names=T, row.names=F, sep="\t", quote=F)
+

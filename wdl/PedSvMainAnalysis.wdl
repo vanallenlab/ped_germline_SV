@@ -22,6 +22,7 @@ workflow PedSvMainAnalysis {
 	input {
 		File sample_metadata_tsv
     File ref_fai
+    File gtf
     String study_prefix
 
     File trio_dense_vcf
@@ -457,7 +458,9 @@ task BurdenTests {
     gzip -f ~{prefix}.BurdenTests/*.tsv
 
     # Generate summary plots based on the stats from burden test
-    # TODO: implement this
+    /opt/ped_germline_SV/analysis/landscape/plot_global_burden_sumstats.R \
+      "~{prefix}.BurdenTests/~{prefix}.global_burden_tests.tsv.gz" \
+      "~{prefix}.BurdenTests/~{prefix}"
 
     # Compress output
     tar -czvf ~{prefix}.BurdenTests.tar.gz ~{prefix}.BurdenTests

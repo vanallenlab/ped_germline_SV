@@ -81,7 +81,7 @@ gwas.res <- as.data.frame(do.call("rbind", lapply(rownames(ad), function(vid){
     if(nrow(ct) > 1 & ncol(ct) > 1){
       glm.res <- pedsv.glm(meta, X=X, Y=Y, family=binomial(),
                            extra.terms="cohort", firth.fallback=TRUE)
-      glm.res[4] <- -log10(glm.res[4])
+      glm.res[4] <- -log10(as.numeric(glm.res[4]))
     }else{
       glm.res <- c(NA, NA, NA, NA, "glm")
     }

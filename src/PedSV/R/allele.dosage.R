@@ -201,6 +201,8 @@ compress.ad.matrix <- function(ad.df, action, weights=NULL,
 #' @param weights Optional named vector of weights for each variant. Variants
 #' not present in this vector will be assigned weight = 1. \[default: no weighting\]
 #' @param padding Number of bp to pad each breakpoint for query \[default: 5\]
+#' @param keep.samples Optional character vector of sample IDs to retain.
+#' See [query.ad.matrix].
 #'
 #' @return Data.frame or vector depending on value of `action`
 #'
@@ -208,7 +210,8 @@ compress.ad.matrix <- function(ad.df, action, weights=NULL,
 #'
 #' @export query.ad.from.sv.bed
 #' @export
-query.ad.from.sv.bed <- function(ad, bed, action="verbose", weights=NULL, padding=5){
+query.ad.from.sv.bed <- function(ad, bed, action="verbose", weights=NULL, padding=5,
+                                 keep.samples=NULL){
   # Make query intervals list from BED
   query.regions <- lapply(1:nrow(bed), function(i){
     c(bed[i, "chrom"], bed[i, "start"] - padding, bed[i, "start"] + padding)
