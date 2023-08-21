@@ -15,7 +15,7 @@
 version 1.0
 
 
-workflow SvRvas {
+workflow SvGenicRvas {
   input {
     File gtf
     File sites_bed

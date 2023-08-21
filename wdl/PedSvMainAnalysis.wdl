@@ -16,6 +16,7 @@ version 1.0
 
 
 import "https://raw.githubusercontent.com/vanallenlab/ped_germline_SV/rlc-landscape-v2/wdl/SvGwas.wdl" as Gwas
+import "https://raw.githubusercontent.com/vanallenlab/ped_germline_SV/rlc-landscape-v2/wdl/SvGenicRvas.wdl" as Rvas
 
 
 workflow PedSvMainAnalysis {
@@ -124,6 +125,23 @@ workflow PedSvMainAnalysis {
   }
 
   # TODO: plot GWAS meta-analysis
+
+  call Rvas.SvGenicRvas as StudyWideRvas {
+    input:
+      gtf = gtf,
+      sites_bed = full_cohort_bed,
+      sites_bed_idx = full_cohort_bed_idx,
+      ad_matrix = full_cohort_ad_matrix,
+      ad_matrix_idx = full_cohort_ad_matrix_idx,
+      sample_metadata_tsv = sample_metadata_tsv,
+      samples_list = all_samples_list,
+      ref_fai = ref_fai,
+      prefix = study_prefix,
+      pedsv_docker = pedsv_docker,
+      pedsv_r_docker = pedsv_r_docker
+  }
+
+  # TODO: plot RVAS meta-analysis
 
   scatter ( contig_info in contiglist ) {
     String contig = contig_info[0]
@@ -276,6 +294,23 @@ workflow PedSvMainAnalysis {
 
   # TODO: plot trio GWAS
 
+  call Rvas.SvGenicRvas as TrioCohortRvas {
+    input:
+      gtf = gtf,
+      sites_bed = trio_bed,
+      sites_bed_idx = trio_bed_idx,
+      ad_matrix = trio_ad_matrix,
+      ad_matrix_idx = trio_ad_matrix_idx,
+      sample_metadata_tsv = sample_metadata_tsv,
+      samples_list = trio_samples_list,
+      ref_fai = ref_fai,
+      prefix = study_prefix + ".trio_cohort",
+      pedsv_docker = pedsv_docker,
+      pedsv_r_docker = pedsv_r_docker
+  }
+
+  # TODO: plot trio RVAS
+
   call Gwas.SvGwas as CaseControlCohortGwas {
     input:
       dense_vcf = case_control_dense_vcf,
@@ -292,6 +327,23 @@ workflow PedSvMainAnalysis {
   }
 
   # TODO: plot case/control cohort GWAS
+
+  call Rvas.SvGenicRvas as CaseControlCohortRvas {
+    input:
+      gtf = gtf,
+      sites_bed = case_control_bed,
+      sites_bed_idx = case_control_bed_idx,
+      ad_matrix = case_control_ad_matrix,
+      ad_matrix_idx = case_control_ad_matrix_idx,
+      sample_metadata_tsv = sample_metadata_tsv,
+      samples_list = case_control_samples_list,
+      ref_fai = ref_fai,
+      prefix = study_prefix + ".case_control_cohort",
+      pedsv_docker = pedsv_docker,
+      pedsv_r_docker = pedsv_r_docker
+  }
+
+  # TODO: plot case/control cohort RVAS
 
   call UnifyOutputs {
     input:
