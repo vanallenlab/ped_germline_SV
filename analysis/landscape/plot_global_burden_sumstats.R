@@ -32,7 +32,7 @@ clean.sumstats.singleHyp <- function(ss, hypothesis, stat.prefix=NULL){
             c("disease", "coefficient", "std.err", "P.value")]
   tdf$ci_diff <- (qnorm(0.975) * tdf$std.err)
   tdf$std.err <- NULL
-  if(is.null(stats.prefix)){
+  if(is.null(stat.prefix)){
     colnames(tdf) <- c("disease", "or", "p", "ci_diff")
   }else{
     colnames(tdf) <- c("disease", paste(stat.prefix, c("or", "p", "ci_diff"), sep="."))
