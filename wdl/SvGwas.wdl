@@ -101,7 +101,7 @@ task PrepVariants {
       -- -t HWE,F_MISSING \
     | bcftools query - \
       -f "%ID\n" \
-      "~{bcftools_query_options}" \
+      ~{bcftools_query_options} \
     > "~{prefix}.vids.list"
   >>>
 

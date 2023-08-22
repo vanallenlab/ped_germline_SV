@@ -189,8 +189,14 @@ main.burden.wrapper <- function(data, query, meta, action, af.fields, ac.fields,
   for(subset.info in sv.subsets){
     if(any(subset.info[[2]] %in% as.vector(unlist(sapply(ad.dfs, function(df){rownames(df)}))))){
       ad.vals <- unlist(lapply(ad.dfs, function(df){
-        compress.ad.matrix(df[intersect(rownames(df), subset.info[[2]]), ],
-                           action=action)
+        keep.rows <- intersect(rownames(df), subset.info[[2]])
+        if(length(keep.rows) > 0){
+          compress.ad.matrix(df[keep.rows, ], action=action)
+        }else{
+          res.df <- data.frame(matrix(0, ncol=ncol(df), nrow=1))
+          colnames(res.df) <- colnames(df)
+          df
+        }
       }))
       new.stats <- burden.test(data, query, meta, ad.vals, family, af.fields, ac.fields, extra.terms)
       if(!is.null(custom.hypothesis)){
@@ -259,15 +265,16 @@ args <- parser$parse_args()
 #              "af_field" = "POPMAX_AF",
 #              "ac_field" = "AC",
 #              "out_prefix" = "~/scratch/PedSV.v2.1.case_control.dev")
-# args <- list("bed" = c("~/scratch/PedSV.v1.1.trio_cohort.analysis_samples.wAFs.bed.gz"),
-#              "ad" = c("~/scratch/PedSV.v1.1.trio_cohort.analysis_samples.wAFs.allele_dosages.bed.gz"),
-#              "metadata" = "~/scratch/gatk_sv_pediatric_cancers_combined_cohort_metadata_3_31_23.w_control_assignments.txt",
+# args <- list("bed" = c("~/scratch/PedSV.v2.1.trio_cohort.analysis_samples.sites.bed.gz"),
+#              "ad" = c("~/scratch/PedSV.v2.1.trio_cohort.analysis_samples.allele_dosages.bed.gz"),
+#              "metadata" = "~/scratch/PedSV.v2.1.cohort_metadata.w_control_assignments.tsv.gz",
 #              "gene_lists" = "~/scratch/PedSV.gene_lists.tsv",
 #              "genomic_disorder_hits" = NULL,
-#              "subset_samples" = "/Users/collins/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/data/ancestry_and_relatedness/PedSV.v1.trio_cohort_final_samples.list",
-#              "af_field" = "POPMAX_parent_AF",
-#              "ac_field" = "parent_AC",
-#              "out_prefix" = "~/scratch/PedSV.trio.dev")
+#              "subset_samples" = "/Users/ryan/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_v2_callset_generation/PedSV.v2.1.trio_analysis_cohort.samples.list",
+#              "exclude_variants" = NULL,
+#              "af_field" = "POPMAX_AF",
+#              "ac_field" = "AC",
+#              "out_prefix" = "~/scratch/PedSV.v2.1.trio.dev")
 
 # Load BEDs and pair AD paths with each
 data <- lapply(1:length(args$bed), function(i){

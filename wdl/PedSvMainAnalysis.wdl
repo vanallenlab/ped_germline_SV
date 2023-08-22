@@ -44,6 +44,7 @@ workflow PedSvMainAnalysis {
 		File case_control_samples_list
     File? case_control_variant_exclusion_list
 
+    # Note: the below inputs are expected to contain unrelated analysis samples
     File full_cohort_dense_vcf
     File full_cohort_dense_vcf_idx
     File full_cohort_bed
@@ -51,6 +52,13 @@ workflow PedSvMainAnalysis {
     File full_cohort_ad_matrix
     File full_cohort_ad_matrix_idx
     File full_cohort_samples_list
+
+    # Note: the below inputs should contain ALL individuals in study, including relatives
+    File full_cohort_w_relatives_bed
+    File full_cohort_w_relatives_bed_idx
+    File full_cohort_w_relatives_ad_matrix
+    File full_cohort_w_relatives_ad_matrix_idx
+    File full_cohort_w_relatives_samples_list
 
     Array[File]? gene_lists
     Array[String]? gene_list_names
@@ -87,24 +95,6 @@ workflow PedSvMainAnalysis {
       sample_metadata_tsv = sample_metadata_tsv,
       samples_list = full_cohort_samples_list,
       analysis_samples_list = all_samples_list,
-      prefix = study_prefix,
-      docker = pedsv_r_docker
-  }
-
-  call BurdenTests as StudyWideBurdenTests {
-    input:
-      beds = [trio_bed, case_control_bed],
-      bed_idxs = [trio_bed_idx, case_control_bed_idx],
-      ad_matrixes = [trio_ad_matrix, case_control_ad_matrix],
-      ad_matrix_idxs = [trio_ad_matrix_idx, case_control_ad_matrix_idx],
-      sample_metadata_tsv = sample_metadata_tsv,
-      samples_list = all_samples_list,
-      af_fields = ["POPMAX_AF", "POPMAX_AF"],
-      ac_fields = ["AC", "AC"],
-      variant_exclusion_list = sv_exclusion_list,
-      gene_lists = gene_lists,
-      gene_list_names = gene_list_names,
-      genomic_disorder_bed = genomic_disorder_bed,
       prefix = study_prefix,
       docker = pedsv_r_docker
   }
@@ -148,13 +138,15 @@ workflow PedSvMainAnalysis {
 
     call GetSVsPerSample as GetFullCohortSVsPerSample {
       input:
-        sv_bed = full_cohort_bed,
-        sv_bed_idx = full_cohort_bed_idx,
-        ad_matrix = full_cohort_ad_matrix,
-        ad_matrix_idx = full_cohort_ad_matrix_idx,
+        sv_bed = full_cohort_w_relatives_bed,
+        sv_bed_idx = full_cohort_w_relatives_bed_idx,
+        ad_matrix = full_cohort_w_relatives_ad_matrix,
+        ad_matrix_idx = full_cohort_w_relatives_ad_matrix_idx,
         contig = contig,
-        prefix = study_prefix + ".full_cohort." + contig,
-        docker = pedsv_r_docker
+        prefix = study_prefix + ".full_cohort_w_relatives." + contig,
+        docker = pedsv_r_docker,
+        mem_gb = 31,
+        n_cpu = 8
     }
 
     call GetSVsPerSample as GetTrioSVsPerSample {
@@ -183,8 +175,8 @@ workflow PedSvMainAnalysis {
   call MergeSVsPerSample as MergeFullCohortSVsPerSample {
     input:
       tarballs = GetFullCohortSVsPerSample.per_sample_tarball,
-      sample_list = full_cohort_samples_list,
-      prefix = study_prefix + ".full_cohort",
+      sample_list = full_cohort_w_relatives_samples_list,
+      prefix = study_prefix + ".full_cohort_w_relatives",
       docker = ubuntu_docker
   }
 
@@ -206,11 +198,11 @@ workflow PedSvMainAnalysis {
 
   call CohortSummaryPlots as FullCohortSummaryPlots {
     input:
-      bed = full_cohort_bed,
-      bed_idx = full_cohort_bed_idx,
-      prefix = study_prefix + ".full_cohort",
+      bed = full_cohort_w_relatives_bed,
+      bed_idx = full_cohort_w_relatives_bed_idx,
+      prefix = study_prefix + ".full_cohort_w_relatives",
       sample_metadata_tsv = sample_metadata_tsv,
-      sample_list = full_cohort_samples_list,
+      sample_list = full_cohort_w_relatives_samples_list,
       per_sample_tarball = MergeFullCohortSVsPerSample.per_sample_tarball,
       af_field = "POPMAX_AF",
       ac_field = "AC",
@@ -238,6 +230,24 @@ workflow PedSvMainAnalysis {
       sample_list = case_control_samples_list,
       per_sample_tarball = MergeCaseControlSVsPerSample.per_sample_tarball,
       prefix = study_prefix + ".case_control_cohort",
+      docker = pedsv_r_docker
+  }
+
+  call BurdenTests as StudyWideBurdenTests {
+    input:
+      beds = [trio_bed, case_control_bed],
+      bed_idxs = [trio_bed_idx, case_control_bed_idx],
+      ad_matrixes = [trio_ad_matrix, case_control_ad_matrix],
+      ad_matrix_idxs = [trio_ad_matrix_idx, case_control_ad_matrix_idx],
+      sample_metadata_tsv = sample_metadata_tsv,
+      samples_list = all_samples_list,
+      af_fields = ["POPMAX_AF", "POPMAX_AF"],
+      ac_fields = ["AC", "AC"],
+      variant_exclusion_list = sv_exclusion_list,
+      gene_lists = gene_lists,
+      gene_list_names = gene_list_names,
+      genomic_disorder_bed = genomic_disorder_bed,
+      prefix = study_prefix,
       docker = pedsv_r_docker
   }
 
@@ -542,9 +552,13 @@ task GetSVsPerSample {
     String contig
     String prefix
     String docker
+
+    Float mem_gb = 15.5
+    Int n_cpu = 4
+    Int? disk_gb
   }
 
-  Int disk_gb = ceil(3 * size([ad_matrix], "GB")) + 10
+  Int default_disk_gb = ceil(3 * size([sv_bed, ad_matrix], "GB")) + 20
 
   command <<<
     set -eu -o pipefail
@@ -570,9 +584,9 @@ task GetSVsPerSample {
 
   runtime {
     docker: docker
-    memory: "15.5 GB"
-    cpu: 4
-    disks: "local-disk " + disk_gb + " HDD"
+    memory: mem_gb + " GB"
+    cpu: n_cpu
+    disks: "local-disk " + select_first([disk_gb, default_disk_gb]) + " HDD"
     preemptible: 3
   }
 }
