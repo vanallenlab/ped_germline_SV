@@ -37,23 +37,24 @@ parser$add_argument("--bed", metavar=".tsv", type="character", required=TRUE,
                     help="SV sites .bed. Required.")
 parser$add_argument("--ad", metavar=".tsv", type="character", required=TRUE,
                     help="Allele dosage .bed. Required.")
-parser$add_argument("--genes", metavar=".txt", type="character", required=TRUE,
-                    help="List of gene symbols to be tested. Required.")
+parser$add_argument("--genes", metavar=".bed", type="character", required=TRUE,
+                    help=paste("BED of gene coordinates and gene symbols to",
+                               "be tested. Required."))
 parser$add_argument("--metadata", metavar=".tsv", type="character",
                     help="sample metadata .tsv", required=TRUE)
 parser$add_argument("--subset-samples", metavar=".tsv", type="character",
                     help="list of samples to subset [default: use all samples]")
-parser$add_argument("--out-tsv", metavar=".tsv", type="character", required=TRUE,
+parser$add_argument("--out-bed", metavar=".tsv", type="character", required=TRUE,
                     help="Path to output .tsv of summary statistics. Required.")
 args <- parser$parse_args()
 
 # # DEV:
 # args <- list("bed" = c("~/scratch/PedSV.v2.1.case_control_cohort.analysis_samples.sites.bed.gz"),
 #              "ad" = c("~/scratch/PedSV.v2.1.case_control_cohort.analysis_samples.allele_dosages.bed.gz"),
-#              "genes" = "~/scratch/eligible_genes.list",
+#              "genes" = "~/scratch/test.genes.bed",
 #              "metadata" = "~/scratch/PedSV.v2.1.cohort_metadata.w_control_assignments.tsv.gz",
 #              "subset_samples" = "/Users/ryan/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_v2_callset_generation/PedSV.v2.1.case_control_analysis_cohort.samples.list",
-#              "out_prefix" = "~/scratch/PedSV.v2.1.case_control.dev")
+#              "out_bed" = "~/scratch/PedSV.v2.1.case_control.dev.rvas_test.bed")
 
 
 # Load metadata
@@ -64,8 +65,10 @@ if(!is.null(args$subset_samples)){
 meta <- load.sample.metadata(args$metadata, keep.samples=keepers,
                              reassign.parents=FALSE)
 
-# Load list of eligible genes
-genes <- sort(unique(read.table(args$genes, header=F)[, 1]))
+# Load BED of eligible genes
+genes.bed <- read.table(args$genes, header=F, sep="\t")
+colnames(genes.bed) <- c("chr", "start", "end", "gene")
+genes <- sort(unique(genes.bed$gene))
 
 # Load BED and subset to rare variants impacting at least one of the eligible genes
 bed <- load.sv.bed(args$bed)
@@ -132,8 +135,13 @@ cancer.cols <- as.character(sapply(cancers, function(cancer){
                   "n_control", "control_nonref", "control_mean",
                   "beta", "beta_se", "test_stat", "neglog10_p", "model"), sep=".")
 }))
-colnames(rvas.res) <- c("#gene", "consequence", cancer.cols)
+colnames(rvas.res) <- c("gene", "consequence", cancer.cols)
 
-# Write results to output tsv
-write.table(rvas.res, args$out_tsv, col.names=T, row.names=F, sep="\t", quote=F)
+# Merge gene coordinates with summary statistics and sort by coordinate
+out.res <- merge(genes.bed, rvas.res, by="gene", all=T, sort=F)
+out.res <- out.res[with(out.res, order(chr, start, end, gene, consequence)),
+                   c("chr", "start", "end", colnames(rvas.res))]
+
+# Write results to output BED
+write.table(out.res, args$out_bed, col.names=T, row.names=F, sep="\t", quote=F)
 

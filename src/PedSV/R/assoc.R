@@ -23,8 +23,8 @@
 #' @param use.N.pcs Specify how many principal components should be adjusted in
 #' model \[default: 3\]
 #' @param extra.terms Specify if any extra terms should be added to the model.
-#' Named options include: "cohort", "batch", "coverage, "insert.size",
-#' and "wgd". Custom terms can be passed using their exact column names in `meta`.
+#' Named options include:  "batch", "coverage, "insert.size", and "wgd".
+#' Custom terms can be passed using their exact column names in `meta`.
 #'
 #' @details There are several options for providing `X` and `Y` values:
 #'  * As an unnamed vector. In this case, the values are assumed to be in the
@@ -44,14 +44,12 @@ prep.glm.matrix <- function(meta, X, Y, use.N.pcs=3, extra.terms=NULL){
   # Standard covariates
   df <- data.frame("is.female" = as.numeric(meta$inferred_sex == "FEMALE"
                                             | meta$chrX_CopyNumber > 1.5),
+                   "trio.phase" = as.numeric(meta$study_phase == "trio"),
                    row.names=rownames(meta))
   if(use.N.pcs > 0){
     df <- cbind(df, apply(meta[paste("PC", 1:use.N.pcs, sep="")], 2, scale))
   }
   if(!is.null(extra.terms)){
-    if("cohort" %in% extra.terms){
-      df$trio.phase = as.numeric(meta$study_phase == "trio")
-    }
     if("batch" %in% extra.terms){
       df$batch = as.factor(meta$batch)
     }
@@ -67,7 +65,12 @@ prep.glm.matrix <- function(meta, X, Y, use.N.pcs=3, extra.terms=NULL){
     other.terms <- setdiff(extra.terms, c("cohort", "batch", "coverage",
                                           "insert.size", "wgd"))
     for(term in other.terms){
-      df[, term] <- scale(meta[, term])
+      if(term %in% colnames(df)){
+        df[, term] <- scale(meta[, term])
+      }else{
+        warning(message=paste("Other term '", term, "' not found in sample metadata. ",
+                              "Will be ignored.", sep=""))
+      }
     }
   }
 

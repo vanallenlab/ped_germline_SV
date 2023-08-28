@@ -546,64 +546,6 @@ if(!is.null(args$gene_lists)){
 }
 
 
-# # Carrier rates of rare/vrare/singleton LoF/CG/IED in gene lists
-# # after adjusting for baseline # of LoF & CG SVs
-# for(freq in c("rare", "vrare")){
-#   lof.counts <- get.ad.values(data, query=paste(freq, "gene_disrputive.lof", sep="."),
-#                               action="count", af.fields, ac.fields)
-#   cg.counts <- get.ad.values(data, query=paste(freq, "gene_disrputive.cg", sep="."),
-#                              action="count", af.fields, ac.fields)
-#   meta.ext <- meta
-#   meta.ext$n.lof <- lof.counts[rownames(meta.ext)]
-#   meta.ext$n.cg <- cg.counts[rownames(meta.ext)]
-#   if(!is.null(args$gene_lists)){
-#     gene.lists <- load.gene.lists(args$gene_lists)
-#     for(i in 1:length(gene.lists)){
-#
-#       set.name <- names(gene.lists)[i]
-#       set.lower <- tolower(gsub(" ", "_", set.name, fixed=T))
-#       gene.list <- gene.lists[[i]]
-#
-#       # Get indexes for SVs with predicted effects on any gene in gene set
-#       lof.idx.list <- lapply(data, function(info){
-#         lof <- which(sapply(info$bed[, c("PREDICTED_LOF")], function(g){any(gene.list %in% g)}))
-#         ped <- which(sapply(info$bed[, c("PREDICTED_PARTIAL_EXON_DUP")], function(g){any(gene.list %in% g)}))
-#         sort(unique(c(lof, ped)))
-#       })
-#       cg.idx.list <- lapply(data, function(info){
-#         sort(unique(which(sapply(info$bed[, c("PREDICTED_COPY_GAIN")], function(g){any(gene.list %in% g)}))))
-#       })
-#       ied.idx.list <- lapply(data, function(info){
-#         sort(unique(which(sapply(info$bed[, c("PREDICTED_INTRAGENIC_EXON_DUP")], function(g){any(gene.list %in% g)}))))
-#       })
-#       all.idx.list <- lapply(1:length(data), function(k){
-#         sort(unique(c(lof.idx.list[[k]], cg.idx.list[[k]], ied.idx.list[[k]])))
-#       })
-#       sv.subsets <- list(
-#         list(paste("rare", set.lower, "LoF", sep="_"),
-#              unlist(lapply(1:length(data), function(k){rownames(data[[k]]$bed)[lof.idx.list[[k]]]})),
-#              paste("Samples w/", set.name, "LoF")),
-#         list(paste("rare", set.lower, "CG", sep="_"),
-#              unlist(lapply(1:length(data), function(k){rownames(data[[k]]$bed)[cg.idx.list[[k]]]})),
-#              paste("Samples w/", set.name, "CG")),
-#         list(paste("rare", set.lower, "IED", sep="_"),
-#              unlist(lapply(1:length(data), function(k){rownames(data[[k]]$bed)[ied.idx.list[[k]]]})),
-#              paste("Samples w/", set.name, "IED"))
-#       )
-#       all.stats <- main.burden.wrapper(data, query=paste("rare", set.lower, "gene_disruptive", sep="."),
-#                                        meta.ext, action="any",
-#                                        af.fields, ac.fields, sv.subsets=sv.subsets, all.stats,
-#                                        keep.idx.list=all.idx.list,
-#                                        paste(args$out_prefix, "rare_disruptive_sv_carrier_rate",
-#                                              set.lower, "baseline_adjusted.by_cancer", sep="."),
-#                                        extra.terms=c("n.lof", "n.cg"),
-#                                        main.title=paste("Samples w/", set.name, "Disruption"),
-#                                        barplot.height=barplot.height, barplot.width=barplot.width,
-#                                        barplot.units="percent")
-#     }
-#   }
-# }
-
 # Write all stats to outfile
 colnames(all.stats)[1] <- paste("#", colnames(all.stats)[1], sep="")
 write.table(all.stats,

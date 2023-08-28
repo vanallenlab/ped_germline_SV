@@ -27,6 +27,9 @@ workflow SvGenicRvas {
     File ref_fai
     String prefix
 
+    File? exclude_regions
+    Float? exclusion_frac_overlap
+
     String pedsv_docker
     String pedsv_r_docker
   }
@@ -37,16 +40,24 @@ workflow SvGenicRvas {
   scatter ( contig_info in contiglist ) {
     String contig = contig_info[0]
 
-    call ContigRvas {
+    call PreprocessGtf {
       input:
         gtf = gtf,
+        contig = contig,
+        exclude_regions = exclude_regions,
+        exclusion_frac_overlap = exclusion_frac_overlap,
+        docker = pedsv_docker
+    }
+
+    call ContigRvas {
+      input:
         sites_bed = sites_bed,
         sites_bed_idx = sites_bed_idx,
         ad_matrix = ad_matrix,
         ad_matrix_idx = ad_matrix_idx,
         sample_metadata_tsv = sample_metadata_tsv,
         samples_list = samples_list,
-        contig = contig,
+        eligible_genes_bed = PreprocessGtf.eligible_genes_bed,
         prefix = prefix + "." + contig,
         docker = pedsv_r_docker
     }
@@ -55,7 +66,7 @@ workflow SvGenicRvas {
   # Concatenate sumstats across all chromosomes
   call ConcatSumstats {
     input:
-      tsvs = ContigRvas.sumstats,
+      beds = ContigRvas.sumstats,
       prefix = prefix,
       docker = pedsv_docker
   }
@@ -66,16 +77,52 @@ workflow SvGenicRvas {
 }
 
 
-task ContigRvas {
+task PreprocessGtf {
   input {
     File gtf
+    String contig
+    File? exclude_regions
+    Float exclusion_frac_overlap = 0.5
+    String docker
+  }
+
+  String exclude_option = if defined(exclude_regions) then "--exclusion-bed ~{exclude_regions} --exclusion-frac ~{exclusion_frac_overlap}" else ""
+
+  command <<<
+    set -eu -o pipefail
+
+    /opt/ped_germline_SV/analysis/utilities/preprocess_gtf_for_rvas.py \
+      ~{gtf} \
+      --chromosome ~{contig} \
+      ~{exclude_option} \
+      --outfile "eligible_genes.~{contig}.bed"
+    bgzip -f "eligible_genes.~{contig}.bed"
+    tabix -f "eligible_genes.~{contig}.bed.gz"
+  >>>
+
+  output {
+    File eligible_genes_bed = "eligible_genes.~{contig}.bed.gz"
+  }
+
+  runtime {
+    docker: docker
+    memory: "1.75 GB"
+    cpu: 1
+    disks: "local-disk 20 HDD"
+    preemptible: 3
+  }
+}
+
+
+task ContigRvas {
+  input {
     File sites_bed
     File sites_bed_idx
     File ad_matrix
     File ad_matrix_idx
     File sample_metadata_tsv
     File samples_list
-    String contig
+    File eligible_genes_bed
     String prefix
     String docker
 
@@ -83,26 +130,10 @@ task ContigRvas {
     Int n_cpu = 8
   }
 
-  Int disk_gb = ceil(1.5 * size([gtf, sites_bed, ad_matrix], "GB"))
+  Int disk_gb = ceil(1.5 * size([sites_bed, ad_matrix], "GB"))
 
   command <<<
     set -eu -o pipefail
-
-    # Extract list of genes to analyze
-    if [ $( file ~{gtf} | fgrep zip | wc -l ) -gt 0 ]; then
-      zcat ~{gtf} 
-    else
-      cat ~{gtf}
-    fi \
-    | grep -e '^~{contig}' \
-    | cut -f9 \
-    | sed 's/\; /\n/g' \
-    | fgrep -w gene_name \
-    | sed 's/gene_name\ //g' \
-    | tr -d '";' \
-    | sort -V \
-    | uniq \
-    > eligible_genes.list
 
     # Run association test for all eligible genes
     if [ $( cat eligible_genes.list | wc -l ) -eq 0 ]; then
@@ -111,17 +142,17 @@ task ContigRvas {
       /opt/ped_germline_SV/analysis/association/sv_genic_rvas.R \
         --bed ~{sites_bed} \
         --ad ~{ad_matrix} \
-        --genes eligible_genes.list \
+        --genes ~{eligible_genes_bed} \
         --metadata ~{sample_metadata_tsv} \
         --subset-samples ~{samples_list} \
-        --out-tsv ~{prefix}.sv_rvas_sumstats.tsv
-      gzip -f ~{prefix}.sv_rvas_sumstats.tsv
+        --out-bed ~{prefix}.sv_rvas_sumstats.bed
+      bgzip -f ~{prefix}.sv_rvas_sumstats.bed
     fi
 
   >>>
 
   output {
-    File sumstats = "~{prefix}.sv_rvas_sumstats.tsv.gz"
+    File sumstats = "~{prefix}.sv_rvas_sumstats.bed.gz"
   }
 
   runtime {
@@ -136,23 +167,24 @@ task ContigRvas {
 
 task ConcatSumstats {
   input {
-    Array[File] tsvs
+    Array[File] beds
     String prefix
     String docker
   }
 
-  Int disk_gb = ceil(2.5 * size(tsvs, "GB"))
+  Int disk_gb = ceil(2.5 * size(beds, "GB"))
 
   command <<<
     set -eu -o pipefail
 
-    zcat ~{tsvs[0]} | head -n1 > ~{prefix}.sv_rvas.sumstats.tsv
-    zcat ~{sep=" " tsvs} | grep -ve '^#' >> ~{prefix}.sv_rvas.sumstats.tsv
-    gzip -f ~{prefix}.sv_rvas.sumstats.tsv
+    zcat ~{beds[0]} | head -n1 > "~{prefix}.sv_rvas.sumstats.bed"
+    zcat ~{sep=" " beds} | grep -ve '^#' >> "~{prefix}.sv_rvas.sumstats.bed"
+    bgzip -f "~{prefix}.sv_rvas.sumstats.bed"
+    tabix -f "~{prefix}.sv_rvas.sumstats.bed.gz"
   >>>
 
   output {
-    File combined_sumstats = "~{prefix}.sv_rvas.sumstats.tsv.gz"
+    File combined_sumstats = "~{prefix}.sv_rvas.sumstats.bed.gz"
   }
 
   runtime {
