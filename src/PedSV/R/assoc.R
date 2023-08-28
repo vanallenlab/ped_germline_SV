@@ -23,8 +23,8 @@
 #' @param use.N.pcs Specify how many principal components should be adjusted in
 #' model \[default: 3\]
 #' @param extra.terms Specify if any extra terms should be added to the model.
-#' Named options include: "study", "cohort", "coverage, "insert.size",
-#' and "wgd". Custom terms can be passed using their exact column names in `meta`.
+#' Named options include:  "batch", "coverage, "insert.size", and "wgd".
+#' Custom terms can be passed using their exact column names in `meta`.
 #'
 #' @details There are several options for providing `X` and `Y` values:
 #'  * As an unnamed vector. In this case, the values are assumed to be in the
@@ -44,13 +44,14 @@ prep.glm.matrix <- function(meta, X, Y, use.N.pcs=3, extra.terms=NULL){
   # Standard covariates
   df <- data.frame("is.female" = as.numeric(meta$inferred_sex == "FEMALE"
                                             | meta$chrX_CopyNumber > 1.5),
+                   "trio.phase" = as.numeric(meta$study_phase == "trio"),
                    row.names=rownames(meta))
   if(use.N.pcs > 0){
     df <- cbind(df, apply(meta[paste("PC", 1:use.N.pcs, sep="")], 2, scale))
   }
   if(!is.null(extra.terms)){
-    if("cohort" %in% extra.terms){
-      df$trio.phase = as.numeric(meta$study_phase == "trio")
+    if("batch" %in% extra.terms){
+      df$batch = as.factor(meta$batch)
     }
     if("coverage" %in% extra.terms){
       df$coverage = scale(as.numeric(meta$median_coverage))
@@ -61,9 +62,15 @@ prep.glm.matrix <- function(meta, X, Y, use.N.pcs=3, extra.terms=NULL){
     if("wgd" %in% extra.terms){
       df$abs.wgd = scale(abs(as.numeric(meta$wgd_score)))
     }
-    other.terms <- setdiff(extra.terms, c("cohort", "coverage", "insert.size", "wgd"))
+    other.terms <- setdiff(extra.terms, c("cohort", "batch", "coverage",
+                                          "insert.size", "wgd"))
     for(term in other.terms){
-      df[, term] <- scale(meta[, term])
+      if(term %in% colnames(df)){
+        df[, term] <- scale(meta[, term])
+      }else{
+        warning(message=paste("Other term '", term, "' not found in sample metadata. ",
+                              "Will be ignored.", sep=""))
+      }
     }
   }
 
@@ -90,7 +97,7 @@ prep.glm.matrix <- function(meta, X, Y, use.N.pcs=3, extra.terms=NULL){
   }
 
   # Standard normalize all covariates
-  df[, setdiff(colnames(df), c("X", "Y"))] <- apply(df[, setdiff(colnames(df), c("X", "Y"))], 2, scale)
+  df[, setdiff(colnames(df), c("X", "Y", "batch"))] <- apply(df[, setdiff(colnames(df), c("X", "Y", "batch"))], 2, scale)
 
   # Ensure X and Y have at least two distinct values
   if(!all(c("X", "Y") %in% colnames(df))){
@@ -163,7 +170,7 @@ get.phenotype.vector <- function(case.ids, control.ids){
 #' @param X Vector of values for primary independent variable. See [PedSV::prep.glm.matrix].
 #' @param Y Vector of values for dependent variable. See [PedSV::prep.glm.matrix].
 #' @param use.N.pcs Specify how many principal components should be adjusted in
-#' model \[default: 10\]
+#' model \[default: 3\]
 #' @param family `family` parameter passed to [glm]
 #' @param extra.terms Extra covariate terms to include in model. See [PedSV::prep.glm.matrix].
 #' @param firth.fallback Attempt to use Firth bias-reduced logistic regression when
@@ -177,6 +184,8 @@ get.phenotype.vector <- function(case.ids, control.ids){
 #' regression if a standard logit model produces a genotype effect standard error
 #' exceeding this value \[default: 10\]
 #' @param firth.always Always use Firth regression \[default: FALSE\]
+#' @param return.fit.summary Return the full summary of the fitted model. Only recommended
+#' for debugging purposes. Not recommended for analysis. \[default: FALSE\]
 #'
 #' @return Named vector of test statsitics corresponding to independent variable
 #'
@@ -184,9 +193,10 @@ get.phenotype.vector <- function(case.ids, control.ids){
 #'
 #' @export pedsv.glm
 #' @export
-pedsv.glm <- function(meta, X, Y, use.N.pcs=10, family=gaussian(), extra.terms=NULL,
+pedsv.glm <- function(meta, X, Y, use.N.pcs=3, family=gaussian(), extra.terms=NULL,
                       firth.fallback=TRUE, strict.fallback=TRUE,
-                      nonstrict.se.tolerance=10, firth.always=FALSE){
+                      nonstrict.se.tolerance=10, firth.always=FALSE,
+                      return.all.coefficients=FALSE){
   # Ensure Firth package is loaded
   require(logistf, quietly=TRUE)
 
@@ -236,12 +246,16 @@ pedsv.glm <- function(meta, X, Y, use.N.pcs=10, family=gaussian(), extra.terms=N
 
   # Extract coefficient corresponding to independent variable
   # Point estimate, stderr, test statistic, P-value
-  if(firth){
-    c(as.numeric(c(fit$coefficients["X"],
-                   sqrt(diag(vcov(fit)))["X"],
-                   qchisq(1-fit$prob, df=1)["X"],
-                   fit$prob["X"])), "flic")
+  if(!return.all.coefficients){
+    if(firth){
+      c(as.numeric(c(fit$coefficients["X"],
+                     sqrt(diag(vcov(fit)))["X"],
+                     qchisq(1-fit$prob, df=1)["X"],
+                     fit$prob["X"])), "flic")
+    }else{
+      c(summary(fit)[["coefficients"]]["X", ], "glm")
+    }
   }else{
-    c(summary(fit)[["coefficients"]]["X", ], "glm")
+    summary(fit)
   }
 }

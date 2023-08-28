@@ -27,6 +27,8 @@
 #' compressing. See [compress.ad.matrix] for more information.
 #' @param na.frac Fraction of `NA` entries allowed before failing a sample.
 #' See [compress.ad.matrix] for more information.
+#' @param keep.samples Optional character vector of sample IDs to retain.
+#' \[default: keep all samples\]
 #'
 #' @details The value for `query.regions` is expected to be a list of vectors,
 #' where each vector must either be a single chromosome or have exactly
@@ -52,13 +54,15 @@
 #' @export
 query.ad.matrix <- function(ad, query.regions=NULL, query.ids=NULL,
                             action="verbose", weights=NULL,
-                            na.behavior="threshold", na.frac=0.05){
+                            na.behavior="threshold", na.frac=0.05,
+                            keep.samples=NULL){
 
   # Load region(s) of interest or whole matrix if query.regions is NULL
   if(inherits(ad, "character")){
     if(is.null(query.regions)){
       ad <- read.table(ad, sep="\t", comment.char="", check.names=F,
-                       stringsAsFactors=F)
+                       stringsAsFactors=F, row.names=NULL)
+      ad.header <- NULL
     }else{
       require(bedr, quietly=TRUE)
       tabix.query <- sapply(query.regions, function(coords){
@@ -73,28 +77,36 @@ query.ad.matrix <- function(ad, query.regions=NULL, query.ids=NULL,
       incon <- gzfile(ad, open="r")
       ad.header <- unlist(strsplit(readLines(incon, 1), split="\t"))
       close(incon)
-      ad <- bedr::tabix(region=tabix.query, file.name=ad)
-      if(!is.null(query.ids)){
-        ad <- ad[which(ad[, 4] %in% query.ids), ]
-      }
+      ad <- as.data.frame(bedr::tabix(region=tabix.query, file.name=ad))
     }
-    ad <- as.data.frame(ad)
+    if(!is.null(query.ids)){
+      ad <- ad[which(ad[, 4] %in% query.ids), ]
+    }
     ad <- ad[!duplicated(ad[, 1:4]), ]
-    ad[, -c(1:4)] <- apply(ad[, -c(1:4)], 2, as.numeric)
-    colnames(ad) <- ad.header
+    if(!is.null(ad.header)){
+      colnames(ad) <- ad.header
+    }
     rownames(ad) <- ad[, 4]
-
     ad <- ad[, -c(1:4)]
+  }else{
+    # Subset rows based on query IDs
+    # This is necessary for use cases when ad is passed as a data.frame
+    if(!is.null(query.ids)){
+      ad <- ad[query.ids, ]
+    }
   }
 
-  # Second subsetting step based on query IDs
-  # This is necessary for use cases when ad is passed as a data.frame
-  if(!is.null(query.ids)){
-    ad <- ad[which(rownames(ad) %in% query.ids), ]
+  # Subset columns based on sample IDs
+  if(!is.null(keep.samples)){
+    ad <- ad[, keep.samples]
   }
 
-  # Otherwise, apply various compression strategies prior to returning
-  compress.ad.matrix(ad, action, weights, na.behavior, na.frac)
+  # Ensure all values are numeric
+  ad <- data.frame(sapply(ad, as.numeric), row.names=rownames(ad))
+
+  # Lastly, apply various compression strategies prior to returning
+  compress.ad.matrix(ad[which(!is.na(colnames(ad)))],
+                     action, weights, na.behavior, na.frac)
 }
 
 
@@ -124,6 +136,11 @@ query.ad.matrix <- function(ad, query.regions=NULL, query.ids=NULL,
 #' @export
 compress.ad.matrix <- function(ad.df, action, weights=NULL,
                                na.behavior="threshold", na.frac=0.05){
+  if(nrow(ad.df) == 0){
+    return(ad.df)
+  }else if(nrow(ad.df) == 1){
+    return(unlist(as.vector(ad.df[rownames(ad.df)[1], ])))
+  }
   if(na.behavior == "all"){
     na.fx <- all
   }else if(na.behavior == "any"){
@@ -174,7 +191,7 @@ compress.ad.matrix <- function(ad.df, action, weights=NULL,
     query.res[col.na] <- NA
   }
   names(query.res) <- colnames(ad.df)
-  return(query.res)
+  return(query.res[which(!is.na(colnames(ad.df)))])
 }
 
 
@@ -189,6 +206,8 @@ compress.ad.matrix <- function(ad.df, action, weights=NULL,
 #' @param weights Optional named vector of weights for each variant. Variants
 #' not present in this vector will be assigned weight = 1. \[default: no weighting\]
 #' @param padding Number of bp to pad each breakpoint for query \[default: 5\]
+#' @param keep.samples Optional character vector of sample IDs to retain.
+#' See [query.ad.matrix].
 #'
 #' @return Data.frame or vector depending on value of `action`
 #'
@@ -196,7 +215,8 @@ compress.ad.matrix <- function(ad.df, action, weights=NULL,
 #'
 #' @export query.ad.from.sv.bed
 #' @export
-query.ad.from.sv.bed <- function(ad, bed, action="verbose", weights=NULL, padding=5){
+query.ad.from.sv.bed <- function(ad, bed, action="verbose", weights=NULL, padding=5,
+                                 keep.samples=NULL){
   # Make query intervals list from BED
   query.regions <- lapply(1:nrow(bed), function(i){
     c(bed[i, "chrom"], bed[i, "start"] - padding, bed[i, "start"] + padding)
@@ -204,5 +224,9 @@ query.ad.from.sv.bed <- function(ad, bed, action="verbose", weights=NULL, paddin
   query.ids <- rownames(bed)
 
   # Query AD matrix
-  query.ad.matrix(ad, query.regions, query.ids, action, weights)
+  if(length(query.regions) > 0){
+    query.ad.matrix(ad, query.regions, query.ids, action, weights)
+  }else{
+    data.frame()
+  }
 }

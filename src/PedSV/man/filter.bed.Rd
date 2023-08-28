@@ -4,12 +4,13 @@
 \alias{filter.bed}
 \title{Filter an SV BED}
 \usage{
-\method{filter}{bed}(
+filter.bed(
   bed,
   query,
   af.field = "POPMAX_AF",
   ac.field = "AC",
   use.gnomad.freqs = TRUE,
+  gnomad.max.freq = 0.01,
   gnomad.column = "gnomad_v2.1_sv_POPMAX_AF",
   autosomal = FALSE,
   pass.only = TRUE,
@@ -28,6 +29,8 @@
 
 \item{use.gnomad.freqs}{Should gnomAD SV AFs also be applied for
 frequency filtering? [default: TRUE]}
+
+\item{gnomad.max.freq}{Maximum frequency allowed in gnomAD [default: 0.01]}
 
 \item{gnomad.column}{Specify the column header to use for gnomAD frequency
 filtering. Only used if \code{use.gnomad.freqs == TRUE}. [default: "gnomad_v2.1_sv_POPMAX_AF"]}
@@ -57,8 +60,9 @@ should be applied to \code{bed}. Recognized filters currently include:
 \item \code{DEL}|\code{DUP}|\code{CNV}|\code{INS}|\code{INV}|\code{CPX}|\code{CTX} : retain only this SV type
 \item \code{rare} : AF < 1\%
 \item \code{vrare} : AF < 0.1\%
-\item \code{singleton} : AC = 1 & gnomAD AF = 0 (if \code{use.gnomad.freqs} is \code{TRUE})
-\item \code{large} : SVLEN > 1,000,000
+\item \code{singleton} : AC = 1
+\item \code{large} : SVLEN > 1,000,000 or SVTYPE = CTX
+\item \code{karyotypic} : SVLEN > 5,000,000 or SVTYPE = CTX
 \item \code{gene_disruptive} or \code{genes_disrupted} : any SV with predicted LoF, PED, CG, or IED
 \item \code{single_gene_disruptive} : as above, but further restricting to SVs impacting just one gene
 \item \code{lof} : predicted LoF and/or PED consequences
@@ -69,4 +73,8 @@ should be applied to \code{bed}. Recognized filters currently include:
 
 If \code{query} is provided as a vector, it should contain any of the above terms.
 If it is provided as a single character string, it must be period-delimited.
+
+If \code{use.gnomad.freqs} is \code{TRUE} and any of \code{rare}, \code{vrare}, or \code{singleton}
+are included in \code{query}, then variants will be further filtered
+to be < \code{gnomad.max.freq} according to \code{gnomad.column}
 }

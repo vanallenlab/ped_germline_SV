@@ -3,11 +3,6 @@ channels:
   - bioconda
   - r
   - conda-forge
-  - nodefaults
-subdir: linux-64
-subdirs:
-  - linux-64
-  - noarch
 dependencies:
   - _libgcc_mutex=0.1=conda_forge
   - _openmp_mutex=4.5=2_gnu
@@ -19,7 +14,7 @@ dependencies:
   - bwidget=1.9.14=ha770c72_1
   - bzip2=1.0.8=h7f98852_4
   - c-ares=1.18.1=h7f98852_0
-  - ca-certificates=2022.12.7=ha878542_0
+  - ca-certificates=2023.7.22=hbcca054_0
   - cairo=1.16.0=ha61ee94_1014
   - curl=7.87.0=h6312ad2_0
   - expat=2.5.0=hcb278e6_1
@@ -85,7 +80,7 @@ dependencies:
   - ncurses=6.3=h27087fc_1
   - nlopt=2.7.1=py39h863de18_3
   - numpy=1.24.3=py39h6183b62_0
-  - openssl=1.1.1t=h0b41bf4_0
+  - openssl=1.1.1u=hd590300_0
   - pandas=2.0.1=py39h40cae4c_0
   - pandoc=2.19.2=h32600fe_2
   - pango=1.50.14=hd33c08f_0
@@ -145,6 +140,7 @@ dependencies:
   - r-foreign=0.8_84=r42h133d619_0
   - r-formatr=1.14=r42hc72bb7e_0
   - r-formula=1.2_5=r42hc72bb7e_0
+  - r-formula.tools=1.7.1=r42hc72bb7e_1005
   - r-fs=1.6.1=r42h38f115c_0
   - r-futile.logger=1.4.3=r42hc72bb7e_1004
   - r-futile.options=1.0.1=r42hc72bb7e_1003
@@ -175,6 +171,7 @@ dependencies:
   - r-latticeextra=0.6_30=r42hc72bb7e_1
   - r-lifecycle=1.0.3=r42hc72bb7e_1
   - r-lme4=1.1_32=r42h38f115c_0
+  - r-logistf=1.25.0=r42h57805ef_1
   - r-magrittr=2.0.3=r42h06615bd_1
   - r-mass=7.3_59=r42h57805ef_0
   - r-matrix=1.5_4=r42he1ae0d6_0
@@ -189,6 +186,7 @@ dependencies:
   - r-nloptr=2.0.3=r42hb13c81a_1
   - r-nnet=7.3_18=r42h06615bd_1
   - r-numderiv=2016.8_1.1=r42hc72bb7e_4
+  - r-operator.tools=1.6.3=r42hc72bb7e_1005
   - r-ordinal=2022.11_16=r42h06615bd_0
   - r-pan=1.6=r42h8da6f51_5
   - r-pillar=1.9.0=r42hc72bb7e_0

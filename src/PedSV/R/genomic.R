@@ -23,6 +23,7 @@
 #' @param ac.field BED column to use for allele counts \[default: AC\]
 #' @param use.gnomad.freqs Should gnomAD SV AFs also be applied for
 #' frequency filtering? \[default: TRUE\]
+#' @param gnomad.max.freq Maximum frequency allowed in gnomAD \[default: 0.01\]
 #' @param gnomad.column Specify the column header to use for gnomAD frequency
 #' filtering. Only used if `use.gnomad.freqs == TRUE`. \[default: "gnomad_v2.1_sv_POPMAX_AF"\]
 #' @param autosomal Keep only autosomal variants \[default: FALSE\]
@@ -39,8 +40,9 @@
 #' * `DEL`|`DUP`|`CNV`|`INS`|`INV`|`CPX`|`CTX` : retain only this SV type
 #' * `rare` : AF < 1%
 #' * `vrare` : AF < 0.1%
-#' * `singleton` : AC = 1 & gnomAD AF = 0 (if `use.gnomad.freqs` is `TRUE`)
-#' * `large` : SVLEN > 1,000,000
+#' * `singleton` : AC = 1
+#' * `large` : SVLEN > 1,000,000 or SVTYPE = CTX
+#' * `karyotypic` : SVLEN > 5,000,000 or SVTYPE = CTX
 #' * `gene_disruptive` or `genes_disrupted` : any SV with predicted LoF, PED, CG, or IED
 #' * `single_gene_disruptive` : as above, but further restricting to SVs impacting just one gene
 #' * `lof` : predicted LoF and/or PED consequences
@@ -51,12 +53,17 @@
 #' If `query` is provided as a vector, it should contain any of the above terms.
 #' If it is provided as a single character string, it must be period-delimited.
 #'
+#' If `use.gnomad.freqs` is `TRUE` and any of `rare`, `vrare`, or `singleton`
+#' are included in `query`, then variants will be further filtered
+#' to be < `gnomad.max.freq` according to `gnomad.column`
+#'
 #' @return data.frame
 #'
 #' @export filter.bed
 #' @export
 filter.bed <- function(bed, query, af.field="POPMAX_AF", ac.field="AC",
-                       use.gnomad.freqs=TRUE, gnomad.column="gnomad_v2.1_sv_POPMAX_AF",
+                       use.gnomad.freqs=TRUE, gnomad.max.freq=0.01,
+                       gnomad.column="gnomad_v2.1_sv_POPMAX_AF",
                        autosomal=FALSE, pass.only=TRUE,
                        keep.idx=NULL, return.idxs=FALSE){
   if(length(query) == 1 & length(grep(".", query, fixed=T)) > 0){
@@ -81,24 +88,22 @@ filter.bed <- function(bed, query, af.field="POPMAX_AF", ac.field="AC",
   }
   if("rare" %in% query.parts){
     keep.idx <- intersect(keep.idx, which(bed[, af.field] < 0.01 & bed$SVTYPE != "CNV"))
-    if(use.gnomad.freqs & has.gnomad){
-      keep.idx <- intersect(keep.idx, which(bed[, gnomad.column] < 0.01))
-    }
   }
   if("vrare" %in% query.parts){
     keep.idx <- intersect(keep.idx, which(bed[, af.field] < 0.001 & bed$SVTYPE != "CNV"))
-    if(use.gnomad.freqs & has.gnomad){
-      keep.idx <- intersect(keep.idx, which(bed[, gnomad.column] < 0.001))
-    }
   }
   if("singleton" %in% query.parts){
     keep.idx <- intersect(keep.idx, which(bed[, ac.field] <= 1 & bed$SVTYPE != "CNV"))
-    if(use.gnomad.freqs & has.gnomad){
-      keep.idx <- intersect(keep.idx, which(bed[, gnomad.column] == 0))
-    }
+  }
+  if(length(intersect(query.parts, c("rare", "vrare", "singleton"))) > 0
+     & use.gnomad.freqs & has.gnomad){
+      keep.idx <- intersect(keep.idx, which(bed[, gnomad.column] < 0.01))
   }
   if("large" %in% query.parts){
     keep.idx <- intersect(keep.idx, which(bed$SVLEN > 1000000 | bed$SVTYPE == "CTX"))
+  }
+  if("karyotypic" %in% query.parts){
+    keep.idx <- intersect(keep.idx, which(bed$SVLEN > 5000000 | bed$SVTYPE == "CTX"))
   }
   lof.count <- sapply(bed$PREDICTED_LOF, length) + sapply(bed$PREDICTED_PARTIAL_EXON_DUP, length)
   cg.count <- sapply(bed$PREDICTED_COPY_GAIN, length)

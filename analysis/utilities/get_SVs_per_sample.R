@@ -48,19 +48,17 @@ parser$add_argument("--outdir", metavar="directory", type="character",
 args <- parser$parse_args()
 
 # # DEV:
-# args <- list("ad_matrix" = "~/scratch/PedSV.v1.1.trio_cohort.analysis_samples.wAFs.allele_dosages.bed.gz",
+# args <- list("bed" = "~/scratch/sv_info.chr22.bed.gz",
+#              "ad_matrix" = "~/scratch/PedSV.v2.1.trio_cohort.analysis_samples.allele_dosages.bed.gz",
 #              "outdir" = "~/scratch/ad_query_test",
 #              "query" = "chr22")
 
 # Load BED and extract passing SV IDs
-keeper.ids <- rownames(load.sv.bed(args$bed, pass.only=TRUE))
-
-# Format query
-query <- as.vector(unlist(sapply(unlist(strsplit(args$query, split=":")), strsplit, split="-")))
+query.bed <- load.sv.bed(args$bed, pass.only=TRUE,
+                         drop.cohort.frequencies=c("case_control", "trio"))
 
 # Load AD query into memory
-ad <- query.ad.matrix(args$ad_matrix, query.regions=list(c(query)),
-                      query.ids=keeper.ids, action="verbose")
+ad <- query.ad.from.sv.bed(args$ad_matrix, query.bed)
 
 # Apply over IDs and write one file of SV IDs per sample
 sapply(colnames(ad), write.sample.svids.list, ad=ad, outdir=args$outdir)
