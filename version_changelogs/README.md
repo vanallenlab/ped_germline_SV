@@ -1,5 +1,13 @@
 ## Change logs for study callset versions
 
+#### Version 2.2 (release date TBD)
+- Fixed myriad small formatting/annotation issues  
+- Excluded an extra 194 samples that were outliers for rare TSS duplications  
+- Flagged variants as non-PASS if they had >20% coverage by loci with alternative haplotypes/contigs in hg38  
+- Fixed no-call rate assignment on chrX & chrY to account for sex differences in genotyping  
+- Manually reviewed read depth evidence for all 176 rare (AF<1%) CNVs >1Mb, resulting in 27/176 being tagged as non-PASS  
+- Manually reviewed read depth evidence for CNV segments >5kb involved in all 47 rare (AF<1%) complex SVs >1Mb, resulting in 16/47 being tagged as non-PASS  
+
 #### Version 2.1 (release date July 26, 2023)
 - Added new FILTER tag to mark predicted gene retroduplication splice junctions  
 - Masked RD-only GTs in ~5% of samples that were determined to be outliers for rare RD-only events
