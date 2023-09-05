@@ -138,7 +138,7 @@ task ContigRvas {
     set -eu -o pipefail
 
     # Run association test for all eligible genes
-    if [ $( cat eligible_genes.list | wc -l ) -eq 0 ]; then
+    if [ $( cat ~{eligible_genes_bed} | wc -l ) -eq 0 ]; then
       touch ~{prefix}.sv_rvas_sumstats.tsv
     else
       /opt/ped_germline_SV/analysis/association/sv_genic_rvas.R \
