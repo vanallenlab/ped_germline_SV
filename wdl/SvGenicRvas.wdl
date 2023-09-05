@@ -86,10 +86,14 @@ task PreprocessGtf {
     String docker
   }
 
-  String exclude_option = if defined(exclude_regions) then "--exclusion-bed ~{exclude_regions} --exclusion-frac ~{exclusion_frac_overlap}" else ""
+  String exclude_option = if defined(exclude_regions) then "--exclusion-bed ~{basename(exclude_regions)} --exclusion-frac ~{exclusion_frac_overlap}" else ""
 
   command <<<
     set -eu -o pipefail
+
+    if [ ~{defined(exclude_regions)} == "true" ]; then
+      mv ~{exclude_regions} ./
+    fi
 
     /opt/ped_germline_SV/analysis/utilities/preprocess_gtf_for_rvas.py \
       ~{gtf} \
