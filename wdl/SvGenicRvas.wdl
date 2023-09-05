@@ -86,19 +86,17 @@ task PreprocessGtf {
     String docker
   }
 
-  String exclude_option = if defined(exclude_regions) then "--exclusion-bed ~{basename(exclude_regions)} --exclusion-frac ~{exclusion_frac_overlap}" else ""
-
   command <<<
     set -eu -o pipefail
 
     if [ ~{defined(exclude_regions)} == "true" ]; then
-      mv ~{exclude_regions} ./
+      exclude_option="--exclusion-bed ~{exclude_regions} --exclusion-frac ~{exclusion_frac_overlap}"
     fi
 
     /opt/ped_germline_SV/analysis/utilities/preprocess_gtf_for_rvas.py \
       ~{gtf} \
       --chromosome ~{contig} \
-      ~{exclude_option} \
+      $exclude_option \
       --outfile "eligible_genes.~{contig}.bed"
     bgzip -f "eligible_genes.~{contig}.bed"
     tabix -f "eligible_genes.~{contig}.bed.gz"
