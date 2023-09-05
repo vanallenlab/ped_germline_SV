@@ -1,6 +1,6 @@
 ## Change logs for study callset versions
 
-#### Version 2.2 (release date TBD)
+#### Version 2.2 (release date September 5, 2023)
 - Fixed myriad small formatting/annotation issues  
 - Excluded an extra 194 samples that were outliers for rare TSS duplications  
 - Flagged variants as non-PASS if they had >20% coverage by loci with alternative haplotypes/contigs in hg38  
