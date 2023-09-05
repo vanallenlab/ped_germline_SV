@@ -169,6 +169,10 @@ def pool_freqs(record, sub_prefixes, new_prefix):
         else:
             AF = np.NaN
         record.info[new_prefix + 'AF'] = AF
+        record.info[new_prefix + 'N_BI_GENOS'] = n_bi
+        record.info[new_prefix + 'N_HOMREF'] = n_homref
+        record.info[new_prefix + 'N_HET'] = n_het
+        record.info[new_prefix + 'N_HOMALT'] = n_homalt
         if n_bi > 0:
             freq_homref = n_homref / n_bi
             freq_het = n_het / n_bi

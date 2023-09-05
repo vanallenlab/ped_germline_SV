@@ -16,10 +16,20 @@ filters_to_info = [('BOTHSIDES_SUPPORT',
                     'High number of SR splits in background samples indicating messy region'),
                    ('PESR_GT_OVERDISPERSION', 
                     'High PESR dispersion')]
+new_filts = ['##FILTER=<ID=UNRELIABLE_RD_GENOTYPES,Description="This variant is ' + \
+             'enriched for non-reference GTs in unreliable samples and is ' + \
+             'therefore less reliable overall.">',
+             '##FILTER=<ID=HG38_ALT_LOCUS,Description="This variant is at ' + \
+             'least half covered by loci with alternate contigs in hg38.">',
+             '##FILTER=<ID=MANUAL_FAIL,Description="This variant failed ' +
+             'post hoc manual review and should not be trusted.">']
+
 
 
 import argparse
+import csv
 import numpy as np
+import pybedtools as pbt
 import pysam
 from sys import stdin, stdout
 
@@ -126,14 +136,18 @@ def is_artifact_deletion(record):
         return False
 
 
-def calc_ncr(record):
+def calc_ncr(record, exclude_samples=[]):
     """
     Calculate no-call rate for a record's genotypes
     """
 
     total = 0
     nocalls = 0
-    for sinfo in record.samples.values():
+    for sid, sinfo in record.samples.items():
+        
+        if sid in exclude_samples:
+            continue
+        
         total += 1
 
         if all([a is None for a in sinfo.get('GT', (None, ))]):
@@ -174,6 +188,17 @@ def main():
     parser.add_argument('vcf_out', help='output .vcf')
     parser.add_argument('--bad-rd-samples', help='list of samples with ' +
                         'unreliable RD genotypes')
+    parser.add_argument('--fail-variants', help='list of variant IDs to be ' +
+                        'marked as having failed manual review')
+    parser.add_argument('--version-number', help='callset version number for ' +
+                        'tagging variant IDs.', type=str)
+    parser.add_argument('--alt-loci-bed', help='.bed with coordinates of loci ' +
+                        'overlapping alternate contigs')
+    parser.add_argument('--alt-loci-frac', type=float, default=0.2, 
+                        help='maximum fraction of overlap permitted with ' + 
+                        '--alt-loci-frac before labeling as non-PASS')
+    parser.add_argument('--sample-sex', help='two-column .tsv mapping sample IDs ' +
+                        'to MALE or FEMALE. Used for handling sex chromosome NCRs.')
     args = parser.parse_args()
 
     # Open connection to input vcf
@@ -197,10 +222,8 @@ def main():
     # header.filters.remove_header('HIGH_PCRMINUS_NOCALL_RATE')
     header.add_line('##INFO=<ID=AF,Number=A,Type=Float,Description="Allele frequency">')
     header.add_line('##INFO=<ID=OLD_ID,Number=1,Type=String,Description="Original GATK-SV variant ID before polishing">')
-    new_filt = '##FILTER=<ID=UNRELIABLE_RD_GENOTYPES,Description="This variant is ' + \
-               'enriched for non-reference GTs in unreliable samples and is ' + \
-               'therefore less reliable overall.">'
-    header.add_line(new_filt)
+    for filt in new_filts:
+        header.add_line(filt)
 
     # Open connection to output vcf
     if args.vcf_out in '- stdout /dev/stdout':
@@ -214,6 +237,29 @@ def main():
         with open(args.bad_rd_samples) as fin:
             bad_rd_samples = set([s.rstrip() for s in fin.readlines()])
             bad_rd_samples = bad_rd_samples.intersection(set(header.samples))
+
+    # Read table of sample sexes and partition into male/female
+    male_ids, female_ids = set(), set()
+    if args.sample_sex is not None:
+        with open(args.sample_sex) as tsvin:
+            for sid, sex in csv.reader(tsvin, delimiter='\t'):
+                if sex.upper() == 'MALE':
+                    male_ids.add(sid)
+                elif sex.upper() == 'FEMALE':
+                    female_ids.add(sid)
+
+    # Load alt contig bed, if optioned
+    if args.alt_loci_bed is not None:
+        alt_bt = pbt.BedTool(args.alt_loci_bed)
+    else:
+        alt_bt = None
+
+    # Load list of variant IDs to manually fail, if optioned
+    if args.fail_variants is not None:
+        with open(args.fail_variants) as fin:
+            fail_vids = [l.rstrip() for l in fin.readlines()]
+    else:
+        fail_vids = []
 
     # Iterate over records in invcf, clean up, and write to outvcf
     svtype_counter = {}
@@ -229,15 +275,12 @@ def main():
         svtype = record.info.get('SVTYPE')
         svlen = record.info.get('SVLEN', 0)
 
-        # Clean up RD genotypes
-        if svtype in 'DEL DUP'.split() \
-        and len(bad_rd_samples) > 0:
-            record = clean_rd_genos(record, bad_rd_samples)
 
-        # Skip empty records
-        if record.info.get('AC', (1, ))[0] == 0 \
-        and not is_multiallelic(record):
-            continue
+        ### First, do simple variant-level evaluations ###
+
+        # Check if record should be marked as manual fail
+        if record.id in fail_vids:
+            record.filter.add('MANUAL_FAIL')
 
         # Label small MCNVs as UNRESOLVED
         if is_multiallelic(record) and svlen < 5000:
@@ -254,9 +297,35 @@ def main():
         and record.info.get('AF', (0, ))[0] >= 0.01:
             record.filter.add('UNRESOLVED')
 
+        # Clear all MALE/FEMALE AF annotations
+        for key in mf_infos:
+            if key in record.info.keys():
+                record.info.pop(key)
+
+
+        ### Second, edit genotypes as needed ###
+
+        # Clean up RD genotypes
+        if svtype in 'DEL DUP'.split() \
+        and len(bad_rd_samples) > 0:
+            record = clean_rd_genos(record, bad_rd_samples)
+
+
+        ### Third, perform variant-level operations that depend on genotypes ###
+
+        # Skip empty records
+        if record.info.get('AC', (1, ))[0] == 0 \
+        and not is_multiallelic(record):
+            continue
+
         # Recompute NCR
         if not is_multiallelic(record):
-            record.info['NCR'] = calc_ncr(record)
+            if record.chrom == 'chrX':
+                record.info['NCR'] = calc_ncr(record, exclude_samples=male_ids)
+            elif record.chrom == 'chrY':
+                record.info['NCR'] = calc_ncr(record, exclude_samples=female_ids)
+            else:
+                record.info['NCR'] = calc_ncr(record)
 
         # Clear old high NCR FILTER and reannotate based on updated NCR
         original_filters = [k for k in record.filter.keys()]
@@ -272,11 +341,6 @@ def main():
                 record.filter.add('HIGH_NCR')
         elif record.info.get('NCR', 0) >= 0.1:
             record.filter.add('HIGH_NCR')
-
-        # Clear all MALE/FEMALE AF annotations
-        for key in mf_infos:
-            if key in record.info.keys():
-                record.info.pop(key)
 
         # Relocate certain FILTERs to INFOs
         for key, descrip in filters_to_info:
@@ -295,13 +359,24 @@ def main():
         else:
             record.qual = recalibrate_qual(record)
 
+        # Check for alt contig coverage if optioned
+        if alt_bt is not None:
+            cstr = '{}\t{}\t{}\n'.format(record.chrom, record.start, record.stop)
+            cov = pbt.BedTool(cstr, from_string=True).coverage(alt_bt)[0][-1]
+            if float(cov) > args.alt_loci_frac:
+                record.filter.add('HG38_ALT_LOCUS')
+
         # Rename record
         if record.chrom not in svtype_counter.keys():
             svtype_counter[record.chrom] = {}
         if svtype not in svtype_counter[record.chrom].keys():
             svtype_counter[record.chrom][svtype] = 0
         svtype_counter[record.chrom][svtype] += 1
-        new_id = '_'.join(['PedSV.v2.0', svtype, record.chrom,
+        if args.version_number is None:
+            id_prefix = 'PedSV'
+        else:
+            id_prefix = 'PedSV.' + str(args.version_number)
+        new_id = '_'.join([id_prefix, svtype, record.chrom,
                            str(svtype_counter[record.chrom][svtype])])
         record.info['OLD_ID'] = record.id
         record.id = new_id
