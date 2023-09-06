@@ -139,7 +139,7 @@ task ContigRvas {
 
     # Run association test for all eligible genes
     if [ $( cat ~{eligible_genes_bed} | wc -l ) -eq 0 ]; then
-      touch ~{prefix}.sv_rvas_sumstats.tsv
+      touch ~{prefix}.sv_rvas_sumstats.bed
     else
       /opt/ped_germline_SV/analysis/association/sv_genic_rvas.R \
         --bed ~{sites_bed} \
@@ -148,9 +148,8 @@ task ContigRvas {
         --metadata ~{sample_metadata_tsv} \
         --subset-samples ~{samples_list} \
         --out-bed ~{prefix}.sv_rvas_sumstats.bed
-      bgzip -f ~{prefix}.sv_rvas_sumstats.bed
     fi
-
+    bgzip -f ~{prefix}.sv_rvas_sumstats.bed
   >>>
 
   output {

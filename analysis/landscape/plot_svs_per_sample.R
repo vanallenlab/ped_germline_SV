@@ -97,13 +97,15 @@ plot.waterfall <- function(counts, meta, pop.spacer=0.05){
                            unique(metadata.cancer.label.map[meta$disease]))){
       sids <- rownames(meta)[which(meta$inferred_ancestry == pop
                                    & metadata.cancer.label.map[meta$disease] == pheno)]
-      vals <- sort(counts[sids], decreasing=T)
-      n.vals <- length(vals)
-      rect(xleft=n.plotted+(1:n.vals)-1, xright=n.plotted+(1:n.vals),
-           ybottom=0, ytop=vals, col=cancer.colors[pheno], border=cancer.colors[pheno])
-      segments(x0=n.plotted, x1=n.plotted+n.vals, y0=median(vals), y1=median(vals),
-               col=cancer.palettes[[pheno]]["dark1"], lend="butt", lwd=1.5)
-      n.plotted <- n.plotted + n.vals
+      if(length(sids) > 0){
+        vals <- sort(counts[sids], decreasing=T)
+        n.vals <- length(vals)
+        rect(xleft=n.plotted+(1:n.vals)-1, xright=n.plotted+(1:n.vals),
+             ybottom=0, ytop=vals, col=cancer.colors[pheno], border=cancer.colors[pheno])
+        segments(x0=n.plotted, x1=n.plotted+n.vals, y0=median(vals), y1=median(vals),
+                 col=cancer.palettes[[pheno]]["dark1"], lend="butt", lwd=1.5)
+        n.plotted <- n.plotted + n.vals
+      }
     }
     axis(1, at=c(n.start, n.plotted), tck=0, labels=NA)
     text(x=mean(c(n.start, n.plotted))+(0.05*diff(par("usr")[1:2])),
@@ -129,9 +131,9 @@ parser$add_argument("--out-prefix", metavar="path", type="character", required=T
 args <- parser$parse_args()
 
 # # DEV:
-# args <- list("metadata" = "~/scratch/PedSV.v2.1.cohort_metadata.w_control_assignments.tsv.gz",
+# args <- list("metadata" = "~/scratch/PedSV.v2.2.cohort_metadata.w_control_assignments.tsv.gz",
 #              "counts" = "~/scratch/sv_counts_per_sample.tsv",
-#              "out_prefix" = "~/scratch/PedSV.v2.1.dev")
+#              "out_prefix" = "~/scratch/PedSV.v2.2.dev")
 
 # Load counts
 counts <- load.counts(args$counts)
