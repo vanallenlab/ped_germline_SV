@@ -173,15 +173,19 @@ task ConcatSumstats {
     String docker
   }
 
-  Int disk_gb = ceil(2.5 * size(beds, "GB"))
+  Int disk_gb = ceil(3 * size(beds, "GB")) + 10
 
   command <<<
     set -eu -o pipefail
 
-    zcat ~{beds[0]} | head -n1 > "~{prefix}.sv_rvas.sumstats.bed"
-    zcat ~{sep=" " beds} | grep -ve '^#' >> "~{prefix}.sv_rvas.sumstats.bed"
-    bgzip -f "~{prefix}.sv_rvas.sumstats.bed"
-    tabix -f "~{prefix}.sv_rvas.sumstats.bed.gz"
+    zcat ~{sep=" " beds} \
+    | grep -ve '^#' \
+    | sort -Vk1,1 -k2,2n -k3,3n -k4,4V \
+    | cat <( zcat ~{beds[0]} | head -n1 ) - \
+    | bgzip -c \
+    > ~{prefix}.sv_rvas.sumstats.bed.gz
+    tabix -f ~{prefix}.sv_rvas.sumstats.bed.gz
+    ls -ltrh
   >>>
 
   output {
@@ -190,7 +194,7 @@ task ConcatSumstats {
 
   runtime {
     docker: docker
-    memory: "1.75 GB"
+    memory: "3.75 GB"
     cpu: 1
     disks: "local-disk " + disk_gb + " HDD"
     preemptible: 3
