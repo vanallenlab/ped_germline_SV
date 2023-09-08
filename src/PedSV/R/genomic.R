@@ -25,7 +25,7 @@
 #' frequency filtering? \[default: TRUE\]
 #' @param gnomad.max.freq Maximum frequency allowed in gnomAD \[default: 0.01\]
 #' @param gnomad.column Specify the column header to use for gnomAD frequency
-#' filtering. Only used if `use.gnomad.freqs == TRUE`. \[default: "gnomad_v2.1_sv_POPMAX_AF"\]
+#' filtering. Only used if `use.gnomad.freqs == TRUE`. \[default: "gnomad_v3.1_sv_POPMAX_AF"\]
 #' @param autosomal Keep only autosomal variants \[default: FALSE\]
 #' @param pass.only Keep only variants where FILTER is PASS \[default: TRUE\]
 #' @param keep.idx Optional vector to specify which row numbers from `bed` should
@@ -63,7 +63,7 @@
 #' @export
 filter.bed <- function(bed, query, af.field="POPMAX_AF", ac.field="AC",
                        use.gnomad.freqs=TRUE, gnomad.max.freq=0.01,
-                       gnomad.column="gnomad_v2.1_sv_POPMAX_AF",
+                       gnomad.column="gnomad_v3.1_sv_POPMAX_AF",
                        autosomal=FALSE, pass.only=TRUE,
                        keep.idx=NULL, return.idxs=FALSE){
   if(length(query) == 1 & length(grep(".", query, fixed=T)) > 0){
