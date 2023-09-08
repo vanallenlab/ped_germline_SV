@@ -1,6 +1,6 @@
 ## Change logs for study callset versions
 
-#### Version 2.2.1 (release date TBD)
+#### Version 2.2.1 (release date September 7, 2023)
 - Upgraded external AF annotation from gnomAD v2.1 to (pre-release/unpublished) gnomAD v3.1  
 
 #### Version 2.2 (release date September 5, 2023)
