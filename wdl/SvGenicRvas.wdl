@@ -179,7 +179,7 @@ task ConcatSumstats {
     set -eu -o pipefail
 
     zcat ~{sep=" " beds} \
-    | grep -ve '^#' | grep -ve '^chr' \
+    | grep -ve '^#' | grep -vP '\tstart\tend\tgene\t' \
     | sort -Vk1,1 -k2,2n -k3,3n -k4,4V \
     | cat <( zcat ~{beds[0]} | head -n1 ) - \
     | bgzip -c \
