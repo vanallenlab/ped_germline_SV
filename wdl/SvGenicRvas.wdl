@@ -173,7 +173,7 @@ task ConcatSumstats {
     String docker
   }
 
-  Int disk_gb = ceil(3 * size(beds, "GB")) + 10
+  Int disk_gb = ceil(10 * size(beds, "GB")) + 25
 
   command <<<
     set -eu -o pipefail
@@ -195,9 +195,10 @@ task ConcatSumstats {
   runtime {
     docker: docker
     memory: "3.75 GB"
-    cpu: 1
+    cpu: 2
     disks: "local-disk " + disk_gb + " HDD"
     preemptible: 3
+    max_retries: 3
   }
 }
 

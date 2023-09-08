@@ -24,6 +24,9 @@ if [ -z $TAG ]; then
   exit 1
 fi
 
+# Prune unused images before build (this is a common cause of failure)
+docker image prune -f
+
 # Get various directories
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 EXEC_DIR=`pwd`
@@ -65,3 +68,6 @@ for image in $( echo $IMAGES | sed 's/,/\n/g' ); do
   docker tag vanallenlab/${image}:$TAG vanallenlab/${image}:latest
   docker push vanallenlab/${image}:latest
 done
+
+# Clean up build images
+docker image prune -f
