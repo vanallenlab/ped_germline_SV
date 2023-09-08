@@ -91,12 +91,12 @@ def reformat_header(header, categories, min_n_popmax):
         header.info.remove_header(key)
 
     # Add one POPMAX field for each cohort, gnomAD, and study-wide pooled
-    for prefix in [''] + 'case_control trio gnomad_v2.1_sv'.split():
+    for prefix in [''] + 'case_control trio gnomad_v3.1_sv'.split():
 
         if prefix == '':
             descrip_filler = 'both cohorts'
-        elif prefix == 'gnomad_v2.1_sv':
-            descrip_filler = 'gnomAD-SV v2.1'
+        elif prefix == 'gnomad_v3.1_sv':
+            descrip_filler = 'gnomAD-SV v3.1'
         else:
             descrip_filler = 'the ' + ' '.join(prefix.split('_')) + ' cohort'
         
@@ -243,10 +243,11 @@ def add_popmax(record, prefix, all_pops, min_n):
             
             CN_n_field = prefix  + pop + '_CN_NUMBER'
             
-            if CN_n_field not in record.info.keys():
-                continue
-            if record.info[CN_n_field] < min_n:
-                continue
+            if 'gnomad' not in prefix:
+                if CN_n_field not in record.info.keys():
+                    continue
+                if record.info[CN_n_field] < min_n:
+                    continue
 
             f_cn_all.append(record.info[prefix + pop + '_CN_FREQ'])
             f_nondip.append(record.info[prefix + pop + '_CN_NONREF_FREQ'])
@@ -312,8 +313,8 @@ def main():
                         action='store_true')
     parser.add_argument('--popmax-pops', help='Comma-separated list of population ' + 
                         'abbreviations to consider when updating POPMAX ' +
-                        '[default: AMR,AFR,EAS,EUR,SAS]',
-                        default='AMR,AFR,EAS,EUR,SAS', type=str)
+                        '[default: AMR,AFR,EAS,EUR,NFE,SAS]',
+                        default='AMR,AFR,EAS,EUR,NFE,SAS', type=str)
     parser.add_argument('--min-n-popmax', default=100, type=int,
                         help='Minimum number of genotyped individuals to include ' +
                         'a population in POPMAX')
@@ -345,7 +346,7 @@ def main():
         record = pool_freqs_for_study(record, categories)
 
         # Finally, update POPMAX annotations for overall study, each cohort individually, and gnomAD
-        for prefix in [''] + 'case_control_ trio_ gnomad_v2.1_sv_'.split():
+        for prefix in [''] + 'case_control_ trio_ gnomad_v3.1_sv_'.split():
             record = add_popmax(record, prefix, set(args.popmax_pops.split(',')), 
                                 args.min_n_popmax)
 
