@@ -27,7 +27,8 @@
 #' compressing. See [compress.ad.matrix] for more information.
 #' @param na.frac Fraction of `NA` entries allowed before failing a sample.
 #' See [compress.ad.matrix] for more information.
-#' @param keep.samples Optional character vector of sample IDs to retain.
+#' @param keep.samples Optional. Either character vector of sample IDs to retain
+#' or path to single-column flat text file of sample IDs to retain.
 #' \[default: keep all samples\]
 #'
 #' @details The value for `query.regions` is expected to be a list of vectors,
@@ -98,6 +99,11 @@ query.ad.matrix <- function(ad, query.regions=NULL, query.ids=NULL,
 
   # Subset columns based on sample IDs
   if(!is.null(keep.samples)){
+    if(length(keep.samples) == 1){
+      if(file.exists(keep.samples)){
+        keep.samples <- unique(read.table(keep.samples, header=F)[, 1])
+      }
+    }
     ad <- ad[, keep.samples]
   }
 
@@ -206,7 +212,8 @@ compress.ad.matrix <- function(ad.df, action, weights=NULL,
 #' @param weights Optional named vector of weights for each variant. Variants
 #' not present in this vector will be assigned weight = 1. \[default: no weighting\]
 #' @param padding Number of bp to pad each breakpoint for query \[default: 5\]
-#' @param keep.samples Optional character vector of sample IDs to retain.
+#' @param keep.samples Optional. Either character vector of sample IDs to retain
+#' or path to one-column flat text file of samples to retain. \[default: keep all samples\]
 #' See [query.ad.matrix].
 #'
 #' @return Data.frame or vector depending on value of `action`
@@ -225,7 +232,8 @@ query.ad.from.sv.bed <- function(ad, bed, action="verbose", weights=NULL, paddin
 
   # Query AD matrix
   if(length(query.regions) > 0){
-    query.ad.matrix(ad, query.regions, query.ids, action, weights)
+    query.ad.matrix(ad, query.regions, query.ids=query.ids, action=action,
+                    weights=weights, keep.samples=keep.samples)
   }else{
     data.frame()
   }
