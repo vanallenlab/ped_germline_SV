@@ -1,5 +1,8 @@
 ## Change logs for study callset versions
 
+#### Version 2.3 (release date TBD)
+- Default behavior of `PedSV::load.sv.bed()` now no longer reads all population- and sex-specific frequency information into memory. Old (verbose) behavior can be restored by setting `keep.all.pop.frequencies` and `keep.all.sex.frequencies` to `TRUE`. See `?PedSV::load.sv.bed` for more info.  
+
 #### Version 2.2.1 (release date September 7, 2023)
 - Upgraded external AF annotation from gnomAD v2.1 to (pre-release/unpublished) gnomAD v3.1  
 
