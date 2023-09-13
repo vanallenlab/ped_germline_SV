@@ -9,7 +9,8 @@ load.sample.metadata(tsv.in, keep.samples = NULL, reassign.parents = TRUE)
 \arguments{
 \item{tsv.in}{Path to input .tsv}
 
-\item{keep.samples}{Vector of sample IDs to retain \link{default: keep all samples}}
+\item{keep.samples}{Either vector of sample IDs to retain or path to
+single-column flat text file of sample IDs to retain \link{default: keep all samples}}
 
 \item{reassign.parents}{Assign all parents to have \code{control} disease labels \link{default: TRUE}}
 }

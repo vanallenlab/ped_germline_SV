@@ -58,7 +58,8 @@ load.kinship.metrics <- function(tsv.in){
 #' Load a .tsv of sample metadata
 #'
 #' @param tsv.in Path to input .tsv
-#' @param keep.samples Vector of sample IDs to retain [default: keep all samples]
+#' @param keep.samples Either vector of sample IDs to retain or path to
+#' single-column flat text file of sample IDs to retain [default: keep all samples]
 #' @param reassign.parents Assign all parents to have `control` disease labels [default: TRUE]
 #'
 #' @returns data.frame
@@ -76,6 +77,11 @@ load.sample.metadata <- function(tsv.in, keep.samples=NULL, reassign.parents=TRU
   rownames(df) <- df[, 1]
   df[, 1] <- NULL
   if(!is.null(keep.samples)){
+    if(length(keep.samples) == 1){
+      if(file.exists(keep.samples)){
+        keep.samples <- unique(read.table(keep.samples, header=F)[, 1])
+      }
+    }
     df <- df[keep.samples, ]
   }
 
@@ -146,6 +152,10 @@ load.sample.metadata <- function(tsv.in, keep.samples=NULL, reassign.parents=TRU
 #' corresponding to cohort names for which cohort-specific frequencies should be
 #' dropped. Useful for reducing in-memory size. Examples include "case_control"
 #' and "trio". \[default: Keep all frequencies\]
+#' @param keep.all.pop.frequencies Optional boolean indicator to retain population-
+#' specific frequency info. \[default: FALSE\]
+#' @param keep.all.sex.frequencies Optional boolean indicator to retain sex-specific
+#' frequency info. \[default: FALSE\]
 #'
 #' @returns data.frame
 #'
@@ -155,7 +165,9 @@ load.sample.metadata <- function(tsv.in, keep.samples=NULL, reassign.parents=TRU
 #' @export
 load.sv.bed <- function(bed.in, keep.coords=TRUE, pass.only=TRUE,
                         split.coding=TRUE, split.noncoding=FALSE,
-                        drop.vids=NULL, drop.cohort.frequencies=c()){
+                        drop.vids=NULL, drop.cohort.frequencies=c(),
+                        keep.all.pop.frequencies=FALSE,
+                        keep.all.sex.frequencies=FALSE){
   # Load data
   df <- read.table(bed.in, header=T, comment.char="", sep="\t", check.names=F,
                    stringsAsFactors=F)
@@ -163,8 +175,10 @@ load.sv.bed <- function(bed.in, keep.coords=TRUE, pass.only=TRUE,
 
   # Drop variant IDs, if specified
   if(!is.null(drop.vids)){
-    if(file.exists(drop.vids)){
-      drop.vids <- unique(read.table(drop.vids, header=F)[, 1])
+    if(length(drop.vids) == 1){
+      if(file.exists(drop.vids)){
+        drop.vids <- unique(read.table(drop.vids, header=F)[, 1])
+      }
     }
     df <- df[which(!df$name %in% drop.vids), ]
   }
@@ -188,6 +202,15 @@ load.sv.bed <- function(bed.in, keep.coords=TRUE, pass.only=TRUE,
     drop.cols <- c(drop.cols, "chrom", "start", "end", "CHR2", "END", "END2",
                    "CPX_INTERVALS", "SOURCE")
   }
+  if(!keep.all.pop.frequencies){
+    pop.prefixes <- c("AFR", "AMI", "AMR", "ASJ", "EAS", "EUR", "FIN", "MID", "NFE", "SAS", "OTH")
+    for(pp in pop.prefixes){
+      drop.cols <- c(drop.cols, colnames(df)[grep(paste(pp, "_", sep=""), colnames(df))])
+    }
+  }
+  if(!keep.all.sex.frequencies){
+    drop.cols <- c(drop.cols, colnames(df)[grep("MALE_", colnames(df))])
+  }
   for(prefix in drop.cohort.frequencies){
     prefix.cols <- grep(paste("^", prefix, "_", sep=""), colnames(df))
     if(length(prefix.cols) > 0){
@@ -197,7 +220,7 @@ load.sv.bed <- function(bed.in, keep.coords=TRUE, pass.only=TRUE,
                 prefix, "_' in ", bed.in, sep=""))
     }
   }
-  df[, intersect(drop.cols, colnames(df))] <- NULL
+  df[, intersect(unique(drop.cols), colnames(df))] <- NULL
 
   # Backfill missing PREDICTED_NEAREST_TSS using PREDICTED_PROMOTER
   if(length(intersect(c("PREDICTED_NEAREST_TSS", "PREDICTED_PROMOTER"), colnames(df))) == 2){

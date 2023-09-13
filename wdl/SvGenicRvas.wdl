@@ -86,15 +86,17 @@ task PreprocessGtf {
     String docker
   }
 
-  String exclude_option = if defined(exclude_regions) then "--exclusion-bed ~{exclude_regions} --exclusion-frac ~{exclusion_frac_overlap}" else ""
-
   command <<<
     set -eu -o pipefail
+
+    if [ ~{defined(exclude_regions)} == "true" ]; then
+      exclude_option="--exclusion-bed ~{exclude_regions} --exclusion-frac ~{exclusion_frac_overlap}"
+    fi
 
     /opt/ped_germline_SV/analysis/utilities/preprocess_gtf_for_rvas.py \
       ~{gtf} \
       --chromosome ~{contig} \
-      ~{exclude_option} \
+      $exclude_option \
       --outfile "eligible_genes.~{contig}.bed"
     bgzip -f "eligible_genes.~{contig}.bed"
     tabix -f "eligible_genes.~{contig}.bed.gz"
@@ -136,8 +138,8 @@ task ContigRvas {
     set -eu -o pipefail
 
     # Run association test for all eligible genes
-    if [ $( cat eligible_genes.list | wc -l ) -eq 0 ]; then
-      touch ~{prefix}.sv_rvas_sumstats.tsv
+    if [ $( cat ~{eligible_genes_bed} | wc -l ) -eq 0 ]; then
+      touch ~{prefix}.sv_rvas_sumstats.bed
     else
       /opt/ped_germline_SV/analysis/association/sv_genic_rvas.R \
         --bed ~{sites_bed} \
@@ -146,9 +148,8 @@ task ContigRvas {
         --metadata ~{sample_metadata_tsv} \
         --subset-samples ~{samples_list} \
         --out-bed ~{prefix}.sv_rvas_sumstats.bed
-      bgzip -f ~{prefix}.sv_rvas_sumstats.bed
     fi
-
+    bgzip -f ~{prefix}.sv_rvas_sumstats.bed
   >>>
 
   output {
@@ -172,15 +173,19 @@ task ConcatSumstats {
     String docker
   }
 
-  Int disk_gb = ceil(2.5 * size(beds, "GB"))
+  Int disk_gb = ceil(10 * size(beds, "GB")) + 25
 
   command <<<
     set -eu -o pipefail
 
-    zcat ~{beds[0]} | head -n1 > "~{prefix}.sv_rvas.sumstats.bed"
-    zcat ~{sep=" " beds} | grep -ve '^#' >> "~{prefix}.sv_rvas.sumstats.bed"
-    bgzip -f "~{prefix}.sv_rvas.sumstats.bed"
-    tabix -f "~{prefix}.sv_rvas.sumstats.bed.gz"
+    zcat ~{sep=" " beds} \
+    | grep -ve '^#' | grep -vP '\tstart\tend\tgene\t' \
+    | sort -Vk1,1 -k2,2n -k3,3n -k4,4V \
+    | cat <( zcat ~{beds[0]} | head -n1 ) - \
+    | bgzip -c \
+    > ~{prefix}.sv_rvas.sumstats.bed.gz
+    tabix -f ~{prefix}.sv_rvas.sumstats.bed.gz
+    ls -ltrh
   >>>
 
   output {
@@ -189,10 +194,11 @@ task ConcatSumstats {
 
   runtime {
     docker: docker
-    memory: "1.75 GB"
-    cpu: 1
+    memory: "3.75 GB"
+    cpu: 2
     disks: "local-disk " + disk_gb + " HDD"
     preemptible: 3
+    max_retries: 3
   }
 }
 

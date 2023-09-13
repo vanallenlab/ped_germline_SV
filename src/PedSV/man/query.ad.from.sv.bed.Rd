@@ -25,7 +25,8 @@ not present in this vector will be assigned weight = 1. [default: no weighting]}
 
 \item{padding}{Number of bp to pad each breakpoint for query [default: 5]}
 
-\item{keep.samples}{Optional character vector of sample IDs to retain.
+\item{keep.samples}{Optional. Either character vector of sample IDs to retain
+or path to one-column flat text file of samples to retain. [default: keep all samples]
 See \link{query.ad.matrix}.}
 }
 \value{

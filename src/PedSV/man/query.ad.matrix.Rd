@@ -34,7 +34,8 @@ compressing. See \link{compress.ad.matrix} for more information.}
 \item{na.frac}{Fraction of \code{NA} entries allowed before failing a sample.
 See \link{compress.ad.matrix} for more information.}
 
-\item{keep.samples}{Optional character vector of sample IDs to retain.
+\item{keep.samples}{Optional. Either character vector of sample IDs to retain
+or path to single-column flat text file of sample IDs to retain.
 [default: keep all samples]}
 }
 \value{

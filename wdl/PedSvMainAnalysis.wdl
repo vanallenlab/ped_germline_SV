@@ -15,7 +15,7 @@
 version 1.0
 
 
-import "https://raw.githubusercontent.com/vanallenlab/ped_germline_SV/main/wdl/SvGenicRvas.wdl" as Rvas
+import "https://raw.githubusercontent.com/vanallenlab/ped_germline_SV/rlc_landscape_v2.2/wdl/SvGenicRvas.wdl" as Rvas
 
 
 workflow PedSvMainAnalysis {
@@ -56,6 +56,8 @@ workflow PedSvMainAnalysis {
     Array[File]? gene_lists
     Array[String]? gene_list_names
     File? genomic_disorder_bed
+    File? rvas_exclude_regions
+    Float? rvas_exclusion_frac_overlap
 
     String pedsv_docker
     String pedsv_r_docker
@@ -103,6 +105,8 @@ workflow PedSvMainAnalysis {
       samples_list = all_samples_list,
       ref_fai = ref_fai,
       prefix = study_prefix,
+      exclude_regions = rvas_exclude_regions,
+      exclusion_frac_overlap = rvas_exclusion_frac_overlap,
       pedsv_docker = pedsv_docker,
       pedsv_r_docker = pedsv_r_docker
   }
@@ -274,6 +278,8 @@ workflow PedSvMainAnalysis {
       samples_list = trio_samples_list,
       ref_fai = ref_fai,
       prefix = study_prefix + ".trio_cohort",
+      exclude_regions = rvas_exclude_regions,
+      exclusion_frac_overlap = rvas_exclusion_frac_overlap,
       pedsv_docker = pedsv_docker,
       pedsv_r_docker = pedsv_r_docker
   }
@@ -291,6 +297,8 @@ workflow PedSvMainAnalysis {
       samples_list = case_control_samples_list,
       ref_fai = ref_fai,
       prefix = study_prefix + ".case_control_cohort",
+      exclude_regions = rvas_exclude_regions,
+      exclusion_frac_overlap = rvas_exclusion_frac_overlap,
       pedsv_docker = pedsv_docker,
       pedsv_r_docker = pedsv_r_docker
   }
