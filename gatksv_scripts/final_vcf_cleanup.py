@@ -16,21 +16,31 @@ filters_to_info = [('BOTHSIDES_SUPPORT',
                     'High number of SR splits in background samples indicating messy region'),
                    ('PESR_GT_OVERDISPERSION', 
                     'High PESR dispersion')]
+new_infos = ['##INFO=<ID=AF,Number=A,Type=Float,Description="Allele frequency">',
+             '##INFO=<ID=OLD_ID,Number=1,Type=String,Description="Original GATK-SV variant ID before polishing">',
+             '##INFO=<ID=FAILED_COHORT_COMPARISONS,Number=.,Type=String,Description="Pairs of cohorts with significantly different frequencies">']
 new_filts = ['##FILTER=<ID=UNRELIABLE_RD_GENOTYPES,Description="This variant is ' + \
              'enriched for non-reference GTs in unreliable samples and is ' + \
              'therefore less reliable overall.">',
-             '##FILTER=<ID=HG38_ALT_LOCUS,Description="This variant is at ' + \
-             'least half covered by loci with alternate contigs in hg38.">',
+             '##FILTER=<ID=HG38_ALT_OR_PATCH_LOCUS,Description="This variant is at ' + \
+             'least half covered by loci with alternate contigs and/or fix ' +
+             'patches in hg38.">',
              '##FILTER=<ID=MANUAL_FAIL,Description="This variant failed ' +
-             'post hoc manual review and should not be trusted.">']
+             'post hoc manual review and should not be trusted.">',
+             '##FILTER=<ID=LOW_SL_MAX,Description="This variant had no non-reference' + \
+             'samples with SL above 0 and is therefore a likely false positive.">',
+             '##FILTER=<ID=INTERCOHORT_HETEROGENEITY,Description="This variant ' + \
+             'was genotyped at significantly different frequencies between at least ' + \
+             'one pair of cohorts. See INFO:FAILED_COHORT_COMPARISONS for details.">']
 
 
 
 import argparse
-import csv
 import numpy as np
+import pandas as pd
 import pybedtools as pbt
 import pysam
+from scipy.stats import fisher_exact
 from sys import stdin, stdout
 
 
@@ -91,18 +101,15 @@ def clean_rd_genos(record, bad_rd_samples):
     # Count proportion of non-ref GTs contributed by bad_rd_samples
     all_nonref = 0
     bad_nonref = 0
-    revised_ac = 0
     for sid, sdat in record.samples.items():
         GT = sdat['GT']
-        if None in GT:
+        if all([a is None for a in GT]):
             continue
-        if any([a > 0 for a in GT]):
+        if any([a > 0 for a in GT if a is not None]):
             all_nonref += 1
             if sid in bad_rd_samples \
             and sdat['EV'] == ('RD', ):
                 bad_nonref += 1
-            else:
-                revised_ac += sum(GT)
 
     # Tag sample as non-PASS if at least half of all original non-ref GTs were from bad_rd_samples
     if all_nonref > 0:
@@ -114,8 +121,25 @@ def clean_rd_genos(record, bad_rd_samples):
         if record.samples[sid]['EV'] == ('RD', ):
             record.samples[sid]['GT'] = (None, None)
 
-    # Update AC
-    record.info['AC'] = revised_ac
+    return record
+
+
+def update_af(record):
+    """
+    Update AC, AN, and AF for a single record
+    """
+
+    ac, an = 0, 0
+    af = None
+    for sdat in record.samples.values():
+        GT = [a for a in sdat['GT'] if a is not None]
+        an += len(GT)
+        ac += len([a for a in GT if a > 0])
+    if an > 0:
+        af = ac / an
+    record.info['AC'] = ac
+    record.info['AN'] = an
+    record.info['AF'] = af
 
     return record
 
@@ -177,6 +201,83 @@ def recalibrate_qual(record):
         return 0
 
 
+def count_by_cohort(record, cohort_map):
+    """
+    Collect AC & AN per cohort per ancestry
+    """
+
+    counts = {}
+
+    # Iterate over all samples
+    for sid, sdat in record.samples.items():
+        cohort, ancestry = cohort_map.get(sid, {'cohort' : None, 'ancestry' : None}).values()
+
+        # Only keep samples with defined cohort and ancestry
+        if cohort is None or ancestry is None:
+            continue
+        if cohort not in counts.keys():
+            counts[cohort] = {}
+        if ancestry not in counts[cohort].keys():
+            counts[cohort][ancestry] = {'AN' : 0, 'AC' : 0}
+
+        # Parse sample genotype and update counter
+        GT = sdat['GT']
+        if all([a is None for a in GT]):
+            continue
+        sAN = len([a for a in GT if a is not None])
+        sAC = len([a for a in GT if a is not None and a > 0])
+        counts[cohort][ancestry]['AN'] += sAN
+        counts[cohort][ancestry]['AC'] += sAC
+
+    return counts
+
+
+def compare_cohorts(record, counts, cohort1, cohort2, rare_af = 0.01, 
+                    rare_pval = 0.01, common_pval = 0.05/25000):
+    """
+    Test for frequency differences between two cohorst for a single record
+    """
+
+    # Format results for cohort1 and cohort2 as pd.DataFrames
+    d1 = pd.DataFrame(counts[cohort1]).T
+    d2 = pd.DataFrame(counts[cohort2]).T
+
+    # Don't process records with no non-ref observations
+    if all(d1.AC == 0) and all(d2.AC == 0):
+        return record
+
+    # Subset to populations represented in both cohort
+    pops = list(set(d1.index.tolist()).intersection(set(d2.index.tolist())))
+    d1.columns = ['c1' + k for k in d1.columns]
+    d2.columns = ['c2' + k for k in d2.columns]
+    dm = pd.concat([d1.loc[pops, :], d2.loc[pops, :]], axis=1)
+
+    # Find population with greatest AC
+    test_pop = dm.loc[:, 'c1AC c2AC'.split()].sum(axis=1).\
+                  sort_values(ascending=False).index[0]
+
+    # Compute Fisher's exact test for most informative population
+    c1AN, c1AC, c2AN, c2AC = dm.loc[test_pop, :].values
+    fisher_p = fisher_exact(np.array([[c1AN - c1AC, c2AN - c2AC], [c1AC, c2AC]]))[1]
+
+    # Decide on pass/fail based on variant frequency
+    AF = record.info.get('AF')[0]
+    if AF < rare_af:
+        cutoff = rare_pval
+    else:
+        cutoff = common_pval
+
+    if fisher_p < cutoff:
+        record.filter.add('INTERCOHORT_HETEROGENEITY')
+        fail_label = cohort1 + '_vs_' + cohort2
+        if 'FAILED_COHORT_COMPARISONS' in record.info.keys():
+            record.info['FAILED_COHORT_COMPARISONS'] += (fail_label, )
+        else:
+            record.info['FAILED_COHORT_COMPARISONS'] = [fail_label]
+    
+    return record
+
+
 def main():
     """
     Main block
@@ -184,7 +285,7 @@ def main():
     parser = argparse.ArgumentParser(
              description=__doc__,
              formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('vcf_in', help='input .vcf')
+    parser.add_argument('vcf_in', help='input .vcf')    
     parser.add_argument('vcf_out', help='output .vcf')
     parser.add_argument('--bad-rd-samples', help='list of samples with ' +
                         'unreliable RD genotypes')
@@ -192,13 +293,15 @@ def main():
                         'marked as having failed manual review')
     parser.add_argument('--version-number', help='callset version number for ' +
                         'tagging variant IDs.', type=str)
-    parser.add_argument('--alt-loci-bed', help='.bed with coordinates of loci ' +
-                        'overlapping alternate contigs')
-    parser.add_argument('--alt-loci-frac', type=float, default=0.2, 
+    parser.add_argument('--exclude-loci-bed', help='.bed with coordinates of loci ' +
+                        'to be masked as non-PASS')
+    parser.add_argument('--exclude-loci-frac', type=float, default=0.2, 
                         help='maximum fraction of overlap permitted with ' + 
-                        '--alt-loci-frac before labeling as non-PASS')
-    parser.add_argument('--sample-sex', help='two-column .tsv mapping sample IDs ' +
-                        'to MALE or FEMALE. Used for handling sex chromosome NCRs.')
+                        '--exclude-loci-frac before labeling as non-PASS')
+    parser.add_argument('--sample-metadata', help='.tsv with sample metadata. ' +
+                        'First column must be sample ID. Must include columns ' +
+                        'named "sex", "cohort", "ancestry", "proband". Other ' +
+                        'columns will be ignored.')
     args = parser.parse_args()
 
     # Open connection to input vcf
@@ -220,10 +323,29 @@ def main():
     for key in mf_infos:
         header.info.remove_header(key)
     # header.filters.remove_header('HIGH_PCRMINUS_NOCALL_RATE')
-    header.add_line('##INFO=<ID=AF,Number=A,Type=Float,Description="Allele frequency">')
-    header.add_line('##INFO=<ID=OLD_ID,Number=1,Type=String,Description="Original GATK-SV variant ID before polishing">')
+    for info in new_infos:
+        header.add_line(info)
     for filt in new_filts:
         header.add_line(filt)
+
+    # Load sample metadata as pd.DataFrame and subset to samples present in VCF header
+    md = pd.read_csv(args.sample_metadata, sep='\t')
+    md.set_index(md[md.columns[0]], drop=True, inplace=True)
+    md = md.loc[samples, :]
+
+    # For convenience, reassign all ICGC osteo samples to StJude
+    # since these are the only two cohorts that required realignment
+    md.loc[md.cohort == 'ICGC', 'cohort'] = 'StJude'
+
+    # Make list of male/female samples for handling sex chromosome NCRs    
+    male_ids = set(md.index[md.sex == 'MALE'].tolist())
+    female_ids = set(md.index[md.sex == 'FEMALE'].tolist())
+
+    # Build sample-keyed dict for cohort & ancestry mappings
+    # Do not include probands from trios nor samples lacking ancestry assignments
+    cohort_map = md.loc[(md.proband != 'Yes') & (~md.ancestry.isna()), 
+                        'cohort ancestry'.split()].\
+                    to_dict(orient='index')
 
     # Open connection to output vcf
     if args.vcf_out in '- stdout /dev/stdout':
@@ -238,19 +360,9 @@ def main():
             bad_rd_samples = set([s.rstrip() for s in fin.readlines()])
             bad_rd_samples = bad_rd_samples.intersection(set(header.samples))
 
-    # Read table of sample sexes and partition into male/female
-    male_ids, female_ids = set(), set()
-    if args.sample_sex is not None:
-        with open(args.sample_sex) as tsvin:
-            for sid, sex in csv.reader(tsvin, delimiter='\t'):
-                if sex.upper() == 'MALE':
-                    male_ids.add(sid)
-                elif sex.upper() == 'FEMALE':
-                    female_ids.add(sid)
-
     # Load alt contig bed, if optioned
-    if args.alt_loci_bed is not None:
-        alt_bt = pbt.BedTool(args.alt_loci_bed)
+    if args.exclude_loci_bed is not None:
+        alt_bt = pbt.BedTool(args.exclude_loci_bed)
     else:
         alt_bt = None
 
@@ -302,6 +414,12 @@ def main():
             if key in record.info.keys():
                 record.info.pop(key)
 
+        # Tag variants with SL_MAX ≤ 0 as failing
+        slm = record.info.get('SL_MAX', None)
+        if slm is not None:
+            if slm <= 0:
+                record.filter.add('LOW_SL_MAX')
+
 
         ### Second, edit genotypes as needed ###
 
@@ -309,6 +427,10 @@ def main():
         if svtype in 'DEL DUP'.split() \
         and len(bad_rd_samples) > 0:
             record = clean_rd_genos(record, bad_rd_samples)
+
+        # Update AC/AN/AF
+        if not is_multiallelic(record):
+            record = update_af(record)
 
 
         ### Third, perform variant-level operations that depend on genotypes ###
@@ -363,8 +485,19 @@ def main():
         if alt_bt is not None:
             cstr = '{}\t{}\t{}\n'.format(record.chrom, record.start, record.stop)
             cov = pbt.BedTool(cstr, from_string=True).coverage(alt_bt)[0][-1]
-            if float(cov) > args.alt_loci_frac:
-                record.filter.add('HG38_ALT_LOCUS')
+            if float(cov) > args.exclude_loci_frac:
+                record.filter.add('HG38_ALT_OR_PATCH_LOCUS')
+
+        # Compare frequencies between case cohorts (ICGC+StJude vs. GMKF)
+        cpairs = [['StJude', 'GMKF']]
+        # Also compare frequencies between all pairs of control cohorts (1kG, MESA, BioMe)
+        cpairs += [['1000G', 'Topmed_MESA'], ['1000G', 'Topmed_BIOME'],
+                   ['Topmed_MESA', 'Topmed_BIOME']]
+        if not is_multiallelic(record):
+            ac_by_cohort = count_by_cohort(record, cohort_map)
+            for cpair in cpairs:
+                record = compare_cohorts(record, ac_by_cohort, 
+                                         cohort1=cpair[0], cohort2=cpair[1])
 
         # Rename record
         if record.chrom not in svtype_counter.keys():

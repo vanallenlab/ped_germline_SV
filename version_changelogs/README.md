@@ -1,6 +1,9 @@
 ## Change logs for study callset versions
 
 #### Version 2.3 (release date TBD)
+- Flagged all variants with `SL_MAX` < 0 as non-PASS  
+- Compared population-specific frequencies for all SVs between GMKF vs. St. Jude + ICGC. Marked all variants with significant (P<0.01 for rare variants & Bonferroni for common variants) discrepancies in frequencies between cohorts with `INTERCOHORT_HETEROGENEITY`.  
+- Compared population-specific frequencies for all SVs between all pairs of control cohorts (1000G, MESA, BioMe). Marked all variants with significant (P<0.01 for rare variants & Bonferroni for common variants) discrepancies in frequencies between cohorts with `INTERCOHORT_HETEROGENEITY`.  
 - Default behavior of `PedSV::load.sv.bed()` now no longer reads all population- and sex-specific frequency information into memory. Old (verbose) behavior can be restored by setting `keep.all.pop.frequencies` and `keep.all.sex.frequencies` to `TRUE`. See `?PedSV::load.sv.bed` for more info.  
 
 #### Version 2.2.1 (release date September 7, 2023)
