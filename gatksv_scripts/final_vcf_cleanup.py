@@ -24,14 +24,15 @@ new_filts = ['##FILTER=<ID=UNRELIABLE_RD_GENOTYPES,Description="This variant is 
              'therefore less reliable overall.">',
              '##FILTER=<ID=HG38_ALT_OR_PATCH_LOCUS,Description="This variant is at ' + \
              'least half covered by loci with alternate contigs and/or fix ' +
-             'patches in hg38.">',
+             'patches in hg38. Only applied to common SVs (AF>=1%)">',
              '##FILTER=<ID=MANUAL_FAIL,Description="This variant failed ' +
              'post hoc manual review and should not be trusted.">',
              '##FILTER=<ID=LOW_SL_MAX,Description="This variant had no non-reference' + \
              'samples with SL above 0 and is therefore a likely false positive.">',
              '##FILTER=<ID=INTERCOHORT_HETEROGENEITY,Description="This variant ' + \
              'was genotyped at significantly different frequencies between at least ' + \
-             'one pair of cohorts. See INFO:FAILED_COHORT_COMPARISONS for details.">']
+             'one pair of cohorts. Only applied to rare SVs (AF<1%). See ' + \
+             'INFO:FAILED_COHORT_COMPARISONS for details.">']
 
 
 
@@ -485,8 +486,9 @@ def main():
         if alt_bt is not None:
             cstr = '{}\t{}\t{}\n'.format(record.chrom, record.start, record.stop)
             cov = pbt.BedTool(cstr, from_string=True).coverage(alt_bt)[0][-1]
-            if float(cov) > args.exclude_loci_frac:
-                record.filter.add('HG38_ALT_OR_PATCH_LOCUS')
+            if record.info.get('AF', 1) >= 0.01:
+                if float(cov) > args.exclude_loci_frac:
+                    record.filter.add('HG38_ALT_OR_PATCH_LOCUS')
 
         # Compare frequencies between case cohorts (ICGC+StJude vs. GMKF)
         cpairs = [['StJude', 'GMKF']]
@@ -494,10 +496,11 @@ def main():
         cpairs += [['1000G', 'Topmed_MESA'], ['1000G', 'Topmed_BIOME'],
                    ['Topmed_MESA', 'Topmed_BIOME']]
         if not is_multiallelic(record):
-            ac_by_cohort = count_by_cohort(record, cohort_map)
-            for cpair in cpairs:
-                record = compare_cohorts(record, ac_by_cohort, 
-                                         cohort1=cpair[0], cohort2=cpair[1])
+            if record.info.get('AF', 1) < 0.1:
+                ac_by_cohort = count_by_cohort(record, cohort_map)
+                for cpair in cpairs:
+                    record = compare_cohorts(record, ac_by_cohort, 
+                                             cohort1=cpair[0], cohort2=cpair[1])
 
         # Rename record
         if record.chrom not in svtype_counter.keys():
