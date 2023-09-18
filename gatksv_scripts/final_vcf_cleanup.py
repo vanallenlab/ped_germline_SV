@@ -486,17 +486,16 @@ def main():
         if alt_bt is not None:
             cstr = '{}\t{}\t{}\n'.format(record.chrom, record.start, record.stop)
             cov = pbt.BedTool(cstr, from_string=True).coverage(alt_bt)[0][-1]
-            if record.info.get('AF', 1) >= 0.01:
+            if is_multiallelic(record) \
+            or record.info.get('AF', (1,))[0] >= 0.01:
                 if float(cov) > args.exclude_loci_frac:
                     record.filter.add('HG38_ALT_OR_PATCH_LOCUS')
 
-        # Compare frequencies between case cohorts (ICGC+StJude vs. GMKF)
-        cpairs = [['StJude', 'GMKF']]
-        # Also compare frequencies between all pairs of control cohorts (1kG, MESA, BioMe)
-        cpairs += [['1000G', 'Topmed_MESA'], ['1000G', 'Topmed_BIOME'],
-                   ['Topmed_MESA', 'Topmed_BIOME']]
+        # Compare frequencies between case cohorts (ICGC+StJude vs. GMKF) 
+        # and, separately, between control cohorts
+        cpairs = [['StJude', 'GMKF'], ['Topmed_MESA', 'Topmed_BIOME']]
         if not is_multiallelic(record):
-            if record.info.get('AF', 1) < 0.1:
+            if record.info.get('AF', (1,))[0] < 0.1:
                 ac_by_cohort = count_by_cohort(record, cohort_map)
                 for cpair in cpairs:
                     record = compare_cohorts(record, ac_by_cohort, 

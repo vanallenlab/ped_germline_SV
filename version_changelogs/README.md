@@ -2,9 +2,9 @@
 
 #### Version 2.3 (release date TBD)
 - Flagged all variants with `SL_MAX` < 0 as non-PASS  
-- Compared population-specific frequencies for all SVs between GMKF vs. St. Jude + ICGC. Marked all variants with significant (P<0.01 for rare variants & Bonferroni for common variants) discrepancies in frequencies between cohorts with `INTERCOHORT_HETEROGENEITY`.  
-- Compared population-specific frequencies for all SVs between all pairs of control cohorts (1000G, MESA, BioMe). Marked all variants with significant (P<0.01 for rare variants & Bonferroni for common variants) discrepancies in frequencies between cohorts with `INTERCOHORT_HETEROGENEITY`.  
-- Flagged all variants with >20% coverage by hg38 reference fix patches as `HG38_ALT_OR_PATCH_LOCUS`.  
+- Compared population-specific frequencies for all rare (AF<1%) SVs between GMKF vs. St. Jude + ICGC. Marked all variants with significant (P<0.01) discrepancies in frequencies between cohorts with `INTERCOHORT_HETEROGENEITY`.  
+- Compared population-specific frequencies for all rare (AF<1%) SVs between MESA + BioMe. Marked all variants with significant (P<0.01) discrepancies in frequencies between cohorts with `INTERCOHORT_HETEROGENEITY`.  
+- Flagged all common (AF>=1%) variants with >20% coverage by hg38 alt contigs and/or reference fix patches as `HG38_ALT_OR_PATCH_LOCUS`.  
 - Default behavior of `PedSV::load.sv.bed()` now no longer reads all population- and sex-specific frequency information into memory. Old (verbose) behavior can be restored by setting `keep.all.pop.frequencies` and `keep.all.sex.frequencies` to `TRUE`. See `?PedSV::load.sv.bed` for more info.  
 
 #### Version 2.2.1 (release date September 7, 2023)
