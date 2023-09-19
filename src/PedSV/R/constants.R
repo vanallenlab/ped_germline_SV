@@ -247,6 +247,7 @@ load.constants <- function(subset, envir=.GlobalEnv){
     "metadata.cancer.label.map" = c("osteosarcoma" = "OS",
                                     "neuroblastoma" = "NBL",
                                     "ewing" = "EWS",
+                                    "case" = "pancan",
                                     "control" = "control"),
     "pop.abbreviations" = c("AFR" = "Afr.",
                             "AMR" = "Amer.",

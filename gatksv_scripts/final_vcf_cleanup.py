@@ -18,13 +18,15 @@ filters_to_info = [('BOTHSIDES_SUPPORT',
                     'High PESR dispersion')]
 new_infos = ['##INFO=<ID=AF,Number=A,Type=Float,Description="Allele frequency">',
              '##INFO=<ID=OLD_ID,Number=1,Type=String,Description="Original GATK-SV variant ID before polishing">',
-             '##INFO=<ID=FAILED_COHORT_COMPARISONS,Number=.,Type=String,Description="Pairs of cohorts with significantly different frequencies">']
+             '##INFO=<ID=FAILED_COHORT_COMPARISONS,Number=.,Type=String,Description=' + \
+             '"Pairs of cohorts with significantly different frequencies">',
+             '##INFO=<ID=HG38_REF_PATCH_LOCUS,Number=0,Type=Flag,Description="This ' + \
+             'variant is at least 20\% covered by reference fix patch loci contigs">']
 new_filts = ['##FILTER=<ID=UNRELIABLE_RD_GENOTYPES,Description="This variant is ' + \
              'enriched for non-reference GTs in unreliable samples and is ' + \
              'therefore less reliable overall.">',
-             '##FILTER=<ID=HG38_ALT_OR_PATCH_LOCUS,Description="This variant is at ' + \
-             'least half covered by loci with alternate contigs and/or fix ' +
-             'patches in hg38. Only applied to common SVs (AF>=1%)">',
+             '##FILTER=<ID=HG38_ALT_LOCUS,Description="This variant is at ' + \
+             'least 20\% covered by loci with alternate contigs">',
              '##FILTER=<ID=MANUAL_FAIL,Description="This variant failed ' +
              'post hoc manual review and should not be trusted.">',
              '##FILTER=<ID=LOW_SL_MAX,Description="This variant had no non-reference' + \
@@ -234,9 +236,9 @@ def count_by_cohort(record, cohort_map):
 
 
 def compare_cohorts(record, counts, cohort1, cohort2, rare_af = 0.01, 
-                    rare_pval = 0.01, common_pval = 0.05/25000):
+                    rare_pval = 0.01, common_pval = 0.01):
     """
-    Test for frequency differences between two cohorst for a single record
+    Test for frequency differences between two cohorts for a single record
     """
 
     # Format results for cohort1 and cohort2 as pd.DataFrames
@@ -294,11 +296,15 @@ def main():
                         'marked as having failed manual review')
     parser.add_argument('--version-number', help='callset version number for ' +
                         'tagging variant IDs.', type=str)
-    parser.add_argument('--exclude-loci-bed', help='.bed with coordinates of loci ' +
-                        'to be masked as non-PASS')
+    parser.add_argument('--alt-loci-bed', help='.bed with coordinates of loci ' +
+                        'with alternate contigs; these will be masked as non-PASS')
+    parser.add_argument('--ref-patch-loci-bed', help='.bed with coordinates of loci ' +
+                        'where the reference has been patched; these will be ' + 
+                        'annotated as such in INFO but will not have FILTER changed.')
     parser.add_argument('--exclude-loci-frac', type=float, default=0.2, 
                         help='maximum fraction of overlap permitted with ' + 
-                        '--exclude-loci-frac before labeling as non-PASS')
+                        '--alt-loci-bed or --ref-patch-loci-bed before being ' + 
+                        'marked as overlapping')
     parser.add_argument('--sample-metadata', help='.tsv with sample metadata. ' +
                         'First column must be sample ID. Must include columns ' +
                         'named "sex", "cohort", "ancestry", "proband". Other ' +
@@ -362,10 +368,16 @@ def main():
             bad_rd_samples = bad_rd_samples.intersection(set(header.samples))
 
     # Load alt contig bed, if optioned
-    if args.exclude_loci_bed is not None:
-        alt_bt = pbt.BedTool(args.exclude_loci_bed)
+    if args.alt_loci_bed is not None:
+        alt_bt = pbt.BedTool(args.alt_loci_bed)
     else:
         alt_bt = None
+
+    # Load ref fix patch bed, if optioned
+    if args.ref_patch_loci_bed is not None:
+        patch_bt = pbt.BedTool(args.ref_patch_loci_bed)
+    else:
+        patch_bt = None
 
     # Load list of variant IDs to manually fail, if optioned
     if args.fail_variants is not None:
@@ -486,16 +498,21 @@ def main():
         if alt_bt is not None:
             cstr = '{}\t{}\t{}\n'.format(record.chrom, record.start, record.stop)
             cov = pbt.BedTool(cstr, from_string=True).coverage(alt_bt)[0][-1]
-            if is_multiallelic(record) \
-            or record.info.get('AF', (1,))[0] >= 0.01:
-                if float(cov) > args.exclude_loci_frac:
-                    record.filter.add('HG38_ALT_OR_PATCH_LOCUS')
+            if float(cov) > args.exclude_loci_frac:
+                record.filter.add('HG38_ALT_LOCUS')
+
+        # Check for ref fix patch coverage if optioned
+        if patch_bt is not None:
+            cstr = '{}\t{}\t{}\n'.format(record.chrom, record.start, record.stop)
+            cov = pbt.BedTool(cstr, from_string=True).coverage(patch_bt)[0][-1]
+            if float(cov) > args.exclude_loci_frac:
+                record.info['HG38_REF_PATCH_LOCUS'] = True
 
         # Compare frequencies between case cohorts (ICGC+StJude vs. GMKF) 
         # and, separately, between control cohorts
         cpairs = [['StJude', 'GMKF'], ['Topmed_MESA', 'Topmed_BIOME']]
         if not is_multiallelic(record):
-            if record.info.get('AF', (1,))[0] < 0.1:
+            if record.info.get('AF', (1,))[0] < 0.05:
                 ac_by_cohort = count_by_cohort(record, cohort_map)
                 for cpair in cpairs:
                     record = compare_cohorts(record, ac_by_cohort, 
