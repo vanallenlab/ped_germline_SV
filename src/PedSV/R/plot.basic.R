@@ -106,8 +106,8 @@ pc.scatterplot <- function(pcs, pc.X, pc.Y, colors, title=NULL, x.title=NULL,
 #' @export ridgeplot
 #' @export
 ridgeplot <- function(data, names=NULL, hill.overlap=0.35, xlims=NULL, x.axis=TRUE,
-                    fill="grey70", border="grey35", border.lwd=2,
-                    parmar=c(2.5, 3, 0.25, 0.25)){
+                      fill="grey70", border="grey35", border.lwd=2,
+                      parmar=c(2.5, 3, 0.25, 0.25)){
   # Get names before manipulating data
   if(is.null(names)){
     names <- names(data)
@@ -159,6 +159,8 @@ ridgeplot <- function(data, names=NULL, hill.overlap=0.35, xlims=NULL, x.axis=TR
 #' @param top.axis.units Specify units for top axis. Options are NULL (for
 #' numeric) or "percent" \[default: NULL\]
 #' @param title Custom title for top axis
+#' @param custom.pheno.labels Custom phenotype labels for the groups on the
+#' Y axis, if desired.
 #' @param parmar Value of `mar` passed to `par()`
 #'
 #' @details `plot.df` is expected to adhere to the following specifications:
@@ -173,6 +175,7 @@ ridgeplot <- function(data, names=NULL, hill.overlap=0.35, xlims=NULL, x.axis=TR
 barplot.by.phenotype <- function(plot.df, bar.hex=0.5, case.control.sep=1/3,
                                  color.by.sig=TRUE, add.top.axis=TRUE, top.axis.units=NULL,
                                  title="Value", orient.cases="top",
+                                 custom.pheno.labels=NULL,
                                  parmar=c(0.2, 4.1, 2.1, 4)){
   # Get plot dimensions
   xlims <- c(0, min(c(2*max(plot.df[, c(1, 4)]), max(plot.df[, 1:6]))))
@@ -197,8 +200,12 @@ barplot.by.phenotype <- function(plot.df, bar.hex=0.5, case.control.sep=1/3,
                title=title, infinite.positive=TRUE,
                label.line=-0.8, title.line=0.1, max.ticks=5)
   }
-  axis(2, at=y.mids, tick=F, line=-0.85, las=2, cex.axis=5.5/6,
-       labels=cancer.names.short[rownames(plot.df)])
+  y.labels <- if(!is.null(custom.pheno.labels)){
+    custom.pheno.labels
+  }else{
+    cancer.names.short[rownames(plot.df)]
+  }
+  axis(2, at=y.mids, tick=F, line=-0.85, las=2, cex.axis=5.5/6, labels=y.labels)
 
   # Add control bars
   rect(ybottom=y.mids-(bar.hex/2)+control.sep,
@@ -216,12 +223,19 @@ barplot.by.phenotype <- function(plot.df, bar.hex=0.5, case.control.sep=1/3,
 
   # Add bars, CI ticks, and outer borders
   sig.idx <- which(plot.df[, 7] < 0.05)
-  bar.cols <- sapply(rownames(plot.df), function(pheno){cancer.palettes[[pheno]]["light1"]})
-  ci.cols <- cancer.colors[rownames(plot.df)]
+  bar.pals <- lapply(rownames(plot.df), function(pheno){
+    if(pheno %in% names(cancer.palettes)){
+      cancer.palettes[[pheno]]
+    }else{
+      cancer.palettes[["pancan"]]
+    }
+  })
+  bar.cols <- sapply(bar.pals, function(pal){pal["light1"]})
+  ci.cols <- sapply(bar.pals, function(pal){pal["main"]})
   if(color.by.sig){
-    if(length(sig.idx) > 0){
-      bar.cols[sig.idx] <- cancer.colors[rownames(plot.df)[sig.idx]]
-      ci.cols[sig.idx] <- sapply(rownames(plot.df)[sig.idx], function(pheno){cancer.palettes[[pheno]]["dark1"]})
+    for(i in sig.idx){
+      bar.cols[i] <- bar.pals[[i]]["main"]
+      ci.cols[i] <- bar.pals[[i]]["dark1"]
     }
   }
   rect(ybottom=y.mids-(bar.hex/2)+case.sep,

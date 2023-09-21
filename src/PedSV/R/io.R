@@ -130,7 +130,7 @@ load.sample.metadata <- function(tsv.in, keep.samples=NULL, reassign.parents=TRU
   # Reorder columns and sort on sample ID before returning
   out.col.order <- c("study_phase", "batch", "study", "disease", "proband", "family_id",
                      colnames(df)[grep("_control$", colnames(df))],
-                     "reported_ancestry", "inferred_ancestry", "inferred_sex",
+                     "reported_ancestry", "inferred_ancestry", "inferred_sex", "age",
                      "insert_size", "median_coverage", "wgd_score",
                      colnames(df)[grep("^PC", colnames(df))],
                      colnames(df)[grep("_CopyNumber$", colnames(df))],

@@ -8,7 +8,7 @@ pedsv.glm(
   meta,
   X,
   Y,
-  use.N.pcs = 3,
+  use.N.pcs = 4,
   family = gaussian(),
   extra.terms = NULL,
   firth.fallback = TRUE,
@@ -26,7 +26,7 @@ pedsv.glm(
 \item{Y}{Vector of values for dependent variable. See \link{prep.glm.matrix}.}
 
 \item{use.N.pcs}{Specify how many principal components should be adjusted in
-model [default: 3]}
+model [default: 4]}
 
 \item{family}{\code{family} parameter passed to \link{glm}}
 

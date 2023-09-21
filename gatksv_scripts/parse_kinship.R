@@ -17,8 +17,8 @@ options(stringsAsFactors=FALSE)
 args <- commandArgs(trailingOnly=T)
 
 # # DEV:
-# args <- c("~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/data/ancestry_and_relatedness/PedSV.v2.polished.kinship.tsv.gz",
-#           "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_v2_callset_generation/v2_mega_batching/gatk_sv_pediatric_cancers_combined_sample_data_model_updated_links_6_2_23_with_annotations_for_batching.w_batch_assignments.tsv.gz")
+# args <- c("/Users/ryan/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/data/ancestry_and_relatedness/PedSV.v2.3.polished.kinship.tsv.gz",
+#           "/Users/ryan/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_v2_callset_generation/v2_mega_batching/gatk_sv_pediatric_cancers_combined_sample_data_model_updated_links_6_2_23_with_annotations_for_batching.w_batch_assignments.tsv.gz")
 
 # Load data
 kin <- read.table(args[1], header=T, sep="\t", comment.char="")
@@ -30,8 +30,8 @@ cancer.parents <- meta[which(meta$study_phase == "trio" & meta$study != "1000G" 
 pruned <- c(all.1kg, cancer.parents)
 kin <- kin[apply(kin, 1, function(v){all(!(v %in% pruned))}), ]
 
-# Only bother with third degree relatives or closer
-kin <- kin[which(kin$kin >= 1/16), ]
+# Only bother with approximately second degree relatives or closer
+kin <- kin[which(kin$kin >= 0.1), ]
 sids <- names(sort(table(c(kin$X.sample_1, kin$sample_2)), decreasing=T))
 
 # Prioritize retaining cases over controls

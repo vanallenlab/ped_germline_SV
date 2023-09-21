@@ -27,17 +27,14 @@ def melt_meta(meta, keepers):
     """
 
     def __build_entry(sdat):
-        if sdat.study_phase == 'case_control':
+        if sdat.disease == 'control' \
+        and (sdat.proband == 'No' or sdat.isnull().proband):
+            pheno = 'control'
+        elif sdat.disease != 'control' \
+        and (sdat.proband == 'Yes' or sdat.isnull().proband):
             pheno = sdat.disease
         else:
-            if sdat.disease == 'control' \
-            and (sdat.proband == 'No' or sdat.isnull().proband):
-                pheno = 'control'
-            elif sdat.disease != 'control' \
-            and sdat.proband == 'Yes':
-                pheno = sdat.disease
-            else:
-                pheno = None
+            pheno = None
 
         return {'pop' : sdat.ancestry_inferred_by_SVs,
                 'pheno' : pheno,

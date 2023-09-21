@@ -78,7 +78,8 @@ query.ad.matrix <- function(ad, query.regions=NULL, query.ids=NULL,
       incon <- gzfile(ad, open="r")
       ad.header <- unlist(strsplit(readLines(incon, 1), split="\t"))
       close(incon)
-      ad <- as.data.frame(bedr::tabix(region=tabix.query, file.name=ad))
+      ad <- as.data.frame(bedr::tabix(region=tabix.query, file.name=ad),
+                          check.names=F)
     }
     if(!is.null(query.ids)){
       ad <- ad[which(ad[, 4] %in% query.ids), ]
@@ -108,7 +109,8 @@ query.ad.matrix <- function(ad, query.regions=NULL, query.ids=NULL,
   }
 
   # Ensure all values are numeric
-  ad <- data.frame(sapply(ad, as.numeric), row.names=rownames(ad))
+  ad <- as.data.frame(do.call("cbind", lapply(ad, as.numeric)),
+                      row.names=rownames(ad), check.names=F)
 
   # Lastly, apply various compression strategies prior to returning
   compress.ad.matrix(ad[which(!is.na(colnames(ad)))],
@@ -171,7 +173,8 @@ compress.ad.matrix <- function(ad.df, action, weights=NULL,
       }
     }
   }
-  ad.df <- as.data.frame(apply(ad.df, 2, function(vals){vals * ordered.weights}))
+  ad.df <- as.data.frame(apply(ad.df, 2, function(vals){vals * ordered.weights}),
+                         check.names=F)
 
   if(action == "verbose"){
     query.res <- ad.df
