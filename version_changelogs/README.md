@@ -1,6 +1,6 @@
 ## Change logs for study callset versions
 
-#### Version 2.3 (release date TBD)
+#### Version 2.3 (release date September 25, 2023)
 - Flagged all variants with `SL_MAX` < 0 as non-PASS  
 - Compared population-specific frequencies for all relatively uncommon (AF<5%) SVs between GMKF vs. St. Jude + ICGC. Marked all variants with significant (P<0.01) discrepancies in frequencies between cohorts with `INTERCOHORT_HETEROGENEITY`.  
 - Compared population-specific frequencies for all relatively uncommon (AF<5%) SVs between MESA + BioMe. Marked all variants with significant (P<0.01) discrepancies in frequencies between cohorts with `INTERCOHORT_HETEROGENEITY`.  

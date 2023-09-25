@@ -144,8 +144,12 @@ query.ad.matrix <- function(ad, query.regions=NULL, query.ids=NULL,
 #' @export
 compress.ad.matrix <- function(ad.df, action, weights=NULL,
                                na.behavior="threshold", na.frac=0.05){
-  if(nrow(ad.df) < 2){
+  if(nrow(ad.df) == 0){
     return(ad.df)
+  }else if(nrow(ad.df) == 1){
+    ad.vals <- as.numeric(ad.df[1, ])
+    names(ad.vals) <- colnames(ad.df)
+    return(ad.vals)
   }
   if(na.behavior == "all"){
     na.fx <- all
