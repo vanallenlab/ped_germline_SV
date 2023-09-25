@@ -21,12 +21,12 @@ new_infos = ['##INFO=<ID=AF,Number=A,Type=Float,Description="Allele frequency">'
              '##INFO=<ID=FAILED_COHORT_COMPARISONS,Number=.,Type=String,Description=' + \
              '"Pairs of cohorts with significantly different frequencies">',
              '##INFO=<ID=HG38_REF_PATCH_LOCUS,Number=0,Type=Flag,Description="This ' + \
-             'variant is at least 20\% covered by reference fix patch loci contigs">']
+             'variant is at least 20% covered by reference fix patch loci contigs">']
 new_filts = ['##FILTER=<ID=UNRELIABLE_RD_GENOTYPES,Description="This variant is ' + \
              'enriched for non-reference GTs in unreliable samples and is ' + \
              'therefore less reliable overall.">',
              '##FILTER=<ID=HG38_ALT_LOCUS,Description="This variant is at ' + \
-             'least 20\% covered by loci with alternate contigs">',
+             'least 20% covered by loci with alternate contigs">',
              '##FILTER=<ID=MANUAL_FAIL,Description="This variant failed ' +
              'post hoc manual review and should not be trusted.">',
              '##FILTER=<ID=LOW_SL_MAX,Description="This variant had no non-reference' + \

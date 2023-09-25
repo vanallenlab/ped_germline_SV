@@ -7,6 +7,7 @@
 - Tagged all variants with >20% coverage by hg38 reference fix patches with `HG38_PATCH_LOCUS` in `INFO`; note that `FILTER` for these variants remained unchanged.  
 - Increased minimum kinship coefficient cutoff from 1/16 to 0.1 (slightly more lenient than second-degree relatives).  
 - Reconfigured study phase assignment for cases such that each phase only ever has cases from St. Jude or GMKF (but not both) for each disease.  
+- Switched from using full gnomAD v3.1 frequencies to the non-cancer subset of gnomAD v3.1. Note that the freuqency annotation variable names have not changed, but the underlying data has.  
 - Default behavior of `PedSV::load.sv.bed()` now no longer reads all population- and sex-specific frequency information into memory. Old (verbose) behavior can be restored by setting `keep.all.pop.frequencies` and `keep.all.sex.frequencies` to `TRUE`. See `?PedSV::load.sv.bed` for more info.  
 
 #### Version 2.2.1 (release date September 7, 2023)

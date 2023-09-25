@@ -4,7 +4,7 @@
 \alias{filter.bed}
 \title{Filter an SV BED}
 \usage{
-\method{filter}{bed}(
+filter.bed(
   bed,
   query,
   af.field = "POPMAX_AF",
