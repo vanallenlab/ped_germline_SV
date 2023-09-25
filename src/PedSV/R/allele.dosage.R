@@ -5,7 +5,7 @@
 #    in Pediatric Cancers     #
 ###############################
 
-# Copyright (c) 2023-Present Ryan L. Collins, Riaz Gillani, and the Van Allen Laboratory
+# Copyright (c) 2023-Present Ryan L. Collins, Riaz Gillani, Jett Crowdis, and the Van Allen Laboratory
 # Distributed under terms of the GNU GPL v2.0 License (see LICENSE)
 # Contact: Ryan L. Collins <Ryan_Collins@dfci.harvard.edu>
 
@@ -78,7 +78,8 @@ query.ad.matrix <- function(ad, query.regions=NULL, query.ids=NULL,
       incon <- gzfile(ad, open="r")
       ad.header <- unlist(strsplit(readLines(incon, 1), split="\t"))
       close(incon)
-      ad <- as.data.frame(bedr::tabix(region=tabix.query, file.name=ad))
+      ad <- as.data.frame(bedr::tabix(region=tabix.query, file.name=ad),
+                          check.names=F)
     }
     if(!is.null(query.ids)){
       ad <- ad[which(ad[, 4] %in% query.ids), ]
@@ -108,7 +109,8 @@ query.ad.matrix <- function(ad, query.regions=NULL, query.ids=NULL,
   }
 
   # Ensure all values are numeric
-  ad <- data.frame(sapply(ad, as.numeric), row.names=rownames(ad))
+  ad <- as.data.frame(do.call("cbind", lapply(ad, as.numeric)),
+                      row.names=rownames(ad), check.names=F)
 
   # Lastly, apply various compression strategies prior to returning
   compress.ad.matrix(ad[which(!is.na(colnames(ad)))],
@@ -142,10 +144,8 @@ query.ad.matrix <- function(ad, query.regions=NULL, query.ids=NULL,
 #' @export
 compress.ad.matrix <- function(ad.df, action, weights=NULL,
                                na.behavior="threshold", na.frac=0.05){
-  if(nrow(ad.df) == 0){
+  if(nrow(ad.df) < 2){
     return(ad.df)
-  }else if(nrow(ad.df) == 1){
-    return(unlist(as.vector(ad.df[rownames(ad.df)[1], ])))
   }
   if(na.behavior == "all"){
     na.fx <- all
@@ -171,7 +171,8 @@ compress.ad.matrix <- function(ad.df, action, weights=NULL,
       }
     }
   }
-  ad.df <- as.data.frame(apply(ad.df, 2, function(vals){vals * ordered.weights}))
+  ad.df <- as.data.frame(apply(ad.df, 2, function(vals){vals * ordered.weights}),
+                         check.names=F)
 
   if(action == "verbose"){
     query.res <- ad.df

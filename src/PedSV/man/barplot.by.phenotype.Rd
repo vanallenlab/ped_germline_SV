@@ -13,6 +13,7 @@
   top.axis.units = NULL,
   title = "Value",
   orient.cases = "top",
+  custom.pheno.labels = NULL,
   parmar = c(0.2, 4.1, 2.1, 4)
 )
 }
@@ -31,6 +32,9 @@
 numeric) or "percent" [default: NULL]}
 
 \item{title}{Custom title for top axis}
+
+\item{custom.pheno.labels}{Custom phenotype labels for the groups on the
+Y axis, if desired.}
 
 \item{parmar}{Value of \code{mar} passed to \code{par()}}
 }

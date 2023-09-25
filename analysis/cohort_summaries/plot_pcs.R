@@ -5,7 +5,7 @@
 #    in Pediatric Cancers     #
 ###############################
 
-# Copyright (c) 2023-Present Ryan L. Collins, Riaz Gillani, and the Van Allen Laboratory
+# Copyright (c) 2023-Present Ryan L. Collins, Riaz Gillani, Jett Crowdis, and the Van Allen Laboratory
 # Distributed under terms of the GNU GPL v2.0 License (see LICENSE)
 # Contact: Ryan L. Collins <Ryan_Collins@dfci.harvard.edu>
 
@@ -67,9 +67,12 @@ parser$add_argument("--out-prefix", metavar="path", type="character", required=T
 args <- parser$parse_args()
 
 # # DEV:
-# args <- list("metadata" = "~/scratch/PedSV.v2.1.cohort_metadata.w_control_assignments.tsv.gz",
-#              "subset_samples" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_v2_callset_generation/PedSV.v2.1.final_analysis_cohort.samples.list",
-#              "out_prefix" = "~/scratch/PedSV.v2.1.dev")
+# args <- list("metadata" = "~/scratch/PedSV.v2.2.cohort_metadata.w_control_assignments.tsv.gz",
+#              "subset_samples" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_v2_callset_generation/v2.2/PedSV.v2.2.final_analysis_cohort.samples.list",
+#              "out_prefix" = "~/scratch/PedSV.v2.2.dev")
+# args <- list("metadata" = "/Users/ryan/Desktop/Collins/VanAllen/jackie_younglung/younglung_metadata/YL.SV.v1.analysis_metadata.tsv",
+#              "subset_samples" = "/Users/ryan/Desktop/Collins/VanAllen/jackie_younglung/YL_analysis/YL.analysis_samples.list",
+#              "out_prefix" = "~/scratch/YL.SV.v1")
 
 # Load PCs
 keepers <- NULL
@@ -129,8 +132,8 @@ sapply(list(c(1, 2), c(3, 4)), function(pc.idxs){
                  x.title.line=axis.title.line,
                  y.title=paste("SV Principal Component", pc.idxs[2]),
                  y.title.line=axis.title.line,
-                 legend.vals=cancer.colors[which(names(cancer.colors) != "pancan")],
-                 legend.labels=disease.legend.labels[setdiff(names(cancer.colors), "pancan")],
+                 legend.vals=cancer.colors[which(names(cancer.colors) %in% unique(metadata.cancer.label.map[meta$disease]))],
+                 legend.labels=disease.legend.labels[which(names(cancer.colors) %in% unique(metadata.cancer.label.map[meta$disease]))],
                  parmar=parmar)
   dev.off()
 })

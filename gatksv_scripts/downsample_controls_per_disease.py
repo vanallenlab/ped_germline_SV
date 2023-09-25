@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2023 Ryan L. Collins, Riaz Gillani and the Van Allen Laboratory
+# Copyright (c) 2023 Ryan L. Collins, Riaz Gillani, Jett Crowdis and the Van Allen Laboratory
 # Distributed under terms of the GPL-2.0 License (see LICENSE)
 # Contact: Ryan L. Collins <Ryan_Collins@dfci.harvard.edu>
 
@@ -27,17 +27,14 @@ def melt_meta(meta, keepers):
     """
 
     def __build_entry(sdat):
-        if sdat.study_phase == 'case_control':
+        if sdat.disease == 'control' \
+        and (sdat.proband == 'No' or sdat.isnull().proband):
+            pheno = 'control'
+        elif sdat.disease != 'control' \
+        and (sdat.proband == 'Yes' or sdat.isnull().proband):
             pheno = sdat.disease
         else:
-            if sdat.disease == 'control' \
-            and (sdat.proband == 'No' or sdat.isnull().proband):
-                pheno = 'control'
-            elif sdat.disease != 'control' \
-            and sdat.proband == 'Yes':
-                pheno = sdat.disease
-            else:
-                pheno = None
+            pheno = None
 
         return {'pop' : sdat.ancestry_inferred_by_SVs,
                 'pheno' : pheno,

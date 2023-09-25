@@ -10,6 +10,7 @@ load.sv.bed(
   pass.only = TRUE,
   split.coding = TRUE,
   split.noncoding = FALSE,
+  split.mcnv.freqs = FALSE,
   drop.vids = NULL,
   drop.cohort.frequencies = c(),
   keep.all.pop.frequencies = FALSE,
@@ -25,6 +26,9 @@ load.sv.bed(
 comma-delimited strings to character vectors? [Default: TRUE]}
 
 \item{split.noncoding}{Should noncoding consequence annotations be split from
+comma-delimited strings to character vectors? [Default: FALSE]}
+
+\item{split.mcnv.freqs}{Should mCNV frequency columns be split from
 comma-delimited strings to character vectors? [Default: FALSE]}
 
 \item{drop.vids}{Either a vector or a path to a file containing variant IDs

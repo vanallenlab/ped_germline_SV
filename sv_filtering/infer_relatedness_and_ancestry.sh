@@ -8,16 +8,13 @@
 # Infer relatedness and ancestry for both cohorts in pediatric SV study
 
 # Set paths and global parameters
-export polished_vcf="gs://val-ped-nonterra-hail/PedSV.v2.2.polished_noCodingOutliers.vcf.gz"
+export polished_vcf="gs://val-ped-nonterra-hail/PedSV.v2.3.polished_noCodingOutliers.vcf.gz"
 export WRKDIR=~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab
 export CODEDIR=$WRKDIR/ped_germline_SV/
 
 # Switch to pediatric SV billing project
 old_gcloud_project=$( gcloud config list project | fgrep "project = " | cut -f2 -d\= | gsed 's/\ //g' )
 gcloud config set project vanallen-nih-ped-nonterra
-
-### Merge genotypes from matching sites across two cohorts
-# NOTE: This needs to be run in Terra using the MergeSvsBetweenCohorts.wdl method
 
 # Deploy Hail dataproc cluster
 hailctl dataproc start \
@@ -35,8 +32,8 @@ hailctl dataproc submit \
   pedsv \
   $CODEDIR/gatksv_scripts/get_kinship_and_pcs.py \
   --vcf-in $polished_vcf \
-  --pcs-out gs://val-ped-nonterra-hail/PedSV.v2.2.polished.PCs.tsv.gz \
-  --kinship-out gs://val-ped-nonterra-hail/PedSV.v2.2.polished.kinship.tsv.gz
+  --pcs-out gs://val-ped-nonterra-hail/PedSV.v2.3.polished.PCs.tsv.gz \
+  --kinship-out gs://val-ped-nonterra-hail/PedSV.v2.3.polished.kinship.tsv.gz
 
 # Shut down Hail dataproc cluster
 hailctl dataproc stop pedsv --region us-central1 
@@ -51,27 +48,27 @@ for subdir in data data/ancestry_and_relatedness; do
   fi
 done
 gsutil -m cp \
-  gs://val-ped-nonterra-hail/PedSV.v2.2.polished.*.tsv.gz \
+  gs://val-ped-nonterra-hail/PedSV.v2.3.polished.*.tsv.gz \
   $WRKDIR/data/ancestry_and_relatedness/
 
 # Assign ancestries using top 10 PCs
-if [ -e $WRKDIR/data/ancestry_and_relatedness/v2.2 ]; then
-  rm -rf $WRKDIR/data/ancestry_and_relatedness/v2.2
+if [ -e $WRKDIR/data/ancestry_and_relatedness/v2.3 ]; then
+  rm -rf $WRKDIR/data/ancestry_and_relatedness/v2.3
 fi
-mkdir $WRKDIR/data/ancestry_and_relatedness/v2.2
+mkdir $WRKDIR/data/ancestry_and_relatedness/v2.3
 ${CODEDIR}/gatksv_scripts/assign_ancestry.R \
-  --PCs $WRKDIR/data/ancestry_and_relatedness/PedSV.v2.2.polished.PCs.tsv.gz \
+  --PCs $WRKDIR/data/ancestry_and_relatedness/PedSV.v2.3.polished.PCs.tsv.gz \
   --training-labels $WRKDIR/data/ancestry_and_relatedness/1000G_HGDP_MESA_training_labels.tsv.gz \
   --testing-labels ${WRKDIR}/data/ancestry_and_relatedness/PedSV.SNV_ancestry_labels.tsv.gz \
-  --out-prefix $WRKDIR/data/ancestry_and_relatedness/v2.2/PedSV.v2.2.polished \
+  --out-prefix $WRKDIR/data/ancestry_and_relatedness/v2.3/PedSV.v2.3.polished \
   --use-N-PCs 10 \
   --min-probability 0 \
   --plot
 
 # Generate list of related samples to prune from analysis-ready VCFs
 $CODEDIR/gatksv_scripts/parse_kinship.R \
-  $WRKDIR/data/ancestry_and_relatedness/PedSV.v2.2.polished.kinship.tsv.gz \
+  $WRKDIR/data/ancestry_and_relatedness/PedSV.v2.3.polished.kinship.tsv.gz \
   $WRKDIR/PedSV_v2_callset_generation/v2_mega_batching/gatk_sv_pediatric_cancers_combined_sample_data_model_updated_links_6_2_23_with_annotations_for_batching.w_batch_assignments.tsv.gz \
-> $WRKDIR/data/ancestry_and_relatedness/v2.2/PedSV.v2.2.samples_to_exclude_for_analysis_vcfs.list
+> $WRKDIR/data/ancestry_and_relatedness/v2.3/PedSV.v2.3.samples_to_exclude_for_analysis_vcfs.list
 
 

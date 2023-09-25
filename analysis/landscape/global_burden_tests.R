@@ -5,7 +5,7 @@
 #    in Pediatric Cancers     #
 ###############################
 
-# Copyright (c) 2023-Present Ryan L. Collins, Riaz Gillani, and the Van Allen Laboratory
+# Copyright (c) 2023-Present Ryan L. Collins, Riaz Gillani, Jett Crowdis, and the Van Allen Laboratory
 # Distributed under terms of the GNU GPL v2.0 License (see LICENSE)
 # Contact: Ryan L. Collins <Ryan_Collins@dfci.harvard.edu>
 
@@ -254,17 +254,17 @@ parser$add_argument("--out-prefix", metavar="path", type="character", required=T
                     help="path/prefix for all output files")
 args <- parser$parse_args()
 
-# # DEV:
-# args <- list("bed" = c("~/scratch/PedSV.v2.2.1.case_control_cohort.analysis_samples.sites.bed.gz"),
-#              "ad" = c("~/scratch/PedSV.v2.2.1.case_control_cohort.analysis_samples.allele_dosages.bed.gz"),
-#              "metadata" = "~/scratch/PedSV.v2.2.cohort_metadata.w_control_assignments.tsv.gz",
-#              "gene_lists" = "~/scratch/PedSV.gene_lists.tsv",
-#              "genomic_disorder_hits" = NULL,
-#              "subset_samples" = "/Users/ryan/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_v2_callset_generation/v2.2/PedSV.v2.2.case_control_analysis_cohort.samples.list",
-#              "exclude_variants" = NULL,
-#              "af_field" = "POPMAX_AF",
-#              "ac_field" = "AC",
-#              "out_prefix" = "~/scratch/PedSV.v2.2.1.case_control.dev")
+# DEV:
+args <- list("bed" = c("~/scratch/PedSV.v2.2.1.case_control_cohort.analysis_samples.sites.bed.gz"),
+             "ad" = c("~/scratch/PedSV.v2.2.1.case_control_cohort.analysis_samples.allele_dosages.bed.gz"),
+             "metadata" = "~/scratch/PedSV.v2.2.cohort_metadata.w_control_assignments.tsv.gz",
+             "gene_lists" = "~/scratch/PedSV.gene_lists.tsv",
+             "genomic_disorder_hits" = NULL,
+             "subset_samples" = "/Users/ryan/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_v2_callset_generation/v2.2/PedSV.v2.2.case_control_analysis_cohort.samples.list",
+             "exclude_variants" = NULL,
+             "af_field" = "POPMAX_AF",
+             "ac_field" = "AC",
+             "out_prefix" = "~/scratch/PedSV.v2.2.1.case_control.dev")
 # args <- list("bed" = c("~/scratch/PedSV.v2.1.trio_cohort.analysis_samples.sites.bed.gz"),
 #              "ad" = c("~/scratch/PedSV.v2.1.trio_cohort.analysis_samples.allele_dosages.bed.gz"),
 #              "metadata" = "~/scratch/PedSV.v2.1.cohort_metadata.w_control_assignments.tsv.gz",

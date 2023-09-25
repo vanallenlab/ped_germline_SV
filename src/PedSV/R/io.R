@@ -5,7 +5,7 @@
 #    in Pediatric Cancers     #
 ###############################
 
-# Copyright (c) 2023-Present Ryan L. Collins, Riaz Gillani, and the Van Allen Laboratory
+# Copyright (c) 2023-Present Ryan L. Collins, Riaz Gillani, Jett Crowdis, and the Van Allen Laboratory
 # Distributed under terms of the GNU GPL v2.0 License (see LICENSE)
 # Contact: Ryan L. Collins <Ryan_Collins@dfci.harvard.edu>
 
@@ -100,7 +100,9 @@ load.sample.metadata <- function(tsv.in, keep.samples=NULL, reassign.parents=TRU
   }
 
   # Convert types as necessary
-  df$proband <- c("Yes" = TRUE, "No" = FALSE)[df$proband]
+  if("proband" %in% colnames(df)){
+    df$proband <- c("Yes" = TRUE, "No" = FALSE)[df$proband]
+  }
   PedSV::load.constants("colors")
   for(cancer in names(cancer.colors)){
     cname <- paste(cancer, "control", sep="_")
@@ -111,8 +113,10 @@ load.sample.metadata <- function(tsv.in, keep.samples=NULL, reassign.parents=TRU
 
   # Reassign parents as controls unless disabled
   if(reassign.parents){
-    parent.idxs <- which(!is.na(df$family_id) & !df$proband)
-    df[parent.idxs, "disease"] <- "control"
+    if("family_id" %in% colnames(df) & "proband" %in% colnames(df)){
+      parent.idxs <- which(!is.na(df$family_id) & !df$proband)
+      df[parent.idxs, "disease"] <- "control"
+    }
   }
 
   # Infer whether each sample carries an aneuploidy
@@ -124,14 +128,15 @@ load.sample.metadata <- function(tsv.in, keep.samples=NULL, reassign.parents=TRU
   df$any_aneuploidy <- (auto.aneu | sex.aneu)
 
   # Reorder columns and sort on sample ID before returning
+  out.col.order <- c("study_phase", "batch", "study", "disease", "proband", "family_id",
+                     colnames(df)[grep("_control$", colnames(df))],
+                     "reported_ancestry", "inferred_ancestry", "inferred_sex", "age",
+                     "insert_size", "median_coverage", "wgd_score",
+                     colnames(df)[grep("^PC", colnames(df))],
+                     colnames(df)[grep("_CopyNumber$", colnames(df))],
+                     colnames(df)[grep("_aneuploidy$", colnames(df))])
   df[sort(rownames(df)),
-     c("study_phase", "batch", "study", "disease", "proband", "family_id",
-       colnames(df)[grep("_control$", colnames(df))],
-       "reported_ancestry", "inferred_ancestry", "inferred_sex",
-       "insert_size", "median_coverage", "wgd_score",
-       colnames(df)[grep("^PC", colnames(df))],
-       colnames(df)[grep("_CopyNumber$", colnames(df))],
-       colnames(df)[grep("_aneuploidy$", colnames(df))])]
+     intersect(out.col.order, colnames(df))]
 }
 
 
@@ -145,6 +150,8 @@ load.sample.metadata <- function(tsv.in, keep.samples=NULL, reassign.parents=TRU
 #' @param split.coding Should coding consequence annotations be split from
 #' comma-delimited strings to character vectors? \[Default: TRUE\]
 #' @param split.noncoding Should noncoding consequence annotations be split from
+#' comma-delimited strings to character vectors? \[Default: FALSE\]
+#' @param split.mcnv.freqs Should mCNV frequency columns be split from
 #' comma-delimited strings to character vectors? \[Default: FALSE\]
 #' @param drop.vids Either a vector or a path to a file containing variant IDs
 #' to be excluded drop the input file. \[Default: Keep all IDs\]
@@ -165,7 +172,8 @@ load.sample.metadata <- function(tsv.in, keep.samples=NULL, reassign.parents=TRU
 #' @export
 load.sv.bed <- function(bed.in, keep.coords=TRUE, pass.only=TRUE,
                         split.coding=TRUE, split.noncoding=FALSE,
-                        drop.vids=NULL, drop.cohort.frequencies=c(),
+                        split.mcnv.freqs=FALSE, drop.vids=NULL,
+                        drop.cohort.frequencies=c(),
                         keep.all.pop.frequencies=FALSE,
                         keep.all.sex.frequencies=FALSE){
   # Load data
@@ -232,13 +240,17 @@ load.sv.bed <- function(bed.in, keep.coords=TRUE, pass.only=TRUE,
 
   # Fill gnomAD annotation info for variants with no match in gnomAD
   gnomad.idxs <- intersect(grep("^gnom", colnames(df)), grep("_AF$", colnames(df)))
-  if(length(gnomad.idxs) > 0){
+  if(length(gnomad.idxs) > 1){
     df[, gnomad.idxs] <- apply(df[, gnomad.idxs], 2, function(vals){
       vals[which(is.na(vals))] <- 0
       return(vals)
     })
+  }else if(length(gnomad.idxs) == 1){
+    df[, gnomad.idxs] <- sapply(df[, gnomad.idxs], function(vals){
+      vals[which(is.na(vals))] <- 0
+      return(vals)
+    })
   }
-
 
   # Parse list-style columns, if optioned
   list.cols <- setdiff(colnames(df)[grep("^PREDICTED_", colnames(df))], "PREDICTED_INTERGENIC")
@@ -262,22 +274,32 @@ load.sv.bed <- function(bed.in, keep.coords=TRUE, pass.only=TRUE,
   for(suf in freq.suffixes){
     hits <- c(which(colnames(df) == suf),
               grep(paste("_", suf, "$", sep=""), colnames(df)))
-    if(length(hits) > 0){
+    if(length(hits) > 1){
       df[, hits] <- apply(df[, hits], 2, as.numeric)
+    }else if(length(hits) == 1){
+      df[, hits] <- sapply(df[, hits], as.numeric)
     }
   }
 
   # Special parsing for multiallelic frequency columns
-  mcnv.freq.suffixes <- c("CN_COUNT", "CN_FREQ")
-  for(suf in mcnv.freq.suffixes){
-    hits <- c(which(colnames(df) == suf),
-              grep(paste("_", suf, "$", sep=""), colnames(df)))
-    if(length(hits) > 0){
-      df[, hits] <- apply(df[, hits], 2, function(col.vals){
-        sapply(as.character(col.vals), function(x){
-          as.numeric(unlist(strsplit(as.character(x), split=",")))
+  if(split.mcnv.freqs){
+    mcnv.freq.suffixes <- c("CN_COUNT", "CN_FREQ")
+    for(suf in mcnv.freq.suffixes){
+      hits <- c(which(colnames(df) == suf),
+                grep(paste("_", suf, "$", sep=""), colnames(df)))
+      if(length(hits) > 1){
+        df[, hits] <- apply(df[, hits], 2, function(col.vals){
+          sapply(as.character(col.vals), function(x){
+            as.numeric(unlist(strsplit(as.character(x), split=",")))
+          })
         })
-      })
+      }else if(length(hits) == 1){
+        df[, hits] <- sapply(df[, hits], function(col.vals){
+          sapply(as.character(col.vals), function(x){
+            as.numeric(unlist(strsplit(as.character(x), split=",")))
+          })
+        })
+      }
     }
   }
 

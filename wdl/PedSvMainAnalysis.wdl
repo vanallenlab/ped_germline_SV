@@ -360,7 +360,6 @@ task StudyWideSummaryPlots {
   input {
     File sample_metadata_tsv
     File samples_list
-    File analysis_samples_list
     String prefix
     String docker
   }

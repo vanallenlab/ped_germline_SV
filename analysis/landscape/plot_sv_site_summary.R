@@ -5,7 +5,7 @@
 #    in Pediatric Cancers     #
 ###############################
 
-# Copyright (c) 2023-Present Ryan L. Collins, Riaz Gillani, and the Van Allen Laboratory
+# Copyright (c) 2023-Present Ryan L. Collins, Riaz Gillani, Jett Crowdis, and the Van Allen Laboratory
 # Distributed under terms of the GNU GPL v2.0 License (see LICENSE)
 # Contact: Ryan L. Collins <Ryan_Collins@dfci.harvard.edu>
 
@@ -269,21 +269,26 @@ parser$add_argument("--out-prefix", metavar="path", type="character", required=T
 args <- parser$parse_args()
 
 # # DEV:
-# args <- list("bed" = "~/scratch/PedSV.v2.1.full_cohort_w_relatives_1000G.sites.bed.gz",
+# args <- list("bed" = "~/scratch/PedSV.v2.2.full_cohort_w_relatives_1000G.sites.bed.gz",
 #              "cohort_prefix" = "full_cohort",
 #              "af_field" = "POPMAX_AF",
 #              "ac_field" = "AC",
-#              "out_prefix" = "~/scratch/PedSV.v2.1.dev.full_cohort")
-# args <- list("bed" = "~/scratch/PedSV.v2.1.case_control_cohort.analysis_samples.sites.bed.gz",
+#              "out_prefix" = "~/scratch/PedSV.v2.2.dev.full_cohort")
+# args <- list("bed" = "~/scratch/PedSV.v2.2.1.case_control_cohort.analysis_samples.sites.bed.gz",
 #              "cohort_prefix" = "case_control",
 #              "af_field" = "POPMAX_AF",
 #              "ac_field" = "AC",
-#              "out_prefix" = "~/scratch/PedSV.v2.1.dev.case_control")
+#              "out_prefix" = "~/scratch/PedSV.v2.2.1.dev.case_control")
 # args <- list("bed" = "~/scratch/PedSV.v2.1.trio_cohort.analysis_samples.sites.bed.gz",
 #              "cohort_prefix" = "trio",
 #              "af_field" = "POPMAX_AF",
 #              "ac_field" = "AC",
 #              "out_prefix" = "~/scratch/PedSV.v2.1.dev.trio")
+# args <- list("bed" = "~/scratch/YL-gatsv-v1-allBatches.annotated.samples_excluded.bed.gz",
+#              "cohort_prefix" = "",
+#              "af_field" = "POPMAX_AF",
+#              "ac_field" = "AC",
+#              "out_prefix" = "~/scratch/YL.v1")
 
 # Infer frequency columns to use
 if(is.null(args$af_field)){
@@ -303,7 +308,8 @@ if(args$cohort_prefix == "trio"
 }
 
 # Load BED
-bed <- PedSV::load.sv.bed(args$bed, drop.cohort.frequencies=drop.cohort.freqs)
+bed <- PedSV::load.sv.bed(args$bed, drop.cohort.frequencies=drop.cohort.freqs,
+                          keep.all.pop.frequencies=TRUE)
 
 # Plot stacked bar colored by frequency and type
 pdf(paste(args$out_prefix, "sv_site_counts.pdf", sep="."),
@@ -338,11 +344,11 @@ write.table(tabulate.sizes(bed),
 pops.in.bed <- unique(sapply(colnames(bed)[grep("_AF$", colnames(bed))],
                              function(col.name){unlist(strsplit(col.name, split="_"))[1]}))
 for(pop in intersect(names(pop.colors), pops.in.bed)){
-  col.prefix <- paste(args$cohort_prefix, pop, sep="_")
+  col.prefix <- gsub("^_", "", paste(args$cohort_prefix, pop, sep="_"))
   if(!col.prefix %in% colnames(bed)){
     col.prefix <- pop
   }
-  if(col.prefix %in% colnames(bed)){
+  if(paste(col.prefix, "AF", sep="_") %in% colnames(bed)){
     cat(paste("HWE for ", pop, ":\n", sep=""))
     png(paste(args$out_prefix, pop, "HWE.png", sep="."),
         height=1000, width=1000, res=400)
