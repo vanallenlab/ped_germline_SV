@@ -21,7 +21,7 @@
 #' @param X Vector of values for primary independent variable. See `Details`.
 #' @param Y Vector of values for dependent variable. See `Details`.
 #' @param use.N.pcs Specify how many principal components should be adjusted in
-#' model \[default: 4\]
+#' model \[default: 3\]
 #' @param extra.terms Specify if any extra terms should be added to the model.
 #' Named options include:  "batch", "coverage, "insert.size", and "wgd".
 #' Custom terms can be passed using their exact column names in `meta`.
@@ -40,7 +40,7 @@
 #'
 #' @export prep.glm.matrix
 #' @export
-prep.glm.matrix <- function(meta, X, Y, use.N.pcs=4, extra.terms=NULL){
+prep.glm.matrix <- function(meta, X, Y, use.N.pcs=3, extra.terms=NULL){
   # Standard covariates
   df <- data.frame("is.female" = as.numeric(meta$inferred_sex == "FEMALE"
                                             | meta$chrX_CopyNumber > 1.5),
@@ -170,7 +170,7 @@ get.phenotype.vector <- function(case.ids, control.ids){
 #' @param X Vector of values for primary independent variable. See [PedSV::prep.glm.matrix].
 #' @param Y Vector of values for dependent variable. See [PedSV::prep.glm.matrix].
 #' @param use.N.pcs Specify how many principal components should be adjusted in
-#' model \[default: 4\]
+#' model \[default: 3\]
 #' @param family `family` parameter passed to [glm]
 #' @param extra.terms Extra covariate terms to include in model. See [PedSV::prep.glm.matrix].
 #' @param firth.fallback Attempt to use Firth bias-reduced logistic regression when
@@ -193,7 +193,7 @@ get.phenotype.vector <- function(case.ids, control.ids){
 #'
 #' @export pedsv.glm
 #' @export
-pedsv.glm <- function(meta, X, Y, use.N.pcs=4, family=gaussian(), extra.terms=NULL,
+pedsv.glm <- function(meta, X, Y, use.N.pcs=3, family=gaussian(), extra.terms=NULL,
                       firth.fallback=TRUE, strict.fallback=TRUE,
                       nonstrict.se.tolerance=10, firth.always=FALSE,
                       return.all.coefficients=FALSE){

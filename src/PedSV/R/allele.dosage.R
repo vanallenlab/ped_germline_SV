@@ -145,7 +145,13 @@ query.ad.matrix <- function(ad, query.regions=NULL, query.ids=NULL,
 compress.ad.matrix <- function(ad.df, action, weights=NULL,
                                na.behavior="threshold", na.frac=0.05){
   if(nrow(ad.df) < 2){
-    return(ad.df)
+    if(nrow(ad.df) == 0 | action == "verbose"){
+      return(ad.df)
+    }else{
+      ad.vals <- as.numeric(ad.df[1, ])
+      names(ad.vals) <- colnames(ad.df)
+      return(ad.vals)
+    }
   }
   if(na.behavior == "all"){
     na.fx <- all
@@ -225,14 +231,12 @@ compress.ad.matrix <- function(ad.df, action, weights=NULL,
 #' @export
 query.ad.from.sv.bed <- function(ad, bed, action="verbose", weights=NULL, padding=5,
                                  keep.samples=NULL){
-  # Make query intervals list from BED
-  query.regions <- lapply(1:nrow(bed), function(i){
-    c(bed[i, "chrom"], bed[i, "start"] - padding, bed[i, "start"] + padding)
-  })
-  query.ids <- rownames(bed)
-
-  # Query AD matrix
-  if(length(query.regions) > 0){
+  # Make query intervals list from BED & query AD matrix
+  if(nrow(bed) > 0){
+    query.regions <- lapply(1:nrow(bed), function(i){
+      c(bed[i, "chrom"], bed[i, "start"] - padding, bed[i, "start"] + padding)
+    })
+    query.ids <- rownames(bed)
     query.ad.matrix(ad, query.regions, query.ids=query.ids, action=action,
                     weights=weights, keep.samples=keep.samples)
   }else{

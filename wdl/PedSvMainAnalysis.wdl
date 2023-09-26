@@ -15,7 +15,7 @@
 version 1.0
 
 
-import "https://raw.githubusercontent.com/vanallenlab/ped_germline_SV/rlc_landscape_v2.2/wdl/SvGenicRvas.wdl" as Rvas
+import "https://raw.githubusercontent.com/vanallenlab/ped_germline_SV/main/wdl/SvGenicRvas.wdl" as Rvas
 
 
 workflow PedSvMainAnalysis {
@@ -89,7 +89,6 @@ workflow PedSvMainAnalysis {
     input:
       sample_metadata_tsv = sample_metadata_tsv,
       samples_list = full_cohort_samples_list,
-      analysis_samples_list = all_samples_list,
       prefix = study_prefix,
       docker = pedsv_r_docker
   }
