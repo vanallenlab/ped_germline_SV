@@ -29,8 +29,6 @@ new_filts = ['##FILTER=<ID=UNRELIABLE_RD_GENOTYPES,Description="This variant is 
              'least 20% covered by loci with alternate contigs">',
              '##FILTER=<ID=MANUAL_FAIL,Description="This variant failed ' +
              'post hoc manual review and should not be trusted.">',
-             '##FILTER=<ID=LOW_SL_MAX,Description="This variant had no non-reference' + \
-             'samples with SL above 0 and is therefore a likely false positive.">',
              '##FILTER=<ID=INTERCOHORT_HETEROGENEITY,Description="This variant ' + \
              'was genotyped at significantly different frequencies between at least ' + \
              'one pair of cohorts. Only applied to rare SVs (AF<1%). See ' + \
@@ -123,6 +121,25 @@ def clean_rd_genos(record, bad_rd_samples):
     for sid in bad_rd_samples:
         if record.samples[sid]['EV'] == ('RD', ):
             record.samples[sid]['GT'] = (None, None)
+
+    return record
+
+
+def prune_gts_by_sl(record, min_sl=1):
+    """
+    Null out all GTs based on a minimum permitted scaled likelihood (SL)
+    """
+
+    for sid, sdat in record.samples.items():
+        GT = [int(a) for a in sdat['GT'] if a is not None]
+        if len(GT) == 0:
+            continue
+        SL = sdat.get('SL', 100)
+        # Need to negate SL for ref GTs
+        if all(a == 0 for a in GT):
+            SL = -SL
+        if SL < min_sl:
+            record.samples[sid]['GT'] = tuple([None] * len(sdat['GT']))
 
     return record
 
@@ -427,12 +444,6 @@ def main():
             if key in record.info.keys():
                 record.info.pop(key)
 
-        # Tag variants with SL_MAX ≤ 0 as failing
-        slm = record.info.get('SL_MAX', None)
-        if slm is not None:
-            if slm <= 0:
-                record.filter.add('LOW_SL_MAX')
-
 
         ### Second, edit genotypes as needed ###
 
@@ -441,6 +452,12 @@ def main():
         and len(bad_rd_samples) > 0:
             record = clean_rd_genos(record, bad_rd_samples)
 
+        # Mask GTs with SL <= 0 for variants with only one EVIDENCE or ALGORITHM
+        if not is_multiallelic(record):
+            if len(record.info.get('ALGORITHMS')) < 2 \
+            or len(record.info.get('EVIDENCE')) < 2:
+                record = prune_gts_by_sl(record, min_sl=1)
+                
         # Update AC/AN/AF
         if not is_multiallelic(record):
             record = update_af(record)
