@@ -26,6 +26,7 @@ workflow SvGwas {
     File ref_fai
     String prefix
 
+    File? custom_gwas_script
     String bcftools_query_options = ""
 
     String pedsv_docker
@@ -57,6 +58,7 @@ workflow SvGwas {
         samples_list = samples_list,
         variant_ids_to_test = PrepVariants.vids_list,
         prefix = prefix + "." + contig,
+        custom_gwas_script = custom_gwas_script,
         docker = pedsv_r_docker
     }
   }
@@ -129,17 +131,20 @@ task ContigGwas {
     String prefix
     String docker
 
+    File? custom_gwas_script
+
     Float mem_gb = 15.5
     Int n_cpu = 8
   }
 
   Int disk_gb = ceil(2 * size(ad_matrix, "GB"))
+  String gwas_script = select_first([custom_gwas_script, "/opt/ped_germline_SV/analysis/association/sv_gwas.R"])
 
   command <<<
     set -eu -o pipefail
 
     # Run association test for all qualifying variants
-    /opt/ped_germline_SV/analysis/association/sv_gwas.R \
+    ~{gwas_script} \
       --ad ~{ad_matrix} \
       --vids ~{variant_ids_to_test} \
       --metadata ~{sample_metadata_tsv} \

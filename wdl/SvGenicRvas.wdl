@@ -27,6 +27,7 @@ workflow SvGenicRvas {
     File ref_fai
     String prefix
 
+    File? custom_rvas_script
     File? exclude_regions
     Float? exclusion_frac_overlap
 
@@ -59,6 +60,7 @@ workflow SvGenicRvas {
         samples_list = samples_list,
         eligible_genes_bed = PreprocessGtf.eligible_genes_bed,
         prefix = prefix + "." + contig,
+        custom_rvas_script = custom_rvas_script,
         docker = pedsv_r_docker
     }
   }
@@ -128,11 +130,14 @@ task ContigRvas {
     String prefix
     String docker
 
+    File? custom_rvas_script
+
     Float mem_gb = 15.5
     Int n_cpu = 8
   }
 
   Int disk_gb = ceil(1.5 * size([sites_bed, ad_matrix], "GB"))
+  String rvas_script = select_first([custom_rvas_script, "/opt/ped_germline_SV/analysis/association/sv_genic_rvas.R"])
 
   command <<<
     set -eu -o pipefail
@@ -141,7 +146,7 @@ task ContigRvas {
     if [ $( cat ~{eligible_genes_bed} | wc -l ) -eq 0 ]; then
       touch ~{prefix}.sv_rvas_sumstats.bed
     else
-      /opt/ped_germline_SV/analysis/association/sv_genic_rvas.R \
+      ~{rvas_script} \
         --bed ~{sites_bed} \
         --ad ~{ad_matrix} \
         --genes ~{eligible_genes_bed} \

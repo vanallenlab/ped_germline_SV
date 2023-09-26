@@ -275,6 +275,16 @@ args <- parser$parse_args()
 #              "af_field" = "POPMAX_AF",
 #              "ac_field" = "AC",
 #              "out_prefix" = "~/scratch/PedSV.v2.1.trio.dev")
+# args <- list("bed" = c("~/scratch/PedSV.v2.3.full_cohort.analysis_samples.sites.bed.gz"),
+#              "ad" = c("~/scratch/PedSV.v2.3.full_cohort.analysis_samples.allele_dosages.bed.gz"),
+#              "metadata" = "~/scratch/PedSV.v2.3.cohort_metadata.w_control_assignments.tsv.gz",
+#              "gene_lists" = "~/scratch/PedSV.gene_lists.tsv",
+#              "genomic_disorder_hits" = NULL,
+#              "subset_samples" = "~/scratch/PedSV.v2.3.final_analysis_cohort.samples.list",
+#              "exclude_variants" = NULL,
+#              "af_field" = "POPMAX_AF",
+#              "ac_field" = "AC",
+#              "out_prefix" = "~/scratch/PedSV.v2.3.full_cohort.dev")
 
 # Load BEDs and pair AD paths with each
 data <- lapply(1:length(args$bed), function(i){
