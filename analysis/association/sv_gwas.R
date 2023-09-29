@@ -42,10 +42,10 @@ parser$add_argument("--out-tsv", metavar=".tsv", type="character", required=TRUE
 args <- parser$parse_args()
 
 # # DEV:
-# args <- list("vids" = "~/scratch/PedSV.v2.1.case_control_cohort.sv_gwas.chr22.vids_to_test.list",
-#              "ad" = "~/scratch/PedSV.v2.1.case_control_cohort.analysis_samples.allele_dosages.bed.gz",
-#              "metadata" = "~/scratch/PedSV.v2.1.cohort_metadata.w_control_assignments.tsv.gz",
-#              "subset_samples" = "/Users/ryan/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_v2_callset_generation/PedSV.v2.1.case_control_analysis_cohort.samples.list",
+# args <- list("vids" = "~/scratch/PedSV.v2.4.case_control_cohort.chr21.vids.list",
+#              "ad" = "~/scratch/PedSV.v2.4.case_control_cohort.analysis_samples.allele_dosages.bed.gz",
+#              "metadata" = "~/scratch/PedSV.v2.4.1.cohort_metadata.w_control_assignments.tsv.gz",
+#              "subset_samples" = "~/scratch/PedSV.v2.4.case_control_analysis_cohort.samples.list",
 #              "out_tsv" = "~/scratch/PedSV.sv_gwas.test.tsv")
 
 # Load metadata
@@ -79,8 +79,7 @@ gwas.res <- as.data.frame(do.call("rbind", lapply(rownames(ad), function(vid){
     X <- unlist(ad[vid, c(esamps$cases, esamps$controls)])
     ct <- table(data.frame(X, Y))
     if(nrow(ct) > 1 & ncol(ct) > 1){
-      glm.res <- pedsv.glm(meta, X=X, Y=Y, family=binomial(),
-                           extra.terms="cohort", firth.fallback=TRUE)
+      glm.res <- pedsv.glm(meta, X=X, Y=Y, family=binomial())
       glm.res[4] <- -log10(as.numeric(glm.res[4]))
     }else{
       glm.res <- c(NA, NA, NA, NA, "glm")

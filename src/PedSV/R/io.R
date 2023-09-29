@@ -105,9 +105,11 @@ load.sample.metadata <- function(tsv.in, keep.samples=NULL, reassign.parents=TRU
   }
   PedSV::load.constants("colors")
   for(cancer in names(cancer.colors)){
-    cname <- paste(cancer, "control", sep="_")
-    if(cname %in% colnames(df)){
-      df[, cname] <- c("True" = TRUE, "False" = FALSE)[df[, cname]]
+    for(suffix in c("case", "control")){
+      cname <- paste(cancer, suffix, sep="_")
+      if(cname %in% colnames(df)){
+        df[, cname] <- c("True" = TRUE, "False" = FALSE)[df[, cname]]
+      }
     }
   }
 
@@ -129,6 +131,7 @@ load.sample.metadata <- function(tsv.in, keep.samples=NULL, reassign.parents=TRU
 
   # Reorder columns and sort on sample ID before returning
   out.col.order <- c("study_phase", "batch", "study", "disease", "proband", "family_id",
+                     colnames(df)[grep("_case$", colnames(df))],
                      colnames(df)[grep("_control$", colnames(df))],
                      "reported_ancestry", "inferred_ancestry", "inferred_sex", "age",
                      "insert_size", "median_coverage", "wgd_score",

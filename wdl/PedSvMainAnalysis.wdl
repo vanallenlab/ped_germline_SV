@@ -66,6 +66,7 @@ workflow PedSvMainAnalysis {
     Array[File]? gene_lists
     Array[String]? gene_list_names
     File? genomic_disorder_bed
+    Float genomic_disorder_recip_frac = 0.5
     File? rvas_exclude_regions
     Float? rvas_exclusion_frac_overlap
 
@@ -266,6 +267,7 @@ workflow PedSvMainAnalysis {
       gene_lists = gene_lists,
       gene_list_names = gene_list_names,
       genomic_disorder_bed = genomic_disorder_bed,
+      genomic_disorder_recip_frac = genomic_disorder_recip_frac,
       prefix = study_prefix,
       docker = pedsv_r_docker
   }
@@ -284,6 +286,7 @@ workflow PedSvMainAnalysis {
       gene_lists = gene_lists,
       gene_list_names = gene_list_names,
       genomic_disorder_bed = genomic_disorder_bed,
+      genomic_disorder_recip_frac = genomic_disorder_recip_frac,
       prefix = study_prefix + ".trio_cohort",
       docker = pedsv_r_docker
   }
@@ -302,6 +305,7 @@ workflow PedSvMainAnalysis {
       gene_lists = gene_lists,
       gene_list_names = gene_list_names,
       genomic_disorder_bed = genomic_disorder_bed,
+      genomic_disorder_recip_frac = genomic_disorder_recip_frac,
       prefix = study_prefix + ".case_control_cohort",
       docker = pedsv_r_docker
   }

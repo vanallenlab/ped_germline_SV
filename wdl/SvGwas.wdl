@@ -29,6 +29,8 @@ workflow SvGwas {
     File? custom_gwas_script
     String bcftools_query_options = ""
 
+    Float gwas_mem_gb = 15.5
+
     String pedsv_docker
     String pedsv_r_docker
   }
@@ -59,6 +61,7 @@ workflow SvGwas {
         variant_ids_to_test = PrepVariants.vids_list,
         prefix = prefix + "." + contig,
         custom_gwas_script = custom_gwas_script,
+        mem_gb = gwas_mem_gb,
         docker = pedsv_r_docker
     }
   }
@@ -133,8 +136,7 @@ task ContigGwas {
 
     File? custom_gwas_script
 
-    Float mem_gb = 15.5
-    Int n_cpu = 8
+    Float mem_gb
   }
 
   Int disk_gb = ceil(2 * size(ad_matrix, "GB"))
@@ -161,7 +163,6 @@ task ContigGwas {
   runtime {
     docker: docker
     memory: mem_gb + " GB"
-    cpu: n_cpu
     disks: "local-disk " + disk_gb + " HDD"
     preemptible: 3
   }

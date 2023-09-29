@@ -121,15 +121,15 @@ prep.glm.matrix <- function(meta, X, Y, use.N.pcs=3, extra.terms=NULL){
 #'
 #' @return List of character vectors of sample IDs for cases and controls
 #'
-#' @details If `meta` contains columns for cancer-specific control designation,
+#' @details If `meta` contains columns for cancer-specific case and control designations,
 #' those will be used; otherwise all eligible controls will be returned
 #'
 #' @export get.eligible.samples
 #' @export
 get.eligible.samples <- function(meta, cancer){
   control.idx <- which(meta$disease == "control"
-                       & (!meta$proband & !is.na(meta$family_id))
-                       | is.na(meta$proband))
+                       & (!meta$proband & !is.na(meta$family_id)
+                          | is.na(meta$proband)))
   if(cancer == "pancan"){
     case.idx <- which(meta$disease != "control"
                       & (meta$proband | is.na(meta$proband)))
@@ -137,9 +137,13 @@ get.eligible.samples <- function(meta, cancer){
     case.idx <- which(metadata.cancer.label.map[meta$disease] == cancer
                       & (meta$proband | is.na(meta$proband)))
   }
+  case.cname <- paste(cancer, "case", sep="_")
+  if(case.cname %in% colnames(meta)){
+    case.idx <- intersect(case.idx, which(meta[, case.cname]))
+  }
   control.cname <- paste(cancer, "control", sep="_")
   if(control.cname %in% colnames(meta)){
-    control.idx <- which(meta[, control.cname])
+    control.idx <- intersect(control.idx, which(meta[, control.cname]))
   }
   list("cases" = rownames(meta)[case.idx],
        "controls" = rownames(meta)[control.idx])

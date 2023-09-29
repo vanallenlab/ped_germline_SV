@@ -14,7 +14,7 @@
   title = "Value",
   orient.cases = "top",
   custom.pheno.labels = NULL,
-  legend.on.bars = TRUE,
+  legend.on.bars = FALSE,
   parmar = c(0.2, 4.1, 2.1, 4)
 )
 }
@@ -38,7 +38,7 @@ numeric) or "percent" [default: NULL]}
 Y axis, if desired.}
 
 \item{legend.on.bars}{Should "case" and "control" labels be printed on the
-largest bars? [default: TRUE]}
+largest bars? [default: FALSE]}
 
 \item{parmar}{Value of \code{mar} passed to \code{par()}}
 }

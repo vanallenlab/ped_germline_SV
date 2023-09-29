@@ -162,7 +162,7 @@ ridgeplot <- function(data, names=NULL, hill.overlap=0.35, xlims=NULL, x.axis=TR
 #' @param custom.pheno.labels Custom phenotype labels for the groups on the
 #' Y axis, if desired.
 #' @param legend.on.bars Should "case" and "control" labels be printed on the
-#' largest bars? \[default: TRUE\]
+#' largest bars? \[default: FALSE\]
 #' @param parmar Value of `mar` passed to `par()`
 #'
 #' @details `plot.df` is expected to adhere to the following specifications:
@@ -177,7 +177,7 @@ ridgeplot <- function(data, names=NULL, hill.overlap=0.35, xlims=NULL, x.axis=TR
 barplot.by.phenotype <- function(plot.df, bar.hex=0.5, case.control.sep=0.375,
                                  color.by.sig=TRUE, add.top.axis=TRUE, top.axis.units=NULL,
                                  title="Value", orient.cases="top",
-                                 custom.pheno.labels=NULL, legend.on.bars=TRUE,
+                                 custom.pheno.labels=NULL, legend.on.bars=FALSE,
                                  parmar=c(0.2, 4.1, 2.1, 4)){
   # Get plot dimensions
   xlims <- c(0, min(c(2*max(plot.df[, c(1, 4)], na.rm=T),
@@ -222,8 +222,9 @@ barplot.by.phenotype <- function(plot.df, bar.hex=0.5, case.control.sep=0.375,
            col=cancer.palettes[["control"]]["dark1"])
   if(legend.on.bars){
     longest.control <- head(which(plot.df[, 4] == max(plot.df[, 4], na.rm=T)), 1)
-    text(x=0, y=y.mids[longest.control]+(bar.hex/5)+control.sep, pos=4,
-         label="Control", cex=4/6, col=control.colors[["dark2"]])
+    text(x=0-(0.05*diff(par("usr")[1:2])),
+         y=y.mids[longest.control]+(bar.hex/5)+control.sep,
+         pos=4, label="Control", cex=4/6, col=control.colors[["dark2"]])
   }
   rect(ybottom=y.mids-(bar.hex/2)+control.sep,
        ytop=y.mids+(bar.hex/2)+control.sep,
@@ -258,8 +259,9 @@ barplot.by.phenotype <- function(plot.df, bar.hex=0.5, case.control.sep=0.375,
            col=ci.cols)
   if(legend.on.bars){
     longest.case <- head(which(plot.df[, 1] == max(plot.df[, 1], na.rm=T)), 1)
-    text(x=0, y=y.mids[longest.case]+(bar.hex/10)+case.sep, pos=4,
-         label="Case", cex=4/6, col=bar.pals[[longest.case]][["dark2"]])
+    text(x=0-(0.05*diff(par("usr")[1:2])),
+         y=y.mids[longest.case]+(bar.hex/10)+case.sep,
+         pos=4, label="Case", cex=4/6, col=bar.pals[[longest.case]][["dark2"]])
   }
   rect(ybottom=y.mids-(bar.hex/2)+case.sep,
        ytop=y.mids+(bar.hex/2)+case.sep,
