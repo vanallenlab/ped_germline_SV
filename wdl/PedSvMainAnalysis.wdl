@@ -188,6 +188,19 @@ workflow PedSvMainAnalysis {
       docker = pedsv_r_docker
   }
 
+  call CohortSummaryPlots as AnalysisCohortSummaryPlots {
+    input:
+      bed = full_cohort_bed,
+      bed_idx = full_cohort_bed_idx,
+      prefix = study_prefix + ".full_cohort",
+      sample_metadata_tsv = sample_metadata_tsv,
+      sample_list = full_cohort_samples_list,
+      per_sample_tarball = MergeFullCohortSVsPerSample.per_sample_tarball,
+      af_field = "POPMAX_AF",
+      ac_field = "AC",
+      docker = pedsv_r_docker
+  }
+
   call CohortSummaryPlots as TrioCohortSummaryPlots {
     input:
       bed = trio_bed,
@@ -410,10 +423,13 @@ task BurdenTests {
     File samples_list
     Array[String] af_fields
     Array[String] ac_fields
+
     File? variant_exclusion_list
     Array[File]? gene_lists
     Array[String]? gene_list_names
     File? genomic_disorder_bed
+    Float genomic_disorder_recip_frac = 0.5
+    
     String prefix
     String docker
   }
@@ -454,7 +470,7 @@ task BurdenTests {
     if [ ~{defined(genomic_disorder_bed)} == "true" ]; then
       while read bed; do
         bedtools intersect \
-          -r -wa -wb -f 0.8 \
+          -r -wa -wb -f ~{genomic_disorder_recip_frac} \
           -a $bed -b ~{select_first([genomic_disorder_bed])} \
         | awk '{ if ($5==$NF) print $4 }'
       done < ~{write_lines(beds)} \

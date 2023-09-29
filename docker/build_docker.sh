@@ -24,7 +24,14 @@ if [ -z $TAG ]; then
   exit 1
 fi
 
-# Prune unused images before build (this is a common cause of failure)
+# Prune unused/old images and build cache before build
+# This is a common but usually misleading cause of failure
+while read image; do
+  docker image list \
+  | grep "$image\s" \
+  | awk '{ print $3 }' \
+  | xargs -I {} docker image rm -f {}
+done < <( echo $IMAGES | sed 's/,/\n/g' )
 docker image prune -f
 
 # Get various directories

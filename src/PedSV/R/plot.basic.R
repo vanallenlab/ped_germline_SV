@@ -153,7 +153,7 @@ ridgeplot <- function(data, names=NULL, hill.overlap=0.35, xlims=NULL, x.axis=TR
 #'
 #' @param plot.df Data.frame of values to plot. See `Details`.
 #' @param bar.hex Relative width for each bar \[default: 0.5\]
-#' @param case.control.sep Relatve separation between overlapping case and control bars \[default: 0.33\]
+#' @param case.control.sep Relative separation between overlapping case and control bars \[default: 0.375\]
 #' @param color.by.sig Should bars be shaded differently by significance level? \[default: TRUE\]
 #' @param add.top.axis Should the top axis be added? \[default: TRUE\]
 #' @param top.axis.units Specify units for top axis. Options are NULL (for
@@ -161,6 +161,8 @@ ridgeplot <- function(data, names=NULL, hill.overlap=0.35, xlims=NULL, x.axis=TR
 #' @param title Custom title for top axis
 #' @param custom.pheno.labels Custom phenotype labels for the groups on the
 #' Y axis, if desired.
+#' @param legend.on.bars Should "case" and "control" labels be printed on the
+#' largest bars? \[default: TRUE\]
 #' @param parmar Value of `mar` passed to `par()`
 #'
 #' @details `plot.df` is expected to adhere to the following specifications:
@@ -172,10 +174,10 @@ ridgeplot <- function(data, names=NULL, hill.overlap=0.35, xlims=NULL, x.axis=TR
 #'
 #' @export barplot.by.phenotype
 #' @export
-barplot.by.phenotype <- function(plot.df, bar.hex=0.5, case.control.sep=1/3,
+barplot.by.phenotype <- function(plot.df, bar.hex=0.5, case.control.sep=0.375,
                                  color.by.sig=TRUE, add.top.axis=TRUE, top.axis.units=NULL,
                                  title="Value", orient.cases="top",
-                                 custom.pheno.labels=NULL,
+                                 custom.pheno.labels=NULL, legend.on.bars=TRUE,
                                  parmar=c(0.2, 4.1, 2.1, 4)){
   # Get plot dimensions
   xlims <- c(0, min(c(2*max(plot.df[, c(1, 4)], na.rm=T),
@@ -218,6 +220,11 @@ barplot.by.phenotype <- function(plot.df, bar.hex=0.5, case.control.sep=1/3,
            y1=y.mids+control.sep,
            x0=plot.df[, 5], x1=plot.df[, 6], lwd=2, lend="butt",
            col=cancer.palettes[["control"]]["dark1"])
+  if(legend.on.bars){
+    longest.control <- head(which(plot.df[, 4] == max(plot.df[, 4], na.rm=T)), 1)
+    text(x=0, y=y.mids[longest.control]+(bar.hex/5)+control.sep, pos=4,
+         label="Control", cex=4/6, col=control.colors[["dark2"]])
+  }
   rect(ybottom=y.mids-(bar.hex/2)+control.sep,
        ytop=y.mids+(bar.hex/2)+control.sep,
        xleft=0, xright=plot.df[, 4],
@@ -249,6 +256,11 @@ barplot.by.phenotype <- function(plot.df, bar.hex=0.5, case.control.sep=1/3,
            y1=y.mids+case.sep,
            x0=plot.df[, 2], x1=plot.df[, 3], lwd=2, lend="butt",
            col=ci.cols)
+  if(legend.on.bars){
+    longest.case <- head(which(plot.df[, 1] == max(plot.df[, 1], na.rm=T)), 1)
+    text(x=0, y=y.mids[longest.case]+(bar.hex/10)+case.sep, pos=4,
+         label="Case", cex=4/6, col=bar.pals[[longest.case]][["dark2"]])
+  }
   rect(ybottom=y.mids-(bar.hex/2)+case.sep,
        ytop=y.mids+(bar.hex/2)+case.sep,
        xleft=0, xright=plot.df[, 1],
