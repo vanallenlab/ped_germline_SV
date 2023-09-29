@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 import random
 import string
-from scipy.stats import chisquare
+from scipy.stats import chisquare, fisher_exact
 
 
 ascii_idx = {l : i + 1 for i, l in enumerate(string.ascii_lowercase)}
@@ -65,7 +65,8 @@ def remove_sample(samples, sid):
 
 
 def balance_ancestries(samples, require={}, seed=2023, abs_fold=True,
-                       allow_drop_cases=True, return_keepers=False, verbose=False):
+                       allow_drop_cases=True, case_weight=1,
+                       return_keepers=False, verbose=False):
     """
     Downsample controls to balance ancestry distributions between cases and controls
     """
@@ -99,13 +100,48 @@ def balance_ancestries(samples, require={}, seed=2023, abs_fold=True,
         x2 = chisquare(k_case, ratio * k_ctrl)
         return x2.pvalue
 
-    def __get_fold(counts, abs_fold=True):
+    def __get_fold(counts, abs_fold=True, biggest_step_always=True, case_weight=1):
         fold = counts.loc[False, :] / counts.loc[True, :]
+        total_fold = counts.loc[False, :].sum() / counts.loc[True, :].sum()
         if abs_fold:
-            order = np.log2(fold).abs().sort_values(ascending=False).index
+            if biggest_step_always:
+                # When this option is enabled, we prioritize removing samples
+                # from whichever population that will require the *fewest*
+                # total samples removed to reach equilibrium with the other populations
+                # Hence, the "biggest" step
+
+                # Compute number of sample drops per population required 
+                # to reach equilibrium with all other populations
+                targets = pd.Series()
+                for pop in fold.index:
+                    other_counts = counts.loc[:, counts.columns != pop].sum(axis=1)
+                    other_fold = other_counts.loc[False] / other_counts.loc[True]
+                    n_case = counts.loc[True, pop]
+                    n_ctrl = counts.loc[False, pop]
+                    n_other_case = other_counts[True]
+                    n_other_ctrl = other_counts[False]
+
+                    if fold[pop] >= other_fold:
+                        targets[pop] = n_ctrl - (n_case * other_fold)
+                    else:
+                        targets[pop] = case_weight * (n_case - (n_ctrl / other_fold))
+
+                    # Test to ensure ratio is significantly different from other_fold
+                    fisher_p = fisher_exact(np.array([other_counts, counts.loc[:, pop]]))[1]
+
+                    # Set target to an absurdly large number if ratio is not 
+                    # significantly different from all other pops (e.g., this pop)
+                    # does not need to be pruned
+                    if fisher_p >= 0.05:
+                        targets[pop] = 10e6
+
+                order = targets.sort_values(ascending=True).index
+
+            else:
+                order = np.log2(fold).abs().sort_values(ascending=False).index
         else:
             order = np.log2(fold).sort_values(ascending=False).index
-        return fold[order]
+        return fold[order], total_fold
 
     counts = __count_pops(samples_subset)
     if verbose:
@@ -125,10 +161,10 @@ def balance_ancestries(samples, require={}, seed=2023, abs_fold=True,
     counts = counts.loc[:, ~pop_is_quasi_empty]
     pval = __compare_pops(counts)
     random.seed(seed)
-    while pval < 0.05 or np.isnan(pval):
-        fold = __get_fold(counts, abs_fold=abs_fold)
+    while pval < 0.01 or np.isnan(pval):
+        fold, total_fold = __get_fold(counts, abs_fold=abs_fold, case_weight=case_weight)
         pop = fold.index[0]
-        if fold[pop] >= 1 or not allow_drop_cases:
+        if fold[pop] >= total_fold or not allow_drop_cases:
             pop_sids = [sid for sid, vals in samples_subset.items() \
                         if vals['pop'] == pop and vals['pheno'] == 'control']
         else:
@@ -153,20 +189,24 @@ def balance_ancestries(samples, require={}, seed=2023, abs_fold=True,
     return samples
 
 
-def rebalance_cancer(samples, cancer):
+def rebalance_cancer(samples, cancer, allow_drop_cases=False, case_weight=1):
     """
     Conduct ancestry matching separately for case:control and trio arms 
     """
 
     seed = int(''.join([str(ascii_idx[l]) for l in cancer]))
 
+    if cancer == 'pancan':
+        n_case_start = len([s for s, v in samples.items() if v['pheno'] in 'ewing neuroblastoma osteosarcoma'.split()])
+    else:
+        n_case_start = len([s for s, v in samples.items() if v['pheno'] == cancer])
     n_ctrl_start = len([s for s, v in samples.items() if v['pheno'] == 'control'])
 
     print('\n\nNow pruning ' + cancer + ':')
-    keepers = []
+    case_keepers, ctrl_keepers = [], []
 
     def _pheno_match(svals, pheno):
-        if pheno == 'pancan':
+        if cancer == 'pancan':
             return svals['pheno'] in 'ewing neuroblastoma osteosarcoma'.split()
         else:
             return svals['pheno'] == pheno
@@ -182,10 +222,15 @@ def rebalance_cancer(samples, cancer):
             balance_ancestries(samples.copy(), 
                                require={'pheno' : req_phenos, 
                                         'validation' : True}, 
-                               seed=seed, abs_fold=False, 
-                               allow_drop_cases=False, 
+                               seed=seed, abs_fold=allow_drop_cases, 
+                               allow_drop_cases=allow_drop_cases,
+                               case_weight=case_weight, 
                                return_keepers=True, verbose=True)
-        keepers += [s for s, v in validation_samples.items() if v ['pheno'] == 'control']
+        if cancer == 'pancan':
+            case_keepers = [s for s, v in validation_samples.items() if v ['pheno'] in 'ewing neuroblastoma osteosarcoma'.split()]
+        else:
+            case_keepers = [s for s, v in validation_samples.items() if v ['pheno'] == cancer]
+        ctrl_keepers += [s for s, v in validation_samples.items() if v ['pheno'] == 'control']
 
     if len([v for v in samples.values() if _pheno_match(v, cancer) and not v['validation']]) > 0:
         print('\nTrio/replication cohort summary:')
@@ -193,16 +238,22 @@ def rebalance_cancer(samples, cancer):
             balance_ancestries(samples.copy(), 
                                require={'pheno' : req_phenos, 
                                         'validation' : False}, 
-                               seed=seed, abs_fold=False, 
-                               allow_drop_cases=False, 
+                               seed=seed, abs_fold=allow_drop_cases, 
+                               allow_drop_cases=allow_drop_cases, 
                                return_keepers=True, verbose=True)
-        keepers += [s for s, v in trio_samples.items() if v ['pheno'] == 'control']
+        if cancer == 'pancan':
+            case_keepers += [s for s, v in trio_samples.items() if v ['pheno'] in 'ewing neuroblastoma osteosarcoma'.split()]
+        else:
+            case_keepers += [s for s, v in trio_samples.items() if v ['pheno'] == cancer]
+        ctrl_keepers += [s for s, v in trio_samples.items() if v ['pheno'] == 'control']
     
-    n_ctrl_end = len(keepers)
+    n_case_end = len(case_keepers)
+    n_ctrl_end = len(ctrl_keepers)
 
-    print('\nRetained {:,} of {:,} controls for {}'.format(n_ctrl_end, n_ctrl_start, cancer))
+    print('\nRetained {:,} of {:,} cases for {}'.format(n_case_end, n_case_start, cancer))
+    print('Retained {:,} of {:,} controls for {}'.format(n_ctrl_end, n_ctrl_start, cancer))
 
-    return keepers
+    return case_keepers + ctrl_keepers
 
 
 def main():
@@ -214,7 +265,13 @@ def main():
              formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--metadata', required=True, help='sample metadata .tsv')
     parser.add_argument('--keep-samples', help='list of IDs to retain during ' +
-                        'ancestry matching default: keep all samples')
+                        'ancestry matching [default: keep all samples]')
+    parser.add_argument('--allow-lost-cases', default=False, action='store_true',
+                        help='allow cases to be dropped during rebalancing ' +
+                        '[default: never drop cases]')
+    parser.add_argument('--case-weight', default=1, type=float,
+                        help='weight to assign to keeping cases over controls, ' +
+                        'only used with --allow-lost-cases [default: 1]')
     parser.add_argument('--outfile', required=True, help='output .tsv')
     args = parser.parse_args()
 
@@ -236,7 +293,8 @@ def main():
     control_ids = {}
     cancers = ['pancan'] + [x for x in meta.disease.unique() if x != 'control']
     for cancer in cancers:
-        control_ids[cancer] = rebalance_cancer(samples, cancer)
+        control_ids[cancer] = \
+            rebalance_cancer(samples, cancer, args.allow_lost_cases, args.case_weight)
 
     # Add columns to meta indicating control status for each disease
     for cancer, c_ids in control_ids.items():

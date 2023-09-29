@@ -1,5 +1,9 @@
 ## Change logs for study callset versions
 
+#### Version 2.4 (release date September 29, 2023)
+- Masked individual genotypes with `SL` <= 1 for variants supported by just one algorithm or one evidence type.  
+- Dropped `FILTER` corresponding to variants with low `SL_MAX`; it was no longer necessary given sample-level SL-based filtering above.  
+
 #### Version 2.3 (release date September 25, 2023)
 - Flagged all variants with `SL_MAX` < 0 as non-PASS  
 - Compared population-specific frequencies for all relatively uncommon (AF<5%) SVs between GMKF vs. St. Jude + ICGC. Marked all variants with significant (P<0.01) discrepancies in frequencies between cohorts with `INTERCOHORT_HETEROGENEITY`.  

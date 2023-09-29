@@ -7,13 +7,14 @@
 \method{barplot}{by.phenotype}(
   plot.df,
   bar.hex = 0.5,
-  case.control.sep = 1/3,
+  case.control.sep = 0.375,
   color.by.sig = TRUE,
   add.top.axis = TRUE,
   top.axis.units = NULL,
   title = "Value",
   orient.cases = "top",
   custom.pheno.labels = NULL,
+  legend.on.bars = TRUE,
   parmar = c(0.2, 4.1, 2.1, 4)
 )
 }
@@ -22,7 +23,7 @@
 
 \item{bar.hex}{Relative width for each bar [default: 0.5]}
 
-\item{case.control.sep}{Relatve separation between overlapping case and control bars [default: 0.33]}
+\item{case.control.sep}{Relative separation between overlapping case and control bars [default: 0.375]}
 
 \item{color.by.sig}{Should bars be shaded differently by significance level? [default: TRUE]}
 
@@ -35,6 +36,9 @@ numeric) or "percent" [default: NULL]}
 
 \item{custom.pheno.labels}{Custom phenotype labels for the groups on the
 Y axis, if desired.}
+
+\item{legend.on.bars}{Should "case" and "control" labels be printed on the
+largest bars? [default: TRUE]}
 
 \item{parmar}{Value of \code{mar} passed to \code{par()}}
 }
