@@ -178,7 +178,9 @@ barplot.by.phenotype <- function(plot.df, bar.hex=0.5, case.control.sep=1/3,
                                  custom.pheno.labels=NULL,
                                  parmar=c(0.2, 4.1, 2.1, 4)){
   # Get plot dimensions
-  xlims <- c(0, min(c(2*max(plot.df[, c(1, 4)]), max(plot.df[, 1:6]))))
+  xlims <- c(0, min(c(2*max(plot.df[, c(1, 4)], na.rm=T),
+                      max(plot.df[, 1:6], na.rm=T)),
+                    na.rm=T))
   ylims <- c(nrow(plot.df), 0)
   y.mids <- (1:nrow(plot.df))-0.5
 
@@ -256,13 +258,13 @@ barplot.by.phenotype <- function(plot.df, bar.hex=0.5, case.control.sep=1/3,
   sapply(1:nrow(plot.df), function(i){
     if(color.by.sig){
       pval <- plot.df[i, 7]
-      p.col <- if(pval < 0.05){"black"}else{control.colors[["main"]]}
+      p.col <- if(!is.na(pval) & pval < 0.05){"black"}else{control.colors[["main"]]}
     }else{
       p.col <- "black"
     }
+    p.label <- if(is.na(pval)){"NA"}else{PedSV::format.pval(plot.df[i, 7], nsmall=0)}
     axis(4, at=y.mids[i], tick=F, line=-0.9, las=2, cex.axis=5/6,
-         labels=PedSV::format.pval(plot.df[i, 7], nsmall=0),
-         col.axis=p.col)
+         labels=p.label, col.axis=p.col)
   })
 }
 

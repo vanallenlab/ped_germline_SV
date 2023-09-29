@@ -49,7 +49,7 @@ prep.glm.matrix <- function(meta, X, Y, use.N.pcs=3, extra.terms=NULL){
   if(use.N.pcs > 0){
     df <- cbind(df, apply(meta[paste("PC", 1:use.N.pcs, sep="")], 2, scale))
   }
-  if(!is.null(extra.terms)){
+  if(!is.null(extra.terms) & length(extra.terms) > 0){
     if("batch" %in% extra.terms){
       df$batch = as.factor(meta$batch)
     }
@@ -97,7 +97,11 @@ prep.glm.matrix <- function(meta, X, Y, use.N.pcs=3, extra.terms=NULL){
   }
 
   # Standard normalize all covariates
-  df[, setdiff(colnames(df), c("X", "Y", "batch"))] <- apply(df[, setdiff(colnames(df), c("X", "Y", "batch"))], 2, scale)
+  skip.standardize.variables <- c("X", "Y", "batch", "is.female", "batch", "trio.phase")
+  standardize.variables <- setdiff(colnames(df), skip.standardize.variables)
+  if(length(standardize.variables) > 0){
+    df[, standardize.variables] <- apply(df[, standardize.variables], 2, scale)
+  }
 
   # Ensure X and Y have at least two distinct values
   if(!all(c("X", "Y") %in% colnames(df))){

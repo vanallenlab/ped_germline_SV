@@ -134,12 +134,13 @@ def prune_gts_by_sl(record, min_sl=1):
         GT = [int(a) for a in sdat['GT'] if a is not None]
         if len(GT) == 0:
             continue
-        SL = sdat.get('SL', 100)
-        # Need to negate SL for ref GTs
-        if all(a == 0 for a in GT):
-            SL = -SL
-        if SL < min_sl:
-            record.samples[sid]['GT'] = tuple([None] * len(sdat['GT']))
+        SL = sdat.get('SL')
+        if SL is not None:
+            # Need to negate SL for ref GTs
+            if all(a == 0 for a in GT):
+                SL = -SL
+            if SL < min_sl:
+                record.samples[sid]['GT'] = tuple([None] * len(sdat['GT']))
 
     return record
 
