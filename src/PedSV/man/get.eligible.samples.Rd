@@ -18,6 +18,6 @@ List of character vectors of sample IDs for cases and controls
 Determine the sample IDs eligible for a specified case:control comparison
 }
 \details{
-If \code{meta} contains columns for cancer-specific control designation,
+If \code{meta} contains columns for cancer-specific case and control designations,
 those will be used; otherwise all eligible controls will be returned
 }

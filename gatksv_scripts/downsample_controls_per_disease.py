@@ -253,7 +253,7 @@ def rebalance_cancer(samples, cancer, allow_drop_cases=False, case_weight=1):
     print('\nRetained {:,} of {:,} cases for {}'.format(n_case_end, n_case_start, cancer))
     print('Retained {:,} of {:,} controls for {}'.format(n_ctrl_end, n_ctrl_start, cancer))
 
-    return case_keepers + ctrl_keepers
+    return case_keepers, ctrl_keepers
 
 
 def main():
@@ -290,13 +290,16 @@ def main():
     samples = melt_meta(meta, keepers)
 
     # Rebalance each disease and cohort separately
+    case_ids = {}
     control_ids = {}
     cancers = ['pancan'] + [x for x in meta.disease.unique() if x != 'control']
     for cancer in cancers:
-        control_ids[cancer] = \
+        case_ids[cancer], control_ids[cancer] = \
             rebalance_cancer(samples, cancer, args.allow_lost_cases, args.case_weight)
 
-    # Add columns to meta indicating control status for each disease
+    # Add columns to meta indicating case/control status for each disease
+    for cancer, c_ids in case_ids.items():
+        meta[cancer + '_case'] = meta.sample_id.isin(c_ids)
     for cancer, c_ids in control_ids.items():
         meta[cancer + '_control'] = meta.sample_id.isin(c_ids)
     
