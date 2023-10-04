@@ -1,6 +1,6 @@
 ## Change logs for study callset versions
 
-#### Version 2.4.1 (release date TBD)
+#### Version 2.5 (release date TBD)
 - Corrected a bug causing 12 extra cases to be included in analyses despite not having ancestry-matched controls  
 
 #### Version 2.4 (release date September 29, 2023)
