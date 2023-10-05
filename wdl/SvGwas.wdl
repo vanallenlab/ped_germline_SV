@@ -140,7 +140,7 @@ task ContigGwas {
   }
 
   Int disk_gb = ceil(2 * size(ad_matrix, "GB"))
-  String gwas_script = if defined(custom_gwas_script) then basename(select_first([custom_gwas_script])) else "/opt/ped_germline_SV/analysis/association/sv_gwas.R"
+  String gwas_script = if defined(custom_gwas_script) then "./" + basename(select_first([custom_gwas_script])) else "/opt/ped_germline_SV/analysis/association/sv_gwas.R"
 
   command <<<
     set -eu -o pipefail
@@ -152,7 +152,7 @@ task ContigGwas {
     fi
 
     # Run association test for all qualifying variants
-    ~{gwas_script} \
+    Rscript ~{gwas_script} \
       --ad ~{ad_matrix} \
       --vids ~{variant_ids_to_test} \
       --metadata ~{sample_metadata_tsv} \
