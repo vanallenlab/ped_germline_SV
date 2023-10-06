@@ -15,6 +15,8 @@
   orient.cases = "top",
   custom.pheno.labels = NULL,
   legend.on.bars = FALSE,
+  case.label = "Case",
+  control.label = "Control",
   parmar = c(0.2, 4.1, 2.1, 4)
 )
 }
@@ -23,9 +25,11 @@
 
 \item{bar.hex}{Relative width for each bar [default: 0.5]}
 
-\item{case.control.sep}{Relative separation between overlapping case and control bars [default: 0.375]}
+\item{case.control.sep}{Relative separation between overlapping case
+and control bars [default: 0.375]}
 
-\item{color.by.sig}{Should bars be shaded differently by significance level? [default: TRUE]}
+\item{color.by.sig}{Should bars be shaded differently by significance
+level? [default: TRUE]}
 
 \item{add.top.axis}{Should the top axis be added? [default: TRUE]}
 
@@ -39,6 +43,12 @@ Y axis, if desired.}
 
 \item{legend.on.bars}{Should "case" and "control" labels be printed on the
 largest bars? [default: FALSE]}
+
+\item{case.label}{Label for "case" bars if \code{legend.on.bars} is \code{TRUE}
+[default: "Case"]}
+
+\item{control.label}{Label for "control" bars if \code{legend.on.bars} is
+\code{TRUE} [default: "Control"]}
 
 \item{parmar}{Value of \code{mar} passed to \code{par()}}
 }

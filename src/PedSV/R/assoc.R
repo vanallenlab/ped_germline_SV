@@ -211,6 +211,12 @@ pedsv.glm <- function(meta, X, Y, use.N.pcs=3, family=gaussian(), extra.terms=NU
   # Build dataframe of covariates
   test.df <- prep.glm.matrix(meta, X, Y, use.N.pcs, extra.terms)
 
+  # Check to make sure dataset is not separable
+  ct <- table(test.df[, c("X", "Y")])
+  if(nrow(ct) <= 1 | ncol(ct) <= 1){
+    return(c(NA, NA, NA, NA, NA))
+  }
+
   # Fit GLM
   logit.regression <- function(data){
     glm(Y ~ ., data=data, family=family)

@@ -61,6 +61,7 @@ load.kinship.metrics <- function(tsv.in){
 #' @param keep.samples Either vector of sample IDs to retain or path to
 #' single-column flat text file of sample IDs to retain [default: keep all samples]
 #' @param reassign.parents Assign all parents to have `control` disease labels [default: TRUE]
+#' @param other.keep.columns Names of non-standard columns to be retained, if desired
 #'
 #' @returns data.frame
 #'
@@ -68,7 +69,8 @@ load.kinship.metrics <- function(tsv.in){
 #'
 #' @export load.sample.metadata
 #' @export
-load.sample.metadata <- function(tsv.in, keep.samples=NULL, reassign.parents=TRUE){
+load.sample.metadata <- function(tsv.in, keep.samples=NULL,
+                                 reassign.parents=TRUE, other.keep.columns=NULL){
   # Load data
   df <- read.table(tsv.in, header=T, comment.char="", sep="\t", check.names=F,
                    stringsAsFactors=F)
@@ -138,6 +140,9 @@ load.sample.metadata <- function(tsv.in, keep.samples=NULL, reassign.parents=TRU
                      colnames(df)[grep("^PC", colnames(df))],
                      colnames(df)[grep("_CopyNumber$", colnames(df))],
                      colnames(df)[grep("_aneuploidy$", colnames(df))])
+  if(!is.null(other.keep.columns)){
+    out.col.order <- c(out.col.order, setdiff(other.keep.columns, out.col.order))
+  }
   df[sort(rownames(df)),
      intersect(out.col.order, colnames(df))]
 }

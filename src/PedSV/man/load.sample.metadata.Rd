@@ -4,7 +4,12 @@
 \alias{load.sample.metadata}
 \title{Load a .tsv of sample metadata}
 \usage{
-load.sample.metadata(tsv.in, keep.samples = NULL, reassign.parents = TRUE)
+load.sample.metadata(
+  tsv.in,
+  keep.samples = NULL,
+  reassign.parents = TRUE,
+  other.keep.columns = NULL
+)
 }
 \arguments{
 \item{tsv.in}{Path to input .tsv}
@@ -13,6 +18,8 @@ load.sample.metadata(tsv.in, keep.samples = NULL, reassign.parents = TRUE)
 single-column flat text file of sample IDs to retain \link{default: keep all samples}}
 
 \item{reassign.parents}{Assign all parents to have \code{control} disease labels \link{default: TRUE}}
+
+\item{other.keep.columns}{Names of non-standard columns to be retained, if desired}
 }
 \value{
 data.frame
