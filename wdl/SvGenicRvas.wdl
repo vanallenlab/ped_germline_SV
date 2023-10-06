@@ -185,6 +185,7 @@ task ConcatSumstats {
   }
 
   Int disk_gb = ceil(10 * size(beds, "GB")) + 25
+  String outfile = prefix + ".sv_rvas.sumstats.bed.gz"
 
   command <<<
     set -eu -o pipefail
@@ -194,13 +195,12 @@ task ConcatSumstats {
     | sort -Vk1,1 -k2,2n -k3,3n -k4,4V \
     | cat <( zcat ~{beds[0]} | head -n1 ) - \
     | bgzip -c \
-    > ~{prefix}.sv_rvas.sumstats.bed.gz
-    tabix -f ~{prefix}.sv_rvas.sumstats.bed.gz
-    ls -ltrh
+    > ~{outfile}
+    tabix -f ~{outfile}
   >>>
 
   output {
-    File combined_sumstats = "~{prefix}.sv_rvas.sumstats.bed.gz"
+    File combined_sumstats = "~{outfile}"
   }
 
   runtime {

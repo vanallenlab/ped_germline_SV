@@ -182,24 +182,27 @@ task ConcatSumstats {
     String docker
   }
 
-  Int disk_gb = ceil(2.5 * size(tsvs, "GB"))
+  Int disk_gb = ceil(10 * size(tsvs, "GB")) + 25
+  String outfile = prefix + ".sv_gwas.sumstats.tsv.gz"
 
   command <<<
     set -eu -o pipefail
 
-    zcat ~{tsvs[0]} | head -n1 > ~{prefix}.sv_gwas.sumstats.tsv
-    zcat ~{sep=" " tsvs} | grep -ve '^#' >> ~{prefix}.sv_gwas.sumstats.tsv
-    gzip -f ~{prefix}.sv_gwas.sumstats.tsv
+    cat \
+      <( zcat ~{tsvs[0]} | head -n1 ) \
+      <( zcat ~{sep=" " tsvs} | grep -ve '^#' ) \
+    | gzip -c \
+    > ~{outfile}
   >>>
 
   output {
-    File combined_sumstats = "~{prefix}.sv_gwas.sumstats.tsv.gz"
+    File combined_sumstats = "~{outfile}"
   }
 
   runtime {
     docker: docker
-    memory: "1.75 GB"
-    cpu: 1
+    memory: "3.5 GB"
+    cpu: 2
     disks: "local-disk " + disk_gb + " HDD"
     preemptible: 3
   }
