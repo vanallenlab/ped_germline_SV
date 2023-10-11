@@ -6,27 +6,18 @@
 # Contact: Ryan L. Collins <Ryan_Collins@dfci.harvard.edu>
 
 """
-Final cleanup of pediatric WGS SV callsets
+Second of two passes for final cleanup of pediatric WGS SV callsets
+Part 2: after outlier sample exclusion
 """
 
 
-filters_to_info = [('BOTHSIDES_SUPPORT', 
-                    'Variant has read-level support for both sides of breakpoint'),
-                   ('HIGH_SR_BACKGROUND', 
-                    'High number of SR splits in background samples indicating messy region'),
-                   ('PESR_GT_OVERDISPERSION', 
-                    'High PESR dispersion')]
 new_infos = ['##INFO=<ID=AF,Number=A,Type=Float,Description="Allele frequency">',
              '##INFO=<ID=OLD_ID,Number=1,Type=String,Description="Original GATK-SV variant ID before polishing">',
              '##INFO=<ID=FAILED_COHORT_COMPARISONS,Number=.,Type=String,Description=' + \
-             '"Pairs of cohorts with significantly different frequencies">',
-             '##INFO=<ID=HG38_REF_PATCH_LOCUS,Number=0,Type=Flag,Description="This ' + \
-             'variant is at least 20% covered by reference fix patch loci contigs">']
+             '"Pairs of cohorts with significantly different frequencies">']
 new_filts = ['##FILTER=<ID=UNRELIABLE_RD_GENOTYPES,Description="This variant is ' + \
              'enriched for non-reference GTs in unreliable samples and is ' + \
              'therefore less reliable overall.">',
-             '##FILTER=<ID=HG38_ALT_LOCUS,Description="This variant is at ' + \
-             'least 20% covered by loci with alternate contigs">',
              '##FILTER=<ID=MANUAL_FAIL,Description="This variant failed ' +
              'post hoc manual review and should not be trusted.">',
              '##FILTER=<ID=INTERCOHORT_HETEROGENEITY,Description="This variant ' + \
@@ -43,32 +34,6 @@ import pybedtools as pbt
 import pysam
 from scipy.stats import fisher_exact
 from sys import stdin, stdout
-
-
-def check_duplicate(record, records_seen):
-    """
-    Checks if a record's coordinates and SVTYPE have already been observed
-    Returns boolean (and updated records_seen if False)
-    """
-
-    svtype = record.info.get('SVTYPE')
-    chrom = record.chrom
-    start = record.pos
-    end = record.stop
-
-    is_dup = False
-    if svtype not in records_seen.keys():
-        records_seen[svtype] = {chrom : {start : set([end])}}
-    elif chrom not in records_seen[svtype].keys():
-        records_seen[svtype][chrom] = {start : set([end])}
-    elif start not in records_seen[svtype][chrom]:
-        records_seen[svtype][chrom][start] = set([end])
-    elif end not in records_seen[svtype][chrom][start]:
-        records_seen[svtype][chrom][start].add(end)
-    else:
-        is_dup = True
-
-    return is_dup, records_seen
 
 
 def is_multiallelic(record):
@@ -121,26 +86,6 @@ def clean_rd_genos(record, bad_rd_samples):
     for sid in bad_rd_samples:
         if record.samples[sid]['EV'] == ('RD', ):
             record.samples[sid]['GT'] = (None, None)
-
-    return record
-
-
-def prune_gts_by_sl(record, min_sl=1):
-    """
-    Null out all GTs based on a minimum permitted scaled likelihood (SL)
-    """
-
-    for sid, sdat in record.samples.items():
-        GT = [int(a) for a in sdat['GT'] if a is not None]
-        if len(GT) == 0:
-            continue
-        SL = sdat.get('SL')
-        if SL is not None:
-            # Need to negate SL for ref GTs
-            if all(a == 0 for a in GT):
-                SL = -SL
-            if SL < min_sl:
-                record.samples[sid]['GT'] = tuple([None] * len(sdat['GT']))
 
     return record
 
@@ -314,15 +259,6 @@ def main():
                         'marked as having failed manual review')
     parser.add_argument('--version-number', help='callset version number for ' +
                         'tagging variant IDs.', type=str)
-    parser.add_argument('--alt-loci-bed', help='.bed with coordinates of loci ' +
-                        'with alternate contigs; these will be masked as non-PASS')
-    parser.add_argument('--ref-patch-loci-bed', help='.bed with coordinates of loci ' +
-                        'where the reference has been patched; these will be ' + 
-                        'annotated as such in INFO but will not have FILTER changed.')
-    parser.add_argument('--exclude-loci-frac', type=float, default=0.2, 
-                        help='maximum fraction of overlap permitted with ' + 
-                        '--alt-loci-bed or --ref-patch-loci-bed before being ' + 
-                        'marked as overlapping')
     parser.add_argument('--sample-metadata', help='.tsv with sample metadata. ' +
                         'First column must be sample ID. Must include columns ' +
                         'named "sex", "cohort", "ancestry", "proband". Other ' +
@@ -341,13 +277,8 @@ def main():
 
     # Reformat header
     header = invcf.header
-    for key, descrip in filters_to_info:
-        if key in header.filters.keys():
-            header.filters.remove_header(key)
-            header.add_line('##INFO=<ID={},Number=0,Type=Flag,Description="{}">'.format(key, descrip))
     for key in mf_infos:
         header.info.remove_header(key)
-    # header.filters.remove_header('HIGH_PCRMINUS_NOCALL_RATE')
     for info in new_infos:
         header.add_line(info)
     for filt in new_filts:
@@ -372,30 +303,12 @@ def main():
                         'cohort ancestry'.split()].\
                     to_dict(orient='index')
 
-    # Open connection to output vcf
-    if args.vcf_out in '- stdout /dev/stdout':
-        outvcf = pysam.VariantFile(stdout, 'w', header=header)
-    else:
-        outvcf = pysam.VariantFile(args.vcf_out, 'w', header=header)
-
     # Read list of samples with unreliable RD genotypes and intersect with VCF header
     bad_rd_samples = set()
     if args.bad_rd_samples is not None:
         with open(args.bad_rd_samples) as fin:
             bad_rd_samples = set([s.rstrip() for s in fin.readlines()])
             bad_rd_samples = bad_rd_samples.intersection(set(header.samples))
-
-    # Load alt contig bed, if optioned
-    if args.alt_loci_bed is not None:
-        alt_bt = pbt.BedTool(args.alt_loci_bed)
-    else:
-        alt_bt = None
-
-    # Load ref fix patch bed, if optioned
-    if args.ref_patch_loci_bed is not None:
-        patch_bt = pbt.BedTool(args.ref_patch_loci_bed)
-    else:
-        patch_bt = None
 
     # Load list of variant IDs to manually fail, if optioned
     if args.fail_variants is not None:
@@ -404,67 +317,37 @@ def main():
     else:
         fail_vids = []
 
+    # Open connection to output vcf
+    if args.vcf_out in '- stdout /dev/stdout':
+        outvcf = pysam.VariantFile(stdout, 'w', header=header)
+    else:
+        outvcf = pysam.VariantFile(args.vcf_out, 'w', header=header)
+
     # Iterate over records in invcf, clean up, and write to outvcf
     svtype_counter = {}
-    records_seen = {}
     for record in invcf.fetch():
-
-        # Skip duplicated records (defined as those with identical chrom/pos/end/svtype)
-        is_dup, records_seen = check_duplicate(record, records_seen)
-        if is_dup:
-            continue
 
         # Get reused record info
         svtype = record.info.get('SVTYPE')
         svlen = record.info.get('SVLEN', 0)
 
-
-        ### First, do simple variant-level evaluations ###
-
         # Check if record should be marked as manual fail
         if record.id in fail_vids:
             record.filter.add('MANUAL_FAIL')
-
-        # Label small MCNVs as UNRESOLVED
-        if is_multiallelic(record) and svlen < 5000:
-            record.filter.add('UNRESOLVED')
-
-        # Label very large, common, unbalanced SVs as UNRESOLVED
-        if svtype in 'DEL DUP INS CPX'.split() \
-        and svlen >= 500000 \
-        and record.info.get('AF', (0, ))[0] >= 0.05:
-            record.filter.add('UNRESOLVED')
-
-        # Label common CTX as UNRESOLVED
-        if svtype == 'CTX' \
-        and record.info.get('AF', (0, ))[0] >= 0.01:
-            record.filter.add('UNRESOLVED')
 
         # Clear all MALE/FEMALE AF annotations
         for key in mf_infos:
             if key in record.info.keys():
                 record.info.pop(key)
 
-
-        ### Second, edit genotypes as needed ###
-
         # Clean up RD genotypes
         if svtype in 'DEL DUP'.split() \
         and len(bad_rd_samples) > 0:
             record = clean_rd_genos(record, bad_rd_samples)
-
-        # Mask GTs with SL <= 0 for variants with only one EVIDENCE or ALGORITHM
-        if not is_multiallelic(record):
-            if len(record.info.get('ALGORITHMS')) < 2 \
-            or len(record.info.get('EVIDENCE')) < 2:
-                record = prune_gts_by_sl(record, min_sl=1)
                 
         # Update AC/AN/AF
         if not is_multiallelic(record):
             record = update_af(record)
-
-
-        ### Third, perform variant-level operations that depend on genotypes ###
 
         # Skip empty records
         if record.info.get('AC', (1, ))[0] == 0 \
@@ -495,36 +378,11 @@ def main():
         elif record.info.get('NCR', 0) >= 0.1:
             record.filter.add('HIGH_NCR')
 
-        # Relocate certain FILTERs to INFOs
-        for key, descrip in filters_to_info:
-            if key in record.filter.keys():
-                record.info[key] = True
-        old_filts = set(record.filter.keys()).difference(set([k for k, v in filters_to_info]))
-        if len(old_filts) == 0:
-            old_filts = set(['PASS'])
-        record.filter.clear()
-        for filt in old_filts:
-            record.filter.add(filt)
-
         # Recalibrate QUAL score
         if is_multiallelic(record):
             record.qual = 99
         else:
             record.qual = recalibrate_qual(record)
-
-        # Check for alt contig coverage if optioned
-        if alt_bt is not None:
-            cstr = '{}\t{}\t{}\n'.format(record.chrom, record.start, record.stop)
-            cov = pbt.BedTool(cstr, from_string=True).coverage(alt_bt)[0][-1]
-            if float(cov) > args.exclude_loci_frac:
-                record.filter.add('HG38_ALT_LOCUS')
-
-        # Check for ref fix patch coverage if optioned
-        if patch_bt is not None:
-            cstr = '{}\t{}\t{}\n'.format(record.chrom, record.start, record.stop)
-            cov = pbt.BedTool(cstr, from_string=True).coverage(patch_bt)[0][-1]
-            if float(cov) > args.exclude_loci_frac:
-                record.info['HG38_REF_PATCH_LOCUS'] = True
 
         # Compare frequencies between case cohorts (ICGC+StJude vs. GMKF) 
         # and, separately, between control cohorts

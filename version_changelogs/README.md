@@ -4,6 +4,8 @@
 - Increased stringency of primary GT filtering method, `FilterGenotypes` trained on NIH All of Us data, from 15% to 5% target FDR  
 - Re-trained secondary GT filtering method, `MinGQ`, while restricting to pediatric cancer trios (and not including any 1000G trios)  
 - Increased global maximum no-call rate to 5%  
+- Streamlined outlier sample exclusion and site-level refinement  
+- Removed batch- and cohort-specific artifact checks implemented in v2.0  
 - Corrected a bug causing 12 extra cases to be included in analyses despite not having ancestry-matched controls  
 
 #### Version 2.4 (release date September 29, 2023)
