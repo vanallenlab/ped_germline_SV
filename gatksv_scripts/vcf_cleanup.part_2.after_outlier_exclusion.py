@@ -11,18 +11,15 @@ Part 2: after outlier sample exclusion
 """
 
 
-new_infos = ['##INFO=<ID=AF,Number=A,Type=Float,Description="Allele frequency">',
-             '##INFO=<ID=OLD_ID,Number=1,Type=String,Description="Original GATK-SV variant ID before polishing">',
+new_infos = ['##INFO=<ID=OLD_ID,Number=1,Type=String,Description="Original ' + \
+             'GATK-SV variant ID before polishing">',
              '##INFO=<ID=FAILED_COHORT_COMPARISONS,Number=.,Type=String,Description=' + \
              '"Pairs of cohorts with significantly different frequencies">']
-new_filts = ['##FILTER=<ID=UNRELIABLE_RD_GENOTYPES,Description="This variant is ' + \
-             'enriched for non-reference GTs in unreliable samples and is ' + \
-             'therefore less reliable overall.">',
-             '##FILTER=<ID=MANUAL_FAIL,Description="This variant failed ' +
+new_filts = ['##FILTER=<ID=MANUAL_FAIL,Description="This variant failed ' +
              'post hoc manual review and should not be trusted.">',
              '##FILTER=<ID=INTERCOHORT_HETEROGENEITY,Description="This variant ' + \
              'was genotyped at significantly different frequencies between at least ' + \
-             'one pair of cohorts. Only applied to rare SVs (AF<1%). See ' + \
+             'one pair of cohorts. Only applied to rare SVs (AF<5%). See ' + \
              'INFO:FAILED_COHORT_COMPARISONS for details.">']
 
 
@@ -198,7 +195,7 @@ def count_by_cohort(record, cohort_map):
     return counts
 
 
-def compare_cohorts(record, counts, cohort1, cohort2, rare_af = 0.01, 
+def compare_cohorts(record, counts, cohort1, cohort2, rare_af = 0.05, 
                     rare_pval = 0.01, common_pval = 0.01):
     """
     Test for frequency differences between two cohorts for a single record
@@ -309,6 +306,11 @@ def main():
         with open(args.bad_rd_samples) as fin:
             bad_rd_samples = set([s.rstrip() for s in fin.readlines()])
             bad_rd_samples = bad_rd_samples.intersection(set(header.samples))
+    if len(bad_rd_samples) > 0:
+        rd_filt = '##FILTER=<ID=UNRELIABLE_RD_GENOTYPES,Description="This ' + \
+                  'variant is enriched for non-reference GTs in unreliable ' + \
+                  'samples and is therefore less reliable overall.">',
+        header.add_line(rd_filt)
 
     # Load list of variant IDs to manually fail, if optioned
     if args.fail_variants is not None:
