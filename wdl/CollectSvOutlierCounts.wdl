@@ -3,7 +3,7 @@
 #   Pediatric Cancers   #
 #########################
 #
-# CollectOutlierCounts.wdl
+# CollectSvOutlierCounts.wdl
 #
 # Helper WDL to collect counts of various subsets of SVs for defining outliers
 #
@@ -18,7 +18,7 @@ version 1.0
 import "https://raw.githubusercontent.com/vanallenlab/pancan_germline_wgs/main/wdl/Utilities.wdl" as Utils
 
 
-workflow CollectOutlierCounts {
+workflow CollectSvOutlierCounts {
   input {
     File vcf
     File vcf_idx
@@ -41,7 +41,7 @@ workflow CollectOutlierCounts {
       vcf = vcf,
       vcf_idx = vcf_idx,
       contigs = GetContigs.contigs,
-      bcftools_options = '--include "FILTER == \"PASS\""',
+      bcftools_options = "--include \"FILTER == 'PASS'\"",
       output_prefix = "all",
       docker = sv_pipeline_docker
   }
@@ -51,7 +51,7 @@ workflow CollectOutlierCounts {
       vcf = vcf,
       vcf_idx = vcf_idx,
       contigs = GetContigs.contigs,
-      bcftools_options = '--include "FILTER == \"PASS\" & INFO/AF < 0.01"',
+      bcftools_options = "--include \"FILTER == 'PASS' & INFO/AF < 0.01\"",
       output_prefix = "rare",
       docker = sv_pipeline_docker
   }
@@ -61,7 +61,7 @@ workflow CollectOutlierCounts {
       vcf = vcf,
       vcf_idx = vcf_idx,
       contigs = GetContigs.contigs,
-      bcftools_options = '--include "FILTER == \"PASS\" & INFO/AC == 1"',
+      bcftools_options = "--include \"FILTER == 'PASS' & INFO/AC == 1\"",
       output_prefix = "singleton",
       docker = sv_pipeline_docker
   }
@@ -71,7 +71,7 @@ workflow CollectOutlierCounts {
       vcf = vcf,
       vcf_idx = vcf_idx,
       contigs = GetContigs.contigs,
-      bcftools_options = '--include "FILTER == \"PASS\" & INFO/SVTYPE == \"DEL\" & INFO/SVLEN > 300 & INFO/SVLEN < 1000 & INFO/AF < 0.01"',
+      bcftools_options = "--include \"FILTER == 'PASS' & INFO/SVTYPE == 'DEL' & INFO/SVLEN > 300 & INFO/SVLEN < 1000 & INFO/AF < 0.01\"",
       output_prefix = "artifact",
       docker = sv_pipeline_docker
   }
@@ -81,7 +81,7 @@ workflow CollectOutlierCounts {
       vcf = vcf,
       vcf_idx = vcf_idx,
       contigs = GetContigs.contigs,
-      bcftools_options = '--include "FILTER == \"PASS\" && (INFO/ALGORITHMS == \"depth\" || INFO/EVIDENCE == \"RD\")"',
+      bcftools_options = "--include \"FILTER == 'PASS' & INFO/SVTYPE == 'DEL,DUP' & (INFO/ALGORITHMS == 'depth' | INFO/EVIDENCE == 'RD')\"",
       output_prefix = "depth_only",
       docker = sv_pipeline_docker
   }
@@ -91,7 +91,7 @@ workflow CollectOutlierCounts {
       vcf = vcf,
       vcf_idx = vcf_idx,
       contigs = GetContigs.contigs,
-      bcftools_options = '--include "FILTER == \"PASS\" & INFO/SVTYPE == \"DEL,DUP\""',
+      bcftools_options = "--include \"FILTER == 'PASS' & INFO/SVTYPE == 'DEL,DUP'\"",
       intersect_file = tss_bed,
       output_prefix = "tss",
       docker = sv_pipeline_docker
@@ -102,7 +102,7 @@ workflow CollectOutlierCounts {
       vcf = vcf,
       vcf_idx = vcf_idx,
       contigs = GetContigs.contigs,
-      bcftools_options = '--include "FILTER == \"PASS\" & INFO/SVTYPE == "DEL,DUP,INS"',
+      bcftools_options = "--include \"FILTER == 'PASS' & INFO/SVTYPE == 'DEL,DUP,INS'\"",
       intersect_file = exons_bed,
       output_prefix = "exonic",
       docker = sv_pipeline_docker
@@ -139,16 +139,21 @@ task CollectCounts {
     String docker
   }
 
-  String bedtools_cmd = if defined(intersect_file) then "| bedtools intersect -u -wa -header -a - -b " + intersect_file else ""
+  String bedtools_cmd = if defined(intersect_file) then "| bedtools intersect -u -wa -header -a - -b " + basename(select_first([intersect_file, ""])) else ""
   String outfile = output_prefix + ".counts.tsv"
   Int disk_gb = ceil(3 * size(vcf, "GB")) + 25
 
   command <<<
     set -eu -o pipefail
 
+    if [ ~{defined(intersect_file)} == "true" ]; then
+      mv ~{default="" intersect_file} ./
+    fi
+
     bcftools view \
       ~{bcftools_options} \
       --regions "~{sep=',' contigs}" \
+      ~{vcf} \
     ~{bedtools_cmd} \
     | bgzip -c > filtered.vcf.gz
     tabix -p vcf -f filtered.vcf.gz
