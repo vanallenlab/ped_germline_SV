@@ -21,12 +21,16 @@ new_infos = ['##INFO=<ID=HG38_REF_PATCH_LOCUS,Number=0,Type=Flag,Description="Th
              'variant is at least 20% covered by reference fix patch loci contigs">',
              '##INFO=<ID=AF,Number=A,Type=Float,Description="Allele frequency">',
              '##INFO=<ID=AC,Number=A,Type=Integer,Description="Allele count">',
-             '##INFO=<ID=AN,Number=1,Type=Integer,Description="Total number of alleles in called genotypes">']
+             '##INFO=<ID=AN,Number=1,Type=Integer,Description="Total number of alleles in called genotypes">',
+             '##INFO=<ID=NCR_TMP,Number=1,Type=Float,Description="Provisional rate of no-call GTs prior to final polishing">']
 new_filts = ['##FILTER=<ID=HG38_ALT_LOCUS,Description="This variant is at ' + \
              'least 20% covered by loci with alternate contigs">',
              '##FILTER=<ID=PREDICTED_GRIP_JXN,Description="This variant is ' + \
              'predicted to mark a splice junction for a gene retrocopy ' + \
-             'insertion event and should not be evaluated as a canonical deletion.">']
+             'insertion event and should not be evaluated as a canonical deletion.">',
+             '##FILTER=<ID=LOW_SL_MEAN,Description="This variant had an ' + \
+             'abundance of low-quality genotypes prior to any filtering, ' + \
+             'which usually indicates a lower-quality SV locus.">']
 
 
 
@@ -128,11 +132,12 @@ def is_multiallelic(record):
 
 def update_af(record):
     """
-    Update AC, AN, and AF for a single record
+    Update AC, AN, AF, and NCR for a single record
     """
 
     ac, an = 0, 0
     af = None
+    n_samples = len(record.samples.keys())
     for sdat in record.samples.values():
         GT = [a for a in sdat['GT'] if a is not None]
         an += len(GT)
@@ -142,6 +147,7 @@ def update_af(record):
     record.info['AC'] = ac
     record.info['AN'] = an
     record.info['AF'] = af
+    record.info['NCR_TMP'] = 1 - (an / (2 * n_samples))
 
     return record
 
@@ -160,6 +166,37 @@ def is_artifact_deletion(record):
         return True
     else:
         return False
+
+
+def is_manta_andor_wham(record):
+    """
+    Check whether an SV was contributed by Manta and/or wham (but no other algorithms)
+    """
+
+    algs = sorted(record.info.get('ALGORITHMS'))
+
+    if algs == ['manta'] \
+    or algs == ['manta', 'wham'] \
+    or algs == ['wham']:
+        return True
+    else:
+        return False
+
+
+def mask_gts_by_ogq(record):
+    """
+    Nullify GTs that have only PE- or SR- evidence and OGQ = 0
+    """
+
+    for sid, sdat in record.samples.items():
+        OGQ = sdat.get('OGQ', 99)
+        if OGQ > 0:
+            continue
+        EV = sdat.get('EV', tuple())
+        if EV == ('SR',) or EV == ('PE',) and OGQ:
+            record.samples[sid]['GT'] = (None, None)
+    
+    return record
 
 
 def main():
@@ -244,7 +281,14 @@ def main():
         if is_multiallelic(record) and svlen < 5000:
             record.filter.add('UNRESOLVED')
 
-        # Update AC/AN/AF
+        # Mask GTs with OGQ = 0 for rare-ish variants that are 
+        # from Manta and/or Wham and sample has single form of evidence
+        if is_manta_andor_wham(record) \
+        and record.info.get('AF', [1])[0] < 0.05 \
+        and not is_multiallelic(record):
+            record = mask_gts_by_ogq(record)
+
+        # Update AC/AN/AF/NCR
         if not is_multiallelic(record):
             record = update_af(record)
 
@@ -270,6 +314,20 @@ def main():
                 if intron_check(record, introns):
                     record.filter.add('PREDICTED_GRIP_JXN')
 
+        # Apply very targeted FILTER based on SL_MEAN + other factors
+        SLMean = record.info.get('SL_MEAN', 100)
+        SLMax = record.info.get('SL_MAX', 100)
+        if SLMean is not None and SLMax is not None:
+            if SLMean < 0 \
+            and is_manta_andor_wham(record) \
+            and record.info.get('SVLEN', 10e10) < 1000 \
+            and not 'BAF' in record.info.get('EVIDENCE', tuple()) \
+            and record.info.get('AF', [1])[0] < 0.05 \
+            and record.info.get('NCR_TMP', 0) > 1 / 1000 \
+            and not record.info.get('PESR_GT_OVERDISPERSION') \
+            and SLMax < 75:
+                record.filter.add('LOW_SL_MEAN')
+        
         # Clear all MALE/FEMALE AF annotations
         for key in mf_infos:
             if key in record.info.keys():

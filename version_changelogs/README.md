@@ -1,11 +1,12 @@
 ## Change logs for study callset versions
 
 #### Version 2.5 (release date TBD)
-- Increased stringency of primary GT filtering method, `FilterGenotypes` trained on NIH All of Us data, from 15% to 5% target FDR  
 - Re-trained secondary GT filtering method, `MinGQ`, while restricting to pediatric cancer trios (and not including any 1000G trios)  
-- Increased global maximum no-call rate to 5%  
-- Streamlined outlier sample exclusion and site-level refinement  
+- Increased global maximum no-call rate to 3%  
+- Streamlined/reworked outlier sample exclusion and site-level refinement  
 - Removed batch- and cohort-specific artifact checks implemented in v2.0  
+- Masked all genotypes with `OGQ` = 0 for all variants with AF < 5%  
+- Fail sites with SL mean < 0, Manta- and/or Wham-only, <1kb, no BAF evidence, AF<5%, NCR>0.1%, no PE/SR GT overdispersion, SL max < 75  
 - Corrected a bug causing 12 extra cases to be included in analyses despite not having ancestry-matched controls  
 
 #### Version 2.4 (release date September 29, 2023)

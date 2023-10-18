@@ -21,6 +21,7 @@ new_filts = ['##FILTER=<ID=MANUAL_FAIL,Description="This variant failed ' +
              'was genotyped at significantly different frequencies between at least ' + \
              'one pair of cohorts. Only applied to rare SVs (AF<5%). See ' + \
              'INFO:FAILED_COHORT_COMPARISONS for details.">']
+infos_to_rm = ['NCR_TMP']
 
 
 
@@ -333,6 +334,11 @@ def main():
         svtype = record.info.get('SVTYPE')
         svlen = record.info.get('SVLEN', 0)
 
+        # Clear unnecessary INFOs
+        for key in infos_to_rm:
+            if key in record.info.keys():
+                record.info.pop(key)
+
         # Check if record should be marked as manual fail
         if record.id in fail_vids:
             record.filter.add('MANUAL_FAIL')
@@ -371,13 +377,10 @@ def main():
         for k in original_filters:
             if k not in 'HIGH_NCR HIGH_PCRMINUS_NOCALL_RATE'.split():
                 record.filter.add(k)
-        if is_depth_only(record):
-            if record.info.get('NCR', 0) >= 0.08:
-                record.filter.add('HIGH_NCR')
-        elif is_artifact_deletion(record):
+        if is_artifact_deletion(record):
             if record.info.get('NCR', 0) > 1/250:
                 record.filter.add('HIGH_NCR')
-        elif record.info.get('NCR', 0) >= 0.1:
+        elif record.info.get('NCR', 0) >= 0.03:
             record.filter.add('HIGH_NCR')
 
         # Recalibrate QUAL score

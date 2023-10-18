@@ -188,10 +188,10 @@ parser$add_argument("--out-prefix", metavar="path", type="character", default=".
 args <- parser$parse_args()
 
 # # DEV:
-# args <- list("counts" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/data/outliers/v2.5.1/PedSV.v2.5.1.all_outlier_counts.tsv.gz",
+# args <- list("counts" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/data/outliers/v2.5.2/PedSV.v2.5.2.all_outlier_counts.tsv.gz",
 #              "pop_labels" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/data/outliers/v2.5.1/PedSV.v2.best_guess_ancestries.for_outlier_exclusion.tsv",
 #              "MAD" = 5,
-#              "out_prefix" = "~/scratch/PedSV.v2.5.1.")
+#              "out_prefix" = "~/scratch/PedSV.v2.5.2.")
 
 # Read population labels
 pop.labels <- load.pop.labels(args$pop_labels)
