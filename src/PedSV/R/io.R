@@ -95,7 +95,10 @@ load.sample.metadata <- function(tsv.in, keep.samples=NULL,
                      c("ancestry_inferred_by_SVs", "inferred_ancestry"),
                      c("neuroblastoma_control", "NBL_control"),
                      c("ewing_control", "EWS_control"),
-                     c("osteosarcoma_control", "OS_control"))) {
+                     c("osteosarcoma_control", "OS_control"),
+                     c("neuroblastoma_case", "NBL_case"),
+                     c("ewing_case", "EWS_case"),
+                     c("osteosarcoma_case", "OS_case"))) {
     if(cnames[1] %in% colnames(df)){
       colnames(df)[which(colnames(df) == cnames[1])] <- cnames[2]
     }

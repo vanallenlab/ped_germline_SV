@@ -86,6 +86,26 @@ workflow CollectSvOutlierCounts {
       docker = sv_pipeline_docker
   }
 
+  call CollectCounts as CountRareRdOnly {
+    input:
+      vcf = vcf,
+      vcf_idx = vcf_idx,
+      contigs = GetContigs.contigs,
+      bcftools_options = "--include \"FILTER == 'PASS' & INFO/SVTYPE == 'DEL,DUP' & (INFO/ALGORITHMS == 'depth' | INFO/EVIDENCE == 'RD') & INFO/AF < 0.01\"",
+      output_prefix = "rare_depth_only",
+      docker = sv_pipeline_docker
+  }
+
+  call CollectCounts as CountSingletonRdOnly {
+    input:
+      vcf = vcf,
+      vcf_idx = vcf_idx,
+      contigs = GetContigs.contigs,
+      bcftools_options = "--include \"FILTER == 'PASS' & INFO/SVTYPE == 'DEL,DUP' & (INFO/ALGORITHMS == 'depth' | INFO/EVIDENCE == 'RD') & INFO/AC == 1\"",
+      output_prefix = "singleton_depth_only",
+      docker = sv_pipeline_docker
+  }
+
   call CollectCounts as CountTssCnvs {
     input:
       vcf = vcf,
@@ -109,8 +129,8 @@ workflow CollectSvOutlierCounts {
   }
 
   Array[File] counts = [CountAll.counts, CountRare.counts, CountSingletons.counts,
-                        CountArtifactDels.counts, CountRdOnly.counts, 
-                        CountTssCnvs.counts, CountExonic.counts]
+                        CountArtifactDels.counts, CountTssCnvs.counts, 
+                        CountExonic.counts]
 
   call Utils.ConcatTextFiles as MergeCounts {
     input:
@@ -122,8 +142,22 @@ workflow CollectSvOutlierCounts {
       docker = sv_pipeline_docker
   }
 
+  Array[File] rd_only_counts = [CountRdOnly.counts, CountRareRdOnly.counts, 
+                                CountSingletonRdOnly.counts]
+
+  call Utils.ConcatTextFiles as MergeRdOnlyCounts {
+    input:
+      shards = rd_only_counts,
+      sort_command = "sort -Vk1,1 -k2,2V",
+      compression_command = "gzip -c",
+      input_has_header = false,
+      output_filename = prefix + ".rd_only_outlier_counts.tsv.gz",
+      docker = sv_pipeline_docker
+  }
+
   output {
     File merged_counts = MergeCounts.merged_file
+    File rd_only_counts = MergeRdOnlyCounts.merged_file
   }
 }
 

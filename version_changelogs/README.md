@@ -2,8 +2,9 @@
 
 #### Version 2.5 (release date TBD)
 - Re-trained secondary GT filtering method, `MinGQ`, while restricting to pediatric cancer trios (and not including any 1000G trios)  
-- Increased global maximum no-call rate to 3%  
+- Increased global maximum no-call rate to 4%  
 - Streamlined/reworked outlier sample exclusion and site-level refinement  
+- Increased stringency when defining samples with unreliable RD-only genotypes introduced in version 2.1 (see below)  
 - Removed batch- and cohort-specific artifact checks implemented in v2.0  
 - Masked all genotypes with `OGQ` = 0 for all variants with AF < 5%  
 - Fail sites with SL mean < 0, Manta- and/or Wham-only, <1kb, no BAF evidence, AF<5%, NCR>0.1%, no PE/SR GT overdispersion, SL max < 75  

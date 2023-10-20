@@ -310,7 +310,7 @@ def main():
     if len(bad_rd_samples) > 0:
         rd_filt = '##FILTER=<ID=UNRELIABLE_RD_GENOTYPES,Description="This ' + \
                   'variant is enriched for non-reference GTs in unreliable ' + \
-                  'samples and is therefore less reliable overall.">',
+                  'samples and is therefore less reliable overall.">'
         header.add_line(rd_filt)
 
     # Load list of variant IDs to manually fail, if optioned
@@ -380,7 +380,7 @@ def main():
         if is_artifact_deletion(record):
             if record.info.get('NCR', 0) > 1/250:
                 record.filter.add('HIGH_NCR')
-        elif record.info.get('NCR', 0) >= 0.03:
+        elif record.info.get('NCR', 0) >= 0.04:
             record.filter.add('HIGH_NCR')
 
         # Recalibrate QUAL score
