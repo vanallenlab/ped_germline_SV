@@ -70,7 +70,7 @@ args <- parser$parse_args()
 # args <- list("metadata" = "~/scratch/PedSV.v2.2.cohort_metadata.w_control_assignments.tsv.gz",
 #              "subset_samples" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_v2_callset_generation/v2.2/PedSV.v2.2.final_analysis_cohort.samples.list",
 #              "out_prefix" = "~/scratch/PedSV.v2.2.dev")
-# args <- list("metadata" = "/Users/ryan/Desktop/Collins/VanAllen/jackie_younglung/younglung_metadata/YL.SV.v1.analysis_metadata.tsv",
+# args <- list("metadata" = "/Users/ryan/Desktop/Collins/VanAllen/jackie_younglung/younglung_metadata/YL.SV.v1.analysis_metadata.tsv.gz",
 #              "subset_samples" = "/Users/ryan/Desktop/Collins/VanAllen/jackie_younglung/YL_analysis/YL.analysis_samples.list",
 #              "out_prefix" = "~/scratch/YL.SV.v1")
 
