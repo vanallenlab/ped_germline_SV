@@ -30,7 +30,7 @@ while read image; do
   docker image list \
   | grep "$image\s" \
   | awk '{ print $3 }' \
-  | xargs -I {} docker image rm -f {}
+  | xargs -I {} docker image rm -f {} || true
 done < <( echo $IMAGES | sed 's/,/\n/g' )
 docker image prune -f
 
