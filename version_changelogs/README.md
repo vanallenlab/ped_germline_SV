@@ -1,6 +1,6 @@
 ## Change logs for study callset versions
 
-#### Version 2.5 (release date TBD)
+#### Version 2.5 (release date October 20, 2023)
 - Re-trained secondary GT filtering method, `MinGQ`, while restricting to pediatric cancer trios (and not including any 1000G trios)  
 - Increased global maximum no-call rate to 4%  
 - Streamlined/reworked outlier sample exclusion and site-level refinement  
