@@ -81,7 +81,7 @@ parser$add_argument("--min-probability", metavar="float", type="double", default
                     help=paste("minimum prediction probability required to assign",
                                "a sample to an ancestry [default: 0.8]"))
 parser$add_argument("--plot", action="store_true", help="generate diagnostic plots")
-parser$add_argument("--plot-cex", default=0.3, metavar="float", type="float",
+parser$add_argument("--plot-cex", default=0.3, metavar="float", type="double",
                     help="point expansion factor for --plot [default: 0.3]")
 args <- parser$parse_args()
 
