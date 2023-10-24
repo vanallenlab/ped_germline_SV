@@ -137,7 +137,7 @@ task ContigRvas {
   }
 
   Int disk_gb = ceil(1.5 * size([sites_bed, ad_matrix], "GB"))
-  String rvas_script = if defined(custom_rvas_script) then "./" + basename(select_first(select_all([custom_rvas_script]))) else "/opt/ped_germline_SV/analysis/association/sv_genic_rvas.R"
+  String rvas_script = if defined(custom_rvas_script) then "./" + basename(select_first([custom_rvas_script, ""])) else "/opt/ped_germline_SV/analysis/association/sv_genic_rvas.R"
 
   command <<<
     set -eu -o pipefail
