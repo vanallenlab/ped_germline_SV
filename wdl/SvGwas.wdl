@@ -140,7 +140,7 @@ task ContigGwas {
   }
 
   Int disk_gb = ceil(2 * size(ad_matrix, "GB"))
-  String gwas_script = if defined(custom_gwas_script) then "./" + basename(select_first([custom_gwas_script])) else "/opt/ped_germline_SV/analysis/association/sv_gwas.R"
+  String gwas_script = if defined(custom_gwas_script) then "./" + basename(select_first(select_all([custom_gwas_script]))) else "/opt/ped_germline_SV/analysis/association/sv_gwas.R"
 
   command <<<
     set -eu -o pipefail
