@@ -137,22 +137,24 @@ task ContigRvas {
   }
 
   Int disk_gb = ceil(1.5 * size([sites_bed, ad_matrix], "GB"))
-  String rvas_script = if defined(custom_rvas_script) then "./" + basename(select_first([custom_rvas_script, ""])) else "/opt/ped_germline_SV/analysis/association/sv_genic_rvas.R"
 
   command <<<
     set -eu -o pipefail
 
     # Relocate custom script to execution directory if necessary
     if [ ~{defined(custom_rvas_script)} == "true" ]; then
-      mv ~{select_first([custom_rvas_script])} ./
-      chmod a+x ~{rvas_script}
+      mv ~{default="" custom_rvas_script} ./
+      rvas_script="./~{default='' custom_rvas_script}"
+      chmod a+x $rvas_script
+    else
+      rvas_script="/opt/ped_germline_SV/analysis/association/sv_genic_rvas.R"
     fi
 
     # Run association test for all eligible genes
     if [ $( cat ~{eligible_genes_bed} | wc -l ) -eq 0 ]; then
       touch ~{prefix}.sv_rvas_sumstats.bed
     else
-      Rscript ~{rvas_script} \
+      Rscript $rvas_script \
         --bed ~{sites_bed} \
         --ad ~{ad_matrix} \
         --genes ~{eligible_genes_bed} \
