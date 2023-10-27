@@ -44,6 +44,7 @@ load.counts <- function(counts.in, pop.labels, smallest.max=10){
   counts$pop <- pop.labels[counts$sample]
   missing.pop <- which(is.na(counts$pop))
   if(length(missing.pop) > 0){
+    # counts$pop[missing.pop] <- "OTH"
     counts$pop[missing.pop] <- "OTH"
   }
 
@@ -61,7 +62,8 @@ load.counts <- function(counts.in, pop.labels, smallest.max=10){
   svtypes <- sort(unique(counts$svtype))
   counts <- lapply(svtypes, function(svtype){
     subcounts <- counts[which(counts$svtype == svtype), ]
-    pop.counts <- lapply(names(pop.colors), function(pop){
+    pops.present <- intersect(names(pop.colors), unique(subcounts$pop))
+    pop.counts <- lapply(pops.present, function(pop){
       subcounts[which(subcounts$pop == pop), ]
     })
     names(pop.counts) <- names(pop.colors)
@@ -83,15 +85,17 @@ calculate.cutoffs <- function(counts, MAD=5){
     })
 
     # Update OTH population to use stricter cutoffs
-    non.OTH.pops <- setdiff(names(pop.colors), "OTH")
-    pop.lower <- min(sapply(res.by.pop[non.OTH.pops],
-                        function(plist){plist$cutoffs[1]}), na.rm=T)
-    pop.upper <- max(sapply(res.by.pop[non.OTH.pops],
-                            function(plist){plist$cutoffs[2]}), na.rm=T)
-    oth.cutoffs <- res.by.pop[["OTH"]][["cutoffs"]]
-    new.oth.cutoffs <- c(max(pop.lower, oth.cutoffs[1]),
-                         min(pop.upper, oth.cutoffs[2]))
-    res.by.pop[["OTH"]][["cutoffs"]] <- new.oth.cutoffs
+    if("OTH" %in% names(res.by.pop)){
+      non.OTH.pops <- setdiff(names(pop.colors), "OTH")
+      pop.lower <- min(sapply(res.by.pop[non.OTH.pops],
+                              function(plist){plist$cutoffs[1]}), na.rm=T)
+      pop.upper <- max(sapply(res.by.pop[non.OTH.pops],
+                              function(plist){plist$cutoffs[2]}), na.rm=T)
+      oth.cutoffs <- res.by.pop[["OTH"]][["cutoffs"]]
+      new.oth.cutoffs <- c(max(pop.lower, oth.cutoffs[1]),
+                           min(pop.upper, oth.cutoffs[2]))
+      res.by.pop[["OTH"]][["cutoffs"]] <- new.oth.cutoffs
+    }
     return(res.by.pop)
   })
 }
@@ -195,6 +199,9 @@ args <- parser$parse_args()
 
 # Read population labels
 pop.labels <- load.pop.labels(args$pop_labels)
+
+# As of v2.5.2: reassign all OTH to EUR
+pop.labels[which(pop.labels == "OTH")] <- "EUR"
 
 # Load and format counts
 counts <- load.counts(args$counts, pop.labels)
