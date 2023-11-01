@@ -15,7 +15,7 @@
 version 1.0
 
 
-import "https://raw.githubusercontent.com/vanallenlab/ped_germline_SV/rlc_v2.5_analysis/wdl/SvGwas.wdl" as Gwas
+# import "https://raw.githubusercontent.com/vanallenlab/ped_germline_SV/rlc_v2.5_analysis/wdl/SvGwas.wdl" as Gwas
 import "https://raw.githubusercontent.com/vanallenlab/ped_germline_SV/rlc_v2.5_analysis/wdl/SvGenicRvas.wdl" as Rvas
 
 
@@ -34,7 +34,7 @@ workflow PedSvMainAnalysis {
     File trio_dense_vcf_idx
 		File trio_samples_list
     File? trio_variant_exclusion_list
-    String trio_gwas_bcftools_query_options = ""
+    # String trio_gwas_bcftools_query_options = ""
 
     File case_control_bed
     File case_control_bed_idx
@@ -44,7 +44,7 @@ workflow PedSvMainAnalysis {
     File case_control_dense_vcf_idx
 		File case_control_samples_list
     File? case_control_variant_exclusion_list
-    String case_control_gwas_bcftools_query_options = ""
+    # String case_control_gwas_bcftools_query_options = ""
 
     # Note: the below inputs are expected to contain unrelated analysis samples
     File full_cohort_bed
@@ -54,7 +54,7 @@ workflow PedSvMainAnalysis {
     File full_cohort_dense_vcf
     File full_cohort_dense_vcf_idx
     File full_cohort_samples_list
-    String full_cohort_gwas_bcftools_query_options = ""
+    # String full_cohort_gwas_bcftools_query_options = ""
 
     # Note: the below inputs should contain ALL individuals in study, including relatives
     File full_cohort_w_relatives_bed
@@ -104,22 +104,21 @@ workflow PedSvMainAnalysis {
       docker = pedsv_r_docker
   }
 
-  call Gwas.SvGwas as StudyWideGwas {
-    input:
-      dense_vcf = full_cohort_dense_vcf,
-      dense_vcf_idx = full_cohort_dense_vcf_idx,
-      ad_matrix = full_cohort_ad_matrix,
-      ad_matrix_idx = full_cohort_ad_matrix_idx,
-      sample_metadata_tsv = sample_metadata_tsv,
-      samples_list = all_samples_list,
-      ref_fai = ref_fai,
-      prefix = study_prefix,
-      bcftools_query_options = full_cohort_gwas_bcftools_query_options,
-      pedsv_docker = pedsv_docker,
-      pedsv_r_docker = pedsv_r_docker
-  }
-
-  # TODO: plot GWAS meta-analysis
+  # call Gwas.SvGwas as StudyWideGwas {
+  #   input:
+  #     dense_vcf = full_cohort_dense_vcf,
+  #     dense_vcf_idx = full_cohort_dense_vcf_idx,
+  #     ad_matrix = full_cohort_ad_matrix,
+  #     ad_matrix_idx = full_cohort_ad_matrix_idx,
+  #     sample_metadata_tsv = sample_metadata_tsv,
+  #     samples_list = all_samples_list,
+  #     ref_fai = ref_fai,
+  #     prefix = study_prefix,
+  #     bcftools_query_options = full_cohort_gwas_bcftools_query_options,
+  #     gwas_mem_gb = 31,
+  #     pedsv_docker = pedsv_docker,
+  #     pedsv_r_docker = pedsv_r_docker
+  # }
 
   call Rvas.SvGenicRvas as StudyWideRvas {
     input:
@@ -310,39 +309,35 @@ workflow PedSvMainAnalysis {
       docker = pedsv_r_docker
   }
 
-  call Gwas.SvGwas as TrioCohortGwas {
-    input:
-      dense_vcf = trio_dense_vcf,
-      dense_vcf_idx = trio_dense_vcf_idx,
-      ad_matrix = trio_ad_matrix,
-      ad_matrix_idx = trio_ad_matrix_idx,
-      sample_metadata_tsv = sample_metadata_tsv,
-      samples_list = trio_samples_list,
-      ref_fai = ref_fai,
-      prefix = study_prefix + ".trio_cohort",
-      bcftools_query_options = trio_gwas_bcftools_query_options,
-      pedsv_docker = pedsv_docker,
-      pedsv_r_docker = pedsv_r_docker
-  }
+  # call Gwas.SvGwas as TrioCohortGwas {
+  #   input:
+  #     dense_vcf = trio_dense_vcf,
+  #     dense_vcf_idx = trio_dense_vcf_idx,
+  #     ad_matrix = trio_ad_matrix,
+  #     ad_matrix_idx = trio_ad_matrix_idx,
+  #     sample_metadata_tsv = sample_metadata_tsv,
+  #     samples_list = trio_samples_list,
+  #     ref_fai = ref_fai,
+  #     prefix = study_prefix + ".trio_cohort",
+  #     bcftools_query_options = trio_gwas_bcftools_query_options,
+  #     pedsv_docker = pedsv_docker,
+  #     pedsv_r_docker = pedsv_r_docker
+  # }
 
-  # TODO: plot trio GWAS
-
-  call Gwas.SvGwas as CaseControlCohortGwas {
-    input:
-      dense_vcf = case_control_dense_vcf,
-      dense_vcf_idx = case_control_dense_vcf_idx,
-      ad_matrix = case_control_ad_matrix,
-      ad_matrix_idx = case_control_ad_matrix_idx,
-      sample_metadata_tsv = sample_metadata_tsv,
-      samples_list = case_control_samples_list,
-      ref_fai = ref_fai,
-      prefix = study_prefix + ".case_control_cohort",
-      bcftools_query_options = case_control_gwas_bcftools_query_options,
-      pedsv_docker = pedsv_docker,
-      pedsv_r_docker = pedsv_r_docker
-  }
-
-  # TODO: plot case/control GWAS
+  # call Gwas.SvGwas as CaseControlCohortGwas {
+  #   input:
+  #     dense_vcf = case_control_dense_vcf,
+  #     dense_vcf_idx = case_control_dense_vcf_idx,
+  #     ad_matrix = case_control_ad_matrix,
+  #     ad_matrix_idx = case_control_ad_matrix_idx,
+  #     sample_metadata_tsv = sample_metadata_tsv,
+  #     samples_list = case_control_samples_list,
+  #     ref_fai = ref_fai,
+  #     prefix = study_prefix + ".case_control_cohort",
+  #     bcftools_query_options = case_control_gwas_bcftools_query_options,
+  #     pedsv_docker = pedsv_docker,
+  #     pedsv_r_docker = pedsv_r_docker
+  # }
 
   call Rvas.SvGenicRvas as TrioCohortRvas {
     input:

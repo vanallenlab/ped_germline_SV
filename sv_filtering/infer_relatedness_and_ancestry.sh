@@ -50,25 +50,29 @@ done
 gsutil -m cp \
   gs://val-ped-nonterra-hail/PedSV.v2.5.polished.*.tsv.gz \
   $WRKDIR/data/ancestry_and_relatedness/
+for dtype in kinship PCs; do
+  ln -fs \
+    $WRKDIR/data/ancestry_and_relatedness/PedSV.v2.5.polished.$dtype.tsv.gz \
+    $WRKDIR/data/ancestry_and_relatedness/PedSV.v2.5.2.polished.$dtype.tsv.gz
+done
 
 # Assign ancestries using top 10 PCs
-if [ -e $WRKDIR/data/ancestry_and_relatedness/v2.5 ]; then
-  rm -rf $WRKDIR/data/ancestry_and_relatedness/v2.5
+if [ -e $WRKDIR/data/ancestry_and_relatedness/v2.5.2 ]; then
+  rm -rf $WRKDIR/data/ancestry_and_relatedness/v2.5.2
 fi
-mkdir $WRKDIR/data/ancestry_and_relatedness/v2.5
+mkdir $WRKDIR/data/ancestry_and_relatedness/v2.5.2
 ${CODEDIR}/gatksv_scripts/assign_ancestry.R \
-  --PCs $WRKDIR/data/ancestry_and_relatedness/PedSV.v2.5.polished.PCs.tsv.gz \
+  --PCs $WRKDIR/data/ancestry_and_relatedness/PedSV.v2.5.2.polished.PCs.tsv.gz \
   --training-labels $WRKDIR/data/ancestry_and_relatedness/1000G_HGDP_MESA_training_labels.tsv.gz \
   --testing-labels ${WRKDIR}/data/ancestry_and_relatedness/PedSV.SNV_ancestry_labels.tsv.gz \
-  --out-prefix $WRKDIR/data/ancestry_and_relatedness/v2.5/PedSV.v2.5.polished \
+  --out-prefix $WRKDIR/data/ancestry_and_relatedness/v2.5.2/PedSV.v2.5.2.polished \
   --use-N-PCs 10 \
   --min-probability 0 \
   --plot
 
 # Generate list of related samples to prune from analysis-ready VCFs
 $CODEDIR/gatksv_scripts/parse_kinship.R \
-  $WRKDIR/data/ancestry_and_relatedness/PedSV.v2.5.polished.kinship.tsv.gz \
+  $WRKDIR/data/ancestry_and_relatedness/PedSV.v2.5.2.polished.kinship.tsv.gz \
   $WRKDIR/PedSV_v2_callset_generation/v2_mega_batching/gatk_sv_pediatric_cancers_combined_sample_data_model_updated_links_6_2_23_with_annotations_for_batching.w_batch_assignments.tsv.gz \
-> $WRKDIR/data/ancestry_and_relatedness/v2.5/PedSV.v2.5.samples_to_exclude_for_analysis_vcfs.list
-
+> $WRKDIR/data/ancestry_and_relatedness/v2.5.2/PedSV.v2.5.2.samples_to_exclude_for_analysis_vcfs.list
 

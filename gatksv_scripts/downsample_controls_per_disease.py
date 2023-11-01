@@ -38,7 +38,7 @@ def melt_meta(meta, keepers):
 
         return {'pop' : sdat.ancestry_inferred_by_SVs,
                 'pheno' : pheno,
-                'validation' : sdat.study_phase == 'case_control'}
+                'case_control' : sdat.study_phase == 'case_control'}
 
 
     sample_dict = {}
@@ -214,30 +214,37 @@ def rebalance_cancer(samples, cancer, allow_drop_cases=False, case_weight=1):
     if cancer == 'pancan':
         req_phenos = 'ewing neuroblastoma osteosarcoma control'.split()
     else:
-        req_phenos = [cancer, 'control']
+        req_phenos = [cancer, 'control']        
 
-    if len([v for v in samples.values() if _pheno_match(v, cancer) and v['validation']]) > 0:
+    if len([v for v in samples.values() if _pheno_match(v, cancer) and v['case_control']]) > 0:
+
+        # As of v2.5.2, use *all* controls for osteosarcoma cases
+        # since there are no osteosarcoma trios
+        if cancer == 'osteosarcoma':
+            requirements = {'pheno' : req_phenos}
+        else:
+            requirements = {'pheno' : req_phenos, 'case_control' : True}
+
         print('\nDiscovery cohort summary:')
-        validation_samples = \
+        case_control_samples = \
             balance_ancestries(samples.copy(), 
-                               require={'pheno' : req_phenos, 
-                                        'validation' : True}, 
+                               require=requirements, 
                                seed=seed, abs_fold=allow_drop_cases, 
                                allow_drop_cases=allow_drop_cases,
                                case_weight=case_weight, 
                                return_keepers=True, verbose=True)
         if cancer == 'pancan':
-            case_keepers = [s for s, v in validation_samples.items() if v ['pheno'] in 'ewing neuroblastoma osteosarcoma'.split()]
+            case_keepers = [s for s, v in case_control_samples.items() if v ['pheno'] in 'ewing neuroblastoma osteosarcoma'.split()]
         else:
-            case_keepers = [s for s, v in validation_samples.items() if v ['pheno'] == cancer]
-        ctrl_keepers += [s for s, v in validation_samples.items() if v ['pheno'] == 'control']
+            case_keepers = [s for s, v in case_control_samples.items() if v ['pheno'] == cancer]
+        ctrl_keepers += [s for s, v in case_control_samples.items() if v ['pheno'] == 'control']
 
-    if len([v for v in samples.values() if _pheno_match(v, cancer) and not v['validation']]) > 0:
+    if len([v for v in samples.values() if _pheno_match(v, cancer) and not v['case_control']]) > 0:
         print('\nTrio/replication cohort summary:')
         trio_samples = \
             balance_ancestries(samples.copy(), 
                                require={'pheno' : req_phenos, 
-                                        'validation' : False}, 
+                                        'case_control' : False}, 
                                seed=seed, abs_fold=allow_drop_cases, 
                                allow_drop_cases=allow_drop_cases, 
                                return_keepers=True, verbose=True)
@@ -295,7 +302,8 @@ def main():
     cancers = ['pancan'] + [x for x in meta.disease.unique() if x != 'control']
     for cancer in cancers:
         case_ids[cancer], control_ids[cancer] = \
-            rebalance_cancer(samples, cancer, args.allow_lost_cases, args.case_weight)
+            rebalance_cancer(samples, cancer, args.allow_lost_cases, 
+                             args.case_weight)
 
     # Add columns to meta indicating case/control status for each disease
     for cancer, c_ids in case_ids.items():
