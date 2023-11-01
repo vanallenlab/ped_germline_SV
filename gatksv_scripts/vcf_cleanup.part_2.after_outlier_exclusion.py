@@ -197,7 +197,7 @@ def count_by_cohort(record, cohort_map):
 
 
 def compare_cohorts(record, counts, cohort1, cohort2, rare_af = 0.05, 
-                    rare_pval = 0.01, common_pval = 0.01):
+                    rare_pval = 0.05, common_pval = 0.05):
     """
     Test for frequency differences between two cohorts for a single record
     """

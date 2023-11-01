@@ -1,5 +1,10 @@
 ## Change logs for study callset versions
 
+#### Version 2.5.2 (release date November 1, 2023)
+- Modified outlier sample definition to treat samples of unknown ancestry as European ancestry  
+- Increased P-value cutoff for inter-cohort frequency comparisons from P<0.01 to P<0.05  
+- Pooled controls from both study arms (discovery & trio) for osteosarcoma, since there are no osteosarcoma trios  
+
 #### Version 2.5 (release date October 20, 2023)
 - Re-trained secondary GT filtering method, `MinGQ`, while restricting to pediatric cancer trios (and not including any 1000G trios)  
 - Increased global maximum no-call rate to 4%  

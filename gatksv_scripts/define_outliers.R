@@ -45,7 +45,8 @@ load.counts <- function(counts.in, pop.labels, smallest.max=10){
   missing.pop <- which(is.na(counts$pop))
   if(length(missing.pop) > 0){
     # counts$pop[missing.pop] <- "OTH"
-    counts$pop[missing.pop] <- "OTH"
+    # As of v2.5.2, assign all unknown samples to EUR for outlier exclusion
+    counts$pop[missing.pop] <- "EUR"
   }
 
   # Drop SV types with fewer than smallest.max SVs in all samples
@@ -66,7 +67,7 @@ load.counts <- function(counts.in, pop.labels, smallest.max=10){
     pop.counts <- lapply(pops.present, function(pop){
       subcounts[which(subcounts$pop == pop), ]
     })
-    names(pop.counts) <- names(pop.colors)
+    names(pop.counts) <- pops.present
     return(pop.counts)
   })
   names(counts) <- svtypes
