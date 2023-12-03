@@ -7,6 +7,11 @@ This folder serves as a place to document Jett's analysis in collaboration on Ri
 * `scripts`: top-level scripts used by various notebooks.
 * `ref`: reference files used by various notebooks, with purposes documented in a `README.md`.
 * `info`: files containing useful notes. Notably includes `methods.md` and `style.md`, which explain the methods and a style guide for code.
+* `papers`: relevant papers
+* `old`: some old analyses that are covered more completely in new notebooks but are worth keeping for relooks later.
+* `images/data`: self-explanatory. `data` is not committed because of its large size (ask me for it).
+
+Very large files are not committed, as noted in `.gitignore`.
 
 The data for this project is stored under a google bucket named `vanallen-pedsv-analysis`.
 
