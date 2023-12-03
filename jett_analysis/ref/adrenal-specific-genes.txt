@@ -1,0 +1,37 @@
+# https://academic.oup.com/endo/article/158/2/239/2965954
+Gene Name	Description	Adrenal FPKM	Second Highest FPKM	TSS
+CYP17A1	Cytochrome P450, family 17, subfamily A, polypeptide 1	2254	100	23
+CHGB	Chromogranin B (secretogranin 1)	2064	135	15
+CYP11B1	Cytochrome P450, family 11, subfamily B, polypeptide 1	1654	2	1075
+STAR	Steroidogenic acute regulatory protein	1549	247	6
+HSD3B2	Hydroxy- δ-5-steroid dehydrogenase, 3β- and steroid δ-isomerase 2	1467	4	417
+AKR1B1	Aldo-keto reductase family 1, member B1 (aldose reductase)	1400	188	7
+CYP21A2	Cytochrome P450, family 21, subfamily A, polypeptide 2	979	3	322
+NOV	Nephroblastoma overexpressed	845	21	40
+FDX1	Ferredoxin 1	255	24	10
+DBH	Dopamine β-hydroxylase (dopamine β-monooxygenase)	201	18	11
+SOAT1	Sterol O-acyltransferase 1	196	37	5
+MGARP	Mitochondria-localized glutamic acid-rich protein	188	20	9
+TH	Tyrosine hydroxylase	187	4	45
+AS3MT	Arsenic (+3 oxidation state) methyltransferase	137	20	7
+PNMT	Phenylethanolamine N-methyltransferase	121	7	17
+VWA5B2	von Willebrand factor A domain containing 5B2	119	8	15
+MCOLN3	Mucolipin 3	101	15	7
+ARHGAP36	Rho GTPase-activating protein 36	99	3	29
+CARTPT	CART prepropeptide	97	11	8
+CYP11B2	Cytochrome P450, family 11, subfamily B, polypeptide 2	82	<1	818
+KCNK2	Potassium channel, subfamily K, member 2	65	10	6
+CHRNA3	Cholinergic receptor, nicotinic, α3 (neuronal)	39	6	7
+MC2R	Melanocortin 2 receptor (adrenocorticotropic hormone)	37	<1	75
+SLC18A1	Solute carrier family 18 (vesicular monoamine transporter), member 1	25	3	8
+MAP3K15	Mitogen-activated protein kinase kinase kinase 15	20	3	7
+PHOX2A	Paired-like homeobox 2a	19	1	16
+RET	Ret proto-oncogene	19	4	5
+FAM19A4	Family with sequence similarity 19 (chemokine (C-C motif)-like), member A4	16	1	12
+AP000783.1	Uncharacterized protein	15	2	7
+C18orf42	Chromosome 18 open reading frame 42	11	<1	14
+AC015660.1	HCG1993240; Serologically defined breast cancer antigen NY-BR-40; Uncharacterized protein	8	<1	80
+PHOX2B	Paired-like homeobox 2b	8	<1	9
+FAM43B	Family with sequence similarity 43, member B	6	1	5
+DRGX	Dorsal root ganglia homeobox	5	<1	15
+UCP1	Uncoupling protein 1 (mitochondrial, proton carrier)	3	<1	10
