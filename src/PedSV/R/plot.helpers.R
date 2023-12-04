@@ -165,3 +165,4 @@ format.pval <- function(p, nsmall=2, max.decimal=3, equality="=", min.neg.log10.
     bquote(italic(P) ~ .(equality) ~ .(formatC(round(p, max.decimal), digits=max.decimal)))
   }
 }
+
