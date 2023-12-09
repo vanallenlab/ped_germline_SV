@@ -4,6 +4,9 @@ Coming back to devise a formulated gameplan after some discussion with Riaz and 
 
 ## 2023-12-03
 
+_CWAS RNA_
+* Need to try to convert the test to a normal (i.e. convert expression to (0, 1) normal and extract the samples with SVs
+
 Going to start breaking out the gameplan into dates that I semi-regularly update. The callset is now v2.5.2. We've started moving away from the targeted SV enrichment in disease relative genes. While this analysis is now accomplished by `targeted-gene-preprocessing-v2.5.2.ipynb`, there wasn't a whole that was substantial or interesting. As a result, I've moved some of the disease specific features (EWSR1-FLI1 joint SV analysis) into `old`. I should probably revisit these before the project is done. We're now moving into digesting Riaz's CWAS results and Ryan's de novo sequencing work.
 
 Before I do move on, I'd like to document lingering questions in the gene-specific space, in case I ever come back to it.
@@ -14,3 +17,18 @@ Before I do move on, I'd like to document lingering questions in the gene-specif
 * More concretely examine MYCN in neuroblastoma and its overlap with somatic SVs. We're seeing that neuroblastoma has the most believable signals, so it's possible something is still here. We also have some expression data.
 * Go back and look at the EWSR1-FLI1 joint SV analysis. It's such a cool analysis that we should make sure nothing comes of it.
 * Cross reference any potential hits in neuroblastoma using the RNA.
+
+Follow-ups:
+- Clean up your analyses
+- For coding variants:
+	- To handle sensitivity to structural variants with a single gene
+	- Do subtraction to only look at genes affected in cases and not controls
+	- Coding categories may change substantially with single gene approach
+	- Think about deletion vs. duplication, etc in gene set enrichment.
+	- Send Ryan beta defensins SV names
+- Single gene SVs > cases minus any genes hit in controls
+- Multiple ways to think about narrowing down--focused on top categories, single gene SVs, or focused on biological pathways that we think are relevant
+
+- Ryan also brings up the point of TdT > SVs present in probands count towards, SVs present in parents and not probands count against.
+
+- Examine coding SVs across all samples
