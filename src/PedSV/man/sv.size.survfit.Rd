@@ -9,7 +9,7 @@ sv.size.survfit(
   meta,
   ad,
   cancer = "pancan",
-  use.N.pcs = 5,
+  use.N.pcs = 3,
   extra.terms = NULL
 )
 }
@@ -24,7 +24,7 @@ from a previous call of \link{query.ad.matrix}}
 \item{cancer}{Cancer type of interest [default: "pancan"]}
 
 \item{use.N.pcs}{Specify how many principal components should be adjusted in
-model [default: 5]}
+model [default: 3]}
 
 \item{extra.terms}{Specify if any extra terms should be added to the model.
 Named options include:  "batch", "coverage, "insert.size", and "wgd".
