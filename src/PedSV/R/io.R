@@ -87,6 +87,14 @@ load.sample.metadata <- function(tsv.in, keep.samples=NULL,
     df <- df[keep.samples, ]
   }
 
+  # Fill missing columns as necessary
+  check.colnames <- c("proband")
+  for(colname in check.colnames){
+    if(!(colname %in% colnames(df))){
+      df[, colname] <- NA
+    }
+  }
+
   # Rename columns
   for(cnames in list(c("ancestry_short_variant_inferred_or_reported", "reported_ancestry"),
                      c("melt_insert_size", "insert_size"),

@@ -21,7 +21,7 @@
 #' @param X Vector of values for primary independent variable. See `Details`.
 #' @param Y Vector of values for dependent variable. See `Details`.
 #' @param use.N.pcs Specify how many principal components should be adjusted in
-#' model \[default: 5\]
+#' model \[default: 3\]
 #' @param extra.terms Specify if any extra terms should be added to the model.
 #' Named options include:  "batch", "coverage, "insert.size", and "wgd".
 #' Custom terms can be passed using their exact column names in `meta`.
@@ -40,7 +40,7 @@
 #'
 #' @export prep.glm.matrix
 #' @export
-prep.glm.matrix <- function(meta, X, Y, use.N.pcs=5, extra.terms=NULL){
+prep.glm.matrix <- function(meta, X, Y, use.N.pcs=3, extra.terms=NULL){
   # Standard covariates
   df <- data.frame("is.female" = as.numeric(meta$inferred_sex == "FEMALE"
                                             | meta$chrX_CopyNumber > 1.5),
@@ -144,6 +144,9 @@ get.eligible.samples <- function(meta, cancer){
   control.cname <- paste(cancer, "control", sep="_")
   if(control.cname %in% colnames(meta)){
     control.idx <- intersect(control.idx, which(meta[, control.cname]))
+  }else{
+    control.idx <- which(meta$disease == "control"
+                         & (meta$proband | is.na(meta$proband)))
   }
   list("cases" = rownames(meta)[case.idx],
        "controls" = rownames(meta)[control.idx])
@@ -178,7 +181,7 @@ get.phenotype.vector <- function(case.ids, control.ids){
 #' @param X Vector of values for primary independent variable. See [PedSV::prep.glm.matrix].
 #' @param Y Vector of values for dependent variable. See [PedSV::prep.glm.matrix].
 #' @param use.N.pcs Specify how many principal components should be adjusted in
-#' model \[default: 5\]
+#' model \[default: 3\]
 #' @param family `family` parameter passed to [glm]
 #' @param extra.terms Extra covariate terms to include in model. See [PedSV::prep.glm.matrix].
 #' @param firth.fallback Attempt to use Firth bias-reduced logistic regression when
@@ -201,7 +204,7 @@ get.phenotype.vector <- function(case.ids, control.ids){
 #'
 #' @export pedsv.glm
 #' @export
-pedsv.glm <- function(meta, X, Y, use.N.pcs=5, family=gaussian(), extra.terms=NULL,
+pedsv.glm <- function(meta, X, Y, use.N.pcs=3, family=gaussian(), extra.terms=NULL,
                       firth.fallback=TRUE, strict.fallback=TRUE,
                       nonstrict.se.tolerance=10, firth.always=FALSE,
                       return.all.coefficients=FALSE){
@@ -273,3 +276,64 @@ pedsv.glm <- function(meta, X, Y, use.N.pcs=5, family=gaussian(), extra.terms=NU
     summary(fit)
   }
 }
+
+
+#' Survival model of SV size
+#'
+#' Constructs a Cox proportional hazards model of the largest SV per sample
+#' versus case-control status
+#'
+#' @param sv.bed SV bed that was imported with [load.sv.bed]
+#' @param meta Sample metadata that was imported with [load.sample.metadata]
+#' @param ad Either a path to an allele dosage .bed.gz matrix or a data.frame
+#' from a previous call of [query.ad.matrix]
+#' @param cancer Cancer type of interest \[default: "pancan"\]
+#' @param use.N.pcs Specify how many principal components should be adjusted in
+#' model \[default: 3\]
+#' @param extra.terms Specify if any extra terms should be added to the model.
+#' Named options include:  "batch", "coverage, "insert.size", and "wgd".
+#' Custom terms can be passed using their exact column names in `meta`.
+#'
+#' @export sv.size.survfit
+#' @export
+sv.size.survfit <- function(sv.bed, meta, ad, cancer="pancan", use.N.pcs=3,
+                            extra.terms=NULL){
+  require(survival, quietly=TRUE)
+  # Subset data to cases & controls meeting inclusion criteria
+  sids <- get.eligible.samples(meta, cancer)
+  case.ids <- sids$cases
+  control.ids <- sids$controls
+  all.sids <- unlist(sids)
+  Y <- get.phenotype.vector(case.ids, control.ids)
+
+  # Get verbose AD matrix for all SVs in sv.bed and convert to binary 0|1 indicator
+  ad.df <- query.ad.from.sv.bed(ad, sv.bed, action="verbose",
+                                keep.samples=all.sids)
+  ad.df <- as.data.frame(apply(ad.df, 2, function(vals){
+    vals[which(vals > 1)] <- 1; return(vals)
+  }))
+
+  # Assign X value as largest log10(SVLEN) per sample
+  sv.bed$log10.SVLEN <- sapply(sv.bed$SVLEN, function(v){log10(max(c(v, 1)))})
+  X <- sapply(colnames(ad.df), function(sid){
+    max(ad.df[, sid] * sv.bed[rownames(ad.df), "log10.SVLEN"], na.rm=T)
+  })
+
+  # Make association df and customize to be appropriate for survival
+  test.df <- prep.glm.matrix(meta, X, Y, use.N.pcs=use.N.pcs,
+                             extra.terms=extra.terms)
+  test.df$event <- 1
+
+  # Fit survival models for cases and controls separately (for visualization)
+  surv.fits <- list("control" = summary(survfit(with(test.df[which(test.df$Y == 0), ],
+                                                     Surv(X, event)) ~ 1)),
+                    "case" = summary(survfit(with(test.df[which(test.df$Y == 1), ],
+                                                  Surv(X, event)) ~ 1)))
+
+  # Fit survival model of case|control ~ largest SV length
+  cox.res <- summary(coxph(Surv(X, event) ~ ., data=test.df))
+
+  return(list("surv.models" = surv.fits,
+              "cox.stats" = cox.res))
+}
+

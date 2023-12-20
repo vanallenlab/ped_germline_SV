@@ -289,3 +289,96 @@ barplot.by.phenotype <- function(plot.df, bar.hex=0.5, case.control.sep=0.375,
   })
 }
 
+#' Kaplan-Meyer plots of SV length
+#'
+#' Customized Kaplan-Meyer "survival" plots of one or more strata by longest SV
+#' per sample
+#'
+#' @param surv.models List of one or more [`survival::summary.survfit`] objects
+#' @param colors Vector of colors for the list elements in `surv.models`
+#' @param group.names (Optional) group names to assign to each list element in `surv.models`
+#' @param ci.alpha Transparency value `alpha` for confidence interval shading \[default: 0.15\]
+#' @param legend Should a legend be plotted?
+#' @param legend.names (Optional) mapping of `values` to labels for legend
+#' @param legend.label.spacing Minimum vertical spacing between legend labels \[default: 0.075\]
+#' @param title (Optional) Title for plot
+#' @param xlab (Optional) Title for X axis
+#' @param xlims (Optional) two-element vector of start and stop values for X-axis, in log10(SVLEN)
+#' @param parmar Margin values passed to par()
+#'
+#' @seealso [`survival::Surv`], [`survival::survfit`], [`survival::summary.survfit`]
+#'
+#' @export svlen.km.plot
+#' @export
+svlen.km.plot <- function(surv.models, colors, group.names=NULL, ci.alpha=0.15,
+         legend=TRUE, legend.names=NULL, legend.label.spacing=0.075,
+         title=NULL, xlab=NULL, xlims=log10(c(10000, 1000000)), parmar=c(2, 2.5, 1, 1)){
+  # Ensure survival library and PedSV scale constants are loaded within function scope
+  require(survival, quietly=TRUE)
+  PedSV::load.constants("scales", envir=environment())
+
+  # Get plotting values
+  if(is.null(group.names)){
+    group.names <- names(surv.models)
+  }
+  n.groups <- length(surv.models)
+  if(is.null(legend.names)){
+    legend.names <- names(surv.models)
+  }
+  if(is.null(xlab)){
+    xlab <- "Size of Largest SV"
+  }
+  if(is.null(xlims)){
+    xlims <- c(0, max(sapply(surv.models, function(ss){max(ss$time, na.rm=T)})))
+  }
+
+  # Prep plot area
+  prep.plot.area(xlims, c(0, 1.025), parmar)
+
+  # Add confidence intervals
+  # Loop over this twice: first to lay white backgrounds, then add colors
+  for(layer in c("white", "colors")){
+    sapply(1:n.groups, function(i){
+      n.times <- length(surv.models[[i]]$time)
+      if(n.times > 1){
+        x.bottom <- c(0, PedSV::stretch.vector(surv.models[[i]]$time, 2)[-2*n.times])
+        x.top <- rev(x.bottom)
+        y.bottom <- c(1, 1, PedSV::stretch.vector(surv.models[[i]]$lower, 2)[-c(2*n.times-c(0, 1))])
+        y.top <- rev(c(1, 1, PedSV::stretch.vector(surv.models[[i]]$upper, 2)[-c(2*n.times-c(0, 1))]))
+        polygon(x=c(x.bottom, x.top), y=c(y.bottom, y.top), border=NA, bty="n",
+                col=if(layer == "white"){"white"}else{adjustcolor(colors[[i]], alpha=ci.alpha)})
+      }
+    })
+  }
+
+  # Add K-M curves
+  sapply(1:n.groups, function(i){
+    n.times <- length(surv.models[[i]]$time)
+    # If summary.survfit returns no data, this is either because
+    # there are no patients in this group or nobody died.
+    # If the latter, we can plot as a flat line at Y=1 until rmean.endtime (I think?)
+    if(surv.models[[i]]$n > 0){
+      if(n.times == 0){
+        x <- c(0, surv.models[[i]]$rmean.endtime)
+        y <- c(1, 1)
+      }else{
+        x <- c(0, PedSV::stretch.vector(surv.models[[i]]$time, 2))
+        y <- c(1, 1, PedSV::stretch.vector(surv.models[[i]]$surv, 2))[1:length(x)]
+      }
+      points(x, y, type="l", col=colors[[i]], lwd=3)
+    }
+  })
+
+  # Add axes
+  clean.axis(1, at=log10(logscale.minor), labels=NA, infinite=TRUE,
+             title=xlab, label.line=-0.75, title.line=0, tck=-0.01)
+  clean.axis(1, at=log10(logscale.major.bp), labels=logscale.major.bp.labels, infinite=FALSE,
+             title=NA, label.line=-0.75, title.line=0, tck=-0.0175)
+  clean.axis(2, title="Fraction of Samples", infinite=FALSE, tck=-0.0175)
+  mtext(title, side=3, line=0, font=2)
+
+  # Add legend
+  if(legend){
+    legend("bottomleft", legend=legend.names, lwd=3, col=colors, bty="n", cex=5/6)
+  }
+}

@@ -15,8 +15,8 @@
 version 1.0
 
 
-# import "https://raw.githubusercontent.com/vanallenlab/ped_germline_SV/rlc_v2.5_analysis/wdl/SvGwas.wdl" as Gwas
-import "https://raw.githubusercontent.com/vanallenlab/ped_germline_SV/rlc_v2.5_analysis/wdl/SvGenicRvas.wdl" as Rvas
+# import "https://raw.githubusercontent.com/vanallenlab/ped_germline_SV/main/wdl/SvGwas.wdl" as Gwas
+import "https://raw.githubusercontent.com/vanallenlab/ped_germline_SV/main/wdl/SvGenicRvas.wdl" as Rvas
 
 
 workflow PedSvMainAnalysis {
