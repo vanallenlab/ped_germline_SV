@@ -1,5 +1,8 @@
 ## Change logs for study callset versions
 
+#### Version 2.5.3 (release date December 21, 2023)
+- Excluded 3 samples carrying suspicious translocations resulting in known oncogenic fusions (BCR-ABL, EWSR1-FLI1, NUP98-PRRX1), one of which was unable to be validated by PCR in blood DNA (EWSR1-FLI1)  
+
 #### Version 2.5.2 (release date November 1, 2023)
 - Modified outlier sample definition to treat samples of unknown ancestry as European ancestry  
 - Increased P-value cutoff for inter-cohort frequency comparisons from P<0.01 to P<0.05  
