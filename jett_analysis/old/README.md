@@ -1,11 +1,7 @@
 # Old Analyses
 
-These three notebooks are my initial attempts at examining structural variants around specific loci in specific diseases. I have since generalized this entire process to `pgsvs-targeted-gene-preprocessing`.
+These notebooks are my initial attempts at analyzing a few concepts. They are being archived because their functionality is better achieved with current notebooks.
 
-Still, I would like to keep these notebooks because they began to address peculiarities of these genes and their analyses that are not well handled by the more general script. In particular, the code explored:
-
-* Joint SV enrichment between EWSR1-FLI1
-* Overlap between MYCN SVs and copy number amplifications
-* Some large deletions around the TERT-ALK locus
-
-None of these--at least in my initial look--ended up yielding anything substantial or interesting. But it's likely that I should revisit these notebooks before the project is done and take one last look. As a result, I'm storing these notebooks for this purpose here. The notebooks also run through the initial preprocessing of SVs and enrichment that is now accomplished by the general script.
+They are as follows:
+* `pgsvs-{gene}-v2.3`: My initial attempts at examining structural variants around specific loci in specific diseases. I have since generalized this entire process to `pgsvs-targeted-gene-preprocessing`. Still, I would like to keep these notebooks because they began to address peculiarities of these genes and their analyses that are not well handled by the more general script. In particular, the code explored: 1. Joint SV enrichment between EWSR1-FLI1, 2. Overlap between MYCN SVs and copy number amplifications, 3. Some large deletions around the TERT-ALK locus. None of these--at least in my initial look--ended up yielding anything substantial or interesting. But it's likely that I should revisit these notebooks before the project is done and take one last look. As a result, I'm storing these notebooks for this purpose here. The notebooks also run through the initial preprocessing of SVs and enrichment that is now accomplished by the general script.
+* `pgsvs-neuroblastoma-cwas-rna`: My initial attempt at processing the RNA and doing the CWAS rna analysis. Better generalized in `pgsvs-sv-impact-on-rna-generate.ipynb`, which generates the results, and analyzed in `pgsvs-analyze-sv-impact-on-rna-with-categories`

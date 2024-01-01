@@ -1,4 +1,5 @@
 import requests
+import scipy.stats as stats
 
 def reformat_gs_to_https(gs_path, project_id):
     if gs_path.startswith('gs'):
