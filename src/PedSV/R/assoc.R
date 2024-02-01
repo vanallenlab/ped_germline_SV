@@ -105,7 +105,7 @@ prep.glm.matrix <- function(meta, X, Y, use.N.pcs=3, extra.terms=NULL){
 
   # Ensure X and Y have at least two distinct values
   if(!all(c("X", "Y") %in% colnames(df))){
-    stop("Error in prep.glm.matrix: must supply non-separable X and Y values")
+    warning("prep.glm.matrix: must supply non-separable X and Y values")
   }
 
   return(df[complete.cases(df), ])
@@ -215,6 +215,9 @@ pedsv.glm <- function(meta, X, Y, use.N.pcs=3, family=gaussian(), extra.terms=NU
   test.df <- prep.glm.matrix(meta, X, Y, use.N.pcs, extra.terms)
 
   # Check to make sure dataset is not separable
+  if(!all(c("X", "Y") %in% colnames(test.df))){
+    return(c(NA, NA, NA, NA, NA))
+  }
   ct <- table(test.df[, c("X", "Y")])
   if(nrow(ct) <= 1 | ncol(ct) <= 1){
     return(c(NA, NA, NA, NA, NA))

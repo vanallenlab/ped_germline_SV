@@ -281,26 +281,26 @@ parser$add_argument("--out-prefix", metavar="path", type="character", required=T
 args <- parser$parse_args()
 
 # # DEV:
-# args <- list("bed" = c("~/scratch/PedSV.v2.5.2.case_control_cohort.analysis_samples.sites.bed.gz"),
-#              "ad" = c("~/scratch/PedSV.v2.5.2.case_control_cohort.analysis_samples.allele_dosages.bed.gz"),
-#              "metadata" = "~/scratch/PedSV.v2.5.2.cohort_metadata.w_control_assignments.tsv.gz",
-#              "gene_lists" = "~/scratch/PedSV.gene_lists.tsv",
+# args <- list("bed" = c("~/scratch/PedSV.v2.5.3.case_control_cohort.analysis_samples.sites.bed.gz"),
+#              "ad" = c("~/scratch/PedSV.v2.5.3.case_control_cohort.analysis_samples.allele_dosages.bed.gz"),
+#              "metadata" = "~/scratch/PedSV.v2.5.3.cohort_metadata.w_control_assignments.tsv.gz",
+#              "gene_lists" = NULL,
 #              "genomic_disorder_hits" = NULL,
-#              "subset_samples" = "/Users/ryan/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_v2_callset_generation/v2.2/PedSV.v2.2.case_control_analysis_cohort.samples.list",
+#              "subset_samples" = "~/scratch/PedSV.v2.5.3.case_control_analysis_cohort.samples.list",
 #              "exclude_variants" = NULL,
 #              "af_field" = "POPMAX_AF",
 #              "ac_field" = "AC",
-#              "out_prefix" = "~/scratch/PedSV.v2.5.2.case_control.dev")
-# args <- list("bed" = c("~/scratch/PedSV.v2.1.trio_cohort.analysis_samples.sites.bed.gz"),
-#              "ad" = c("~/scratch/PedSV.v2.1.trio_cohort.analysis_samples.allele_dosages.bed.gz"),
-#              "metadata" = "~/scratch/PedSV.v2.1.cohort_metadata.w_control_assignments.tsv.gz",
-#              "gene_lists" = "~/scratch/PedSV.gene_lists.tsv",
+#              "out_prefix" = "~/scratch/PedSV.v2.5.3.case_control.dev")
+# args <- list("bed" = c("~/scratch/PedSV.v2.5.3.trio_cohort.analysis_samples.sites.bed.gz"),
+#              "ad" = c("~/scratch/PedSV.v2.5.3.trio_cohort.analysis_samples.allele_dosages.bed.gz"),
+#              "metadata" = "~/scratch/PedSV.v2.5.3.cohort_metadata.w_control_assignments.tsv.gz",
+#              "gene_lists" = NULL,
 #              "genomic_disorder_hits" = NULL,
-#              "subset_samples" = "/Users/ryan/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_v2_callset_generation/PedSV.v2.1.trio_analysis_cohort.samples.list",
+#              "subset_samples" = "~/scratch/PedSV.v2.5.3.trio_analysis_cohort.samples.list",
 #              "exclude_variants" = NULL,
 #              "af_field" = "POPMAX_AF",
 #              "ac_field" = "AC",
-#              "out_prefix" = "~/scratch/PedSV.v2.1.trio.dev")
+#              "out_prefix" = "~/scratch/PedSV.v2.5.3.trio.dev")
 # args <- list("bed" = c("~/scratch/PedSV.v2.5.3.full_cohort.analysis_samples.sites.bed.gz"),
 #              "ad" = c("~/scratch/PedSV.v2.5.3.full_cohort.analysis_samples.allele_dosages.bed.gz"),
 #              "metadata" = "~/scratch/PedSV.v2.5.3.cohort_metadata.w_control_assignments.tsv.gz",
@@ -361,8 +361,6 @@ all.stats <- data.frame("hypothesis"=character(0), "disease"=character(0),
 barplot.height <- 0.5 + (length(unique(meta$disease)) / 4)
 barplot.width <- 3
 
-# Absolute sum of nucleotides rearranged per genome by rare/vrare/singleton SVs per SV type
-# TODO: implement this (need to weight AD matrix by query ID)
 
 # Count of large autosomal variants per genome by SV type
 sv.subsets <- lapply(c("DEL", "DUP", "INV", "CPX"), function(svtype){
@@ -452,7 +450,6 @@ for(freq in c("rare", "vrare", "singleton")){
 
 
 # Regression analysis of largest rare unbalanced SV per genome
-cancers.km.layer.ordered <- c("EWS", "NBL", "OS", "control", "pancan")
 for(freq in c("rare", "vrare", "singleton")){
   largest.sv.data <-
     supercategory.burden.test(data=data,
@@ -461,6 +458,8 @@ for(freq in c("rare", "vrare", "singleton")){
                               af.fields=af.fields, ac.fields=ac.fields)
   all.stats <- rbind(all.stats, largest.sv.data$new.stats)
   largest.sv <- apply(largest.sv.data$ad.df[[1]], 2, max, na.rm=T)
+  cancers.km.layer.ordered <- c(metadata.cancer.label.map[rev(setdiff(unique(meta[names(largest.sv), "disease"]), "control"))],
+               "control", "pancan")
   surv.models <- lapply(cancers.km.layer.ordered, function(cancer){
     elig.sids <- intersect(get.eligible.samples(meta, cancer)$cases, names(largest.sv))
     survfit(Surv(log10(largest.sv[elig.sids]), rep(1, length(elig.sids))) ~ 1)
@@ -470,7 +469,7 @@ for(freq in c("rare", "vrare", "singleton")){
   svlen.km.plot(surv.models, cancer.colors[cancers.km.layer.ordered], ci.alpha=0,
                 xlab=paste("Largest", freq.names[freq], "SV"),
                 ylab="Proportion of Samples", xlim=log10(c(100000, 1000000)),
-                lwds=c(2, 2, 2, 3, 3))
+                lwds=c(rep(2, length(cancers.km.layer.ordered)-2), 3, 3))
   dev.off()
 }
 
