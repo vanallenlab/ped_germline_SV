@@ -289,6 +289,7 @@ barplot.by.phenotype <- function(plot.df, bar.hex=0.5, case.control.sep=0.375,
   })
 }
 
+
 #' Kaplan-Meyer plots of SV length
 #'
 #' Customized Kaplan-Meyer "survival" plots of one or more strata by longest SV
@@ -297,22 +298,28 @@ barplot.by.phenotype <- function(plot.df, bar.hex=0.5, case.control.sep=0.375,
 #' @param surv.models List of one or more [`survival::summary.survfit`] objects
 #' @param colors Vector of colors for the list elements in `surv.models`
 #' @param group.names (Optional) group names to assign to each list element in `surv.models`
+#' @param lwds (Optional) vector of `lwd` for each of surv.models \[default: 3\]
 #' @param ci.alpha Transparency value `alpha` for confidence interval shading \[default: 0.15\]
-#' @param legend Should a legend be plotted?
+#' @param legend Should a legend be plotted? \[default: FALSE\]
 #' @param legend.names (Optional) mapping of `values` to labels for legend
+#' @param legend.pos (Optional) position for legend. See [legend()] \[default: "topright"]
 #' @param legend.label.spacing Minimum vertical spacing between legend labels \[default: 0.075\]
 #' @param title (Optional) Title for plot
 #' @param xlab (Optional) Title for X axis
 #' @param xlims (Optional) two-element vector of start and stop values for X-axis, in log10(SVLEN)
+#' @param ylab (Optional) Title for Y axis
+#' @param ylims (Optional) two-element vector of start and stop values for Y-axis
 #' @param parmar Margin values passed to par()
 #'
 #' @seealso [`survival::Surv`], [`survival::survfit`], [`survival::summary.survfit`]
 #'
 #' @export svlen.km.plot
 #' @export
-svlen.km.plot <- function(surv.models, colors, group.names=NULL, ci.alpha=0.15,
-         legend=TRUE, legend.names=NULL, legend.label.spacing=0.075,
-         title=NULL, xlab=NULL, xlims=log10(c(10000, 1000000)), parmar=c(2, 2.5, 1, 1)){
+svlen.km.plot <- function(surv.models, colors, group.names=NULL, lwds=NULL, ci.alpha=0.15,
+                          legend=FALSE, legend.names=NULL, legend.pos="topright",
+                          legend.label.spacing=0.075, title=NULL, xlab=NULL,
+                          xlims=log10(c(10000, 1000000)), ylab=NULL, ylims=NULL,
+                          parmar=c(2, 3, 1, 1)){
   # Ensure survival library and PedSV scale constants are loaded within function scope
   require(survival, quietly=TRUE)
   PedSV::load.constants("scales", envir=environment())
@@ -322,18 +329,27 @@ svlen.km.plot <- function(surv.models, colors, group.names=NULL, ci.alpha=0.15,
     group.names <- names(surv.models)
   }
   n.groups <- length(surv.models)
+  if(is.null(lwds)){
+    lwds <- rep(1, n.groups)
+  }
   if(is.null(legend.names)){
     legend.names <- names(surv.models)
   }
   if(is.null(xlab)){
     xlab <- "Size of Largest SV"
   }
+  if(is.null(ylab)){
+    ylab <- bquote("Samples with" >= 1 ~ "SV")
+  }
   if(is.null(xlims)){
     xlims <- c(0, max(sapply(surv.models, function(ss){max(ss$time, na.rm=T)})))
   }
+  if(is.null(ylims)){
+    ylims <- c(0, max(sapply(surv.models, function(ss){max(ss$surv[which(ss$time>xlims[1])], na.rm=T)}), na.rm=T) + 0.025)
+  }
 
   # Prep plot area
-  prep.plot.area(xlims, c(0, 1.025), parmar)
+  prep.plot.area(xlims, ylims, parmar)
 
   # Add confidence intervals
   # Loop over this twice: first to lay white backgrounds, then add colors
@@ -365,20 +381,22 @@ svlen.km.plot <- function(surv.models, colors, group.names=NULL, ci.alpha=0.15,
         x <- c(0, PedSV::stretch.vector(surv.models[[i]]$time, 2))
         y <- c(1, 1, PedSV::stretch.vector(surv.models[[i]]$surv, 2))[1:length(x)]
       }
-      points(x, y, type="l", col=colors[[i]], lwd=3)
+      points(x, y, type="l", col=colors[[i]], lwd=lwds[i])
     }
   })
 
   # Add axes
   clean.axis(1, at=log10(logscale.minor), labels=NA, infinite=TRUE,
              title=xlab, label.line=-0.75, title.line=0, tck=-0.01)
-  clean.axis(1, at=log10(logscale.major.bp), labels=logscale.major.bp.labels, infinite=FALSE,
-             title=NA, label.line=-0.75, title.line=0, tck=-0.0175)
-  clean.axis(2, title="Fraction of Samples", infinite=FALSE, tck=-0.0175)
+  clean.axis(1, at=log10(logscale.demi.bp), labels=logscale.demi.bp.labels,
+             infinite=FALSE, title=NA, label.line=-0.75, title.line=0, tck=-0.0225)
+  clean.axis(2, title=ylab, infinite=TRUE, tck=-0.0175,
+             label.units="percent", title.line=1)
   mtext(title, side=3, line=0, font=2)
 
   # Add legend
   if(legend){
-    legend("bottomleft", legend=legend.names, lwd=3, col=colors, bty="n", cex=5/6)
+    legend(legend.pos, legend=rev(legend.names), lwd=rev(lwds),
+           col=rev(colors), bty="n", cex=5/6)
   }
 }

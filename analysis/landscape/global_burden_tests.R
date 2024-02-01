@@ -19,6 +19,7 @@
 options(scipen=1000, stringsAsFactors=F)
 require(PedSV, quietly=TRUE)
 require(Hmisc, quietly=TRUE)
+require(survival, quietly=TRUE)
 require(argparse, quietly=TRUE)
 PedSV::load.constants("all")
 
@@ -30,14 +31,21 @@ PedSV::load.constants("all")
 # Note: will return list of data frames, one per cohort, if action=="verbose"
 get.ad.values <- function(data, query, action, af.fields, ac.fields,
                           keep.idx.list=NULL, autosomal=TRUE){
+  query.parts <- unlist(strsplit(query, split=".", fixed=T))
   res <- lapply(1:length(data), function(i){
     info <- data[[i]]
     query.bed <- filter.bed(info$bed, query, af.fields[i], ac.fields[i],
                             keep.idx=keep.idx.list[[i]], autosomal=autosomal)
-    if("genes_disrupted" %in% unlist(strsplit(query, split=".", fixed=T))){
+    if("genes_disrupted" %in% query.parts){
       weights <- apply(query.bed[, c("PREDICTED_LOF", "PREDICTED_COPY_GAIN",
                                      "PREDICTED_INTRAGENIC_EXON_DUP")],
                        1, function(vals){sum(sapply(vals, length), na.rm=T)})
+    }else if("genomic_imbalance" %in% query.parts){
+      weights <- calc.genomic.imbalance(query.bed)
+      names(weights) <- rownames(query.bed)
+      # Set reciprocal translocations as an arbitrarily large size for this analysis
+      ctx.idx <- which(query.bed$SVTYPE == "CTX")
+      weights[ctx.idx] <- 50000000
     }else{
       weights <- NULL
     }
@@ -61,6 +69,13 @@ burden.test <- function(data, query, meta, ad.vals, family,
       extra.terms <- unique(c(extra.terms, "cohort"))
     }
   }
+
+  # Transform genomic imbalance terms to log10 for more intuitive scaling
+  if("genomic_imbalance" %in% unlist(strsplit(query, split="."))){
+    ad.vals[which(ad.vals < 1)] <- 1
+    ad.vals <- log10(ad.vals)
+  }
+
   # Run one comparison for each cancer type with at least one sample present in data
   cancers <- setdiff(unique(meta[names(ad.vals), "disease"]), "control")
   cancers <- c("pancan", metadata.cancer.label.map[cancers[which(!is.na(cancers))]])
@@ -107,15 +122,23 @@ supercategory.burden.test <- function(data, query, meta, action, family,
   ad.df <- lapply(ad.df, function(df){df[, intersect(colnames(df), rownames(meta))]})
   ad.vals <- unlist(lapply(ad.df, compress.ad.matrix, action=action))
   query.parts <- unlist(strsplit(query, split=".", fixed=T))
-  if(length(intersect(query.parts, c("large", "karyotypic"))) > 0
-     & length(intersect(names(sv.colors), query.parts)) == 0){
-    has.aneu <- intersect(rownames(meta)[which(meta$any_aneuploidy)], names(ad.vals))
+  if(length(intersect(query.parts, c("notsmall", "large", "karyotypic"))) > 0
+     & length(intersect(names(sv.colors), query.parts)) == 0
+     & !("balanced" %in% query.parts)){
+    if(autosomal){
+      has.aneu <- intersect(rownames(meta)[which(meta$autosomal_aneuploidy)], names(ad.vals))
+    }else{
+      has.aneu <- intersect(rownames(meta)[which(meta$any_aneuploidy)], names(ad.vals))
+    }
     if(length(has.aneu) > 0){
       for(sid in has.aneu){
         if(action == "any"){
           ad.vals[sid] <- 1
         }else if(action %in% c("count", "sum")){
           ad.vals[sid] <- if(is.na(ad.vals[sid])){1}else{ad.vals[sid] + 1}
+        }else if(action == "max" & "genomic_imbalance" %in% query.parts){
+          # For analyses of dosage imbalance, set aneuploidy samples as having an arbitrarily large SV (>50Mb)
+          ad.vals[sid] <- 50000000
         }
       }
     }
@@ -186,6 +209,9 @@ main.burden.wrapper <- function(data, query, meta, action, af.fields, ac.fields,
                        top.axis.units=barplot.units)
   dev.off()
   ad.dfs <- supercategory.res[["ad.df"]]
+  if(is.null(sv.subsets)){
+    return(all.stats)
+  }
   for(subset.info in sv.subsets){
     if(any(subset.info[[2]] %in% as.vector(unlist(sapply(ad.dfs, function(df){rownames(df)}))))){
       ad.vals <- unlist(lapply(ad.dfs, function(df){
@@ -275,16 +301,16 @@ args <- parser$parse_args()
 #              "af_field" = "POPMAX_AF",
 #              "ac_field" = "AC",
 #              "out_prefix" = "~/scratch/PedSV.v2.1.trio.dev")
-# args <- list("bed" = c("~/scratch/PedSV.v2.5.2.full_cohort.analysis_samples.sites.bed.gz"),
-#              "ad" = c("~/scratch/PedSV.v2.5.2.full_cohort.analysis_samples.allele_dosages.bed.gz"),
-#              "metadata" = "~/scratch/PedSV.v2.5.2.cohort_metadata.w_control_assignments.tsv.gz",
+# args <- list("bed" = c("~/scratch/PedSV.v2.5.3.full_cohort.analysis_samples.sites.bed.gz"),
+#              "ad" = c("~/scratch/PedSV.v2.5.3.full_cohort.analysis_samples.allele_dosages.bed.gz"),
+#              "metadata" = "~/scratch/PedSV.v2.5.3.cohort_metadata.w_control_assignments.tsv.gz",
 #              "gene_lists" = "~/scratch/PedSV.gene_lists.tsv",
 #              "genomic_disorder_hits" = NULL,
-#              "subset_samples" = "~/scratch/PedSV.v2.5.2.final_analysis_cohort.samples.list",
+#              "subset_samples" = "~/scratch/PedSV.v2.5.3.final_analysis_cohort.samples.list",
 #              "exclude_variants" = NULL,
 #              "af_field" = "POPMAX_AF",
 #              "ac_field" = "AC",
-#              "out_prefix" = "~/scratch/PedSV.v2.5.2.full_cohort.dev")
+#              "out_prefix" = "~/scratch/PedSV.v2.5.3.full_cohort.dev")
 
 # Load BEDs and pair AD paths with each
 data <- lapply(1:length(args$bed), function(i){
@@ -335,10 +361,10 @@ all.stats <- data.frame("hypothesis"=character(0), "disease"=character(0),
 barplot.height <- 0.5 + (length(unique(meta$disease)) / 4)
 barplot.width <- 3
 
-# Absolute sum of nucleotides rearranged per genome by SV type
+# Absolute sum of nucleotides rearranged per genome by rare/vrare/singleton SVs per SV type
 # TODO: implement this (need to weight AD matrix by query ID)
 
-# Count of large variants per genome by SV type
+# Count of large autosomal variants per genome by SV type
 sv.subsets <- lapply(c("DEL", "DUP", "INV", "CPX"), function(svtype){
   list(svtype,
        as.character(unlist(sapply(data, function(info){
@@ -357,27 +383,115 @@ all.stats <- main.burden.wrapper(data, query="large", meta, action="any",
                                  paste(args$out_prefix, "large_sv_per_genome.by_cancer", sep="."),
                                  main.title="Samples with any SV >1Mb",
                                  barplot.height=barplot.height, barplot.width=barplot.width,
-                                 barplot.units="percent", autosomal=FALSE)
+                                 barplot.units="percent")
 
 
-# Carrier rate of rare/vrare/singleton large variants per genome by SV type
+# Carrier rate of rare/vrare/singleton large (1Mb) & notsmall (100kb) variants per genome by SV type
 for(freq in c("rare", "vrare", "singleton")){
-  sv.subsets <- lapply(c("DEL", "DUP", "INV", "CPX", "CTX"), function(svtype){
-    list(svtype,
-         as.character(unlist(sapply(data, function(info){
-           rownames(info$bed)[which(info$bed$SVTYPE == svtype)]
-         }))),
-         paste("Samples with", freq.names[freq], sv.abbreviations[svtype],
-               if(svtype != "CTX"){">1Mb"}))
-  })
-  all.stats <- main.burden.wrapper(data, query=paste("large", freq, sep="."), meta, action="any",
-                                   af.fields, ac.fields, sv.subsets=sv.subsets, all.stats,
-                                   paste(args$out_prefix, paste(freq, "large_sv_per_genome.by_cancer", sep="_"), sep="."),
-                                   main.title=paste("Samples with", freq.names[freq],
-                                                    "SV >1Mb"),
-                                   barplot.height=barplot.height, barplot.width=barplot.width,
-                                   barplot.units="percent", autosomal=FALSE)
+  for(size in c("large", "notsmall")){
+    sv.subsets <- lapply(c("DEL", "DUP", "INV", "CPX"), function(svtype){
+      list(svtype,
+           as.character(unlist(sapply(data, function(info){
+             rownames(info$bed)[which(info$bed$SVTYPE == svtype)]
+           }))),
+           paste("Samples with", freq.names[freq], sv.abbreviations[svtype],
+                 if(svtype != "CTX"){if(size == "large"){">1Mb"}else{">100kb"}}))
+    })
+    all.stats <- main.burden.wrapper(data, query=paste(size, freq, sep="."), meta, action="any",
+                                     af.fields, ac.fields, sv.subsets=sv.subsets, all.stats,
+                                     paste(args$out_prefix, paste(freq, size, "sv_per_genome.by_cancer", sep="_"), sep="."),
+                                     main.title=paste("Samples with", freq.names[freq], "SV",
+                                                      if(size == "large"){">1Mb"}else{">100kb"}),
+                                     barplot.height=barplot.height, barplot.width=barplot.width,
+                                     barplot.units="percent", autosomal=FALSE)
+    # Add one separate test for all large *unbalanced* SVs
+    # (DEL + DUP + aneuploidy + CTX + qualifying CPX)
+    all.stats <- main.burden.wrapper(data, query=paste(size, freq, "unbalanced", sep="."), meta, action="any",
+                                     af.fields, ac.fields, sv.subsets=NULL, all.stats,
+                                     paste(args$out_prefix, paste(freq, size, "unbalanced_sv_per_genome.by_cancer", sep="_"), sep="."),
+                                     main.title=paste("Pct. w/", freq.names[freq],
+                                                      "Unbalanced SV",
+                                                      if(size == "large"){">1Mb"}else{">100kb"}),
+                                     barplot.height=barplot.height, barplot.width=barplot.width,
+                                     barplot.units="percent", autosomal=FALSE)
+    # Add one separate test for all large *unbalanced* *autosomal* SVs
+    # (DEL + DUP + aneuploidy + CTX + qualifying CPX)
+    all.stats <- main.burden.wrapper(data, query=paste(size, freq, "unbalanced", sep="."), meta, action="any",
+                                     af.fields, ac.fields, sv.subsets=NULL, all.stats,
+                                     paste(args$out_prefix, paste(freq, size, "unbalanced_sv_per_genome.by_cancer.autosomal_only", sep="_"), sep="."),
+                                     main.title=paste("Pct. w/", freq.names[freq],
+                                                      "Unbalanced SV",
+                                                      if(size == "large"){">1Mb"}else{">100kb"}),
+                                     barplot.height=barplot.height, barplot.width=barplot.width,
+                                     barplot.units="percent", autosomal=TRUE,
+                                     custom.hypothesis=paste(size, freq, "unbalanced", "autosomal_only", sep="."))
+    # Add one separate test for all large *unbalanced* *allosomal* SVs
+    # (DEL + DUP + aneuploidy + CTX + qualifying CPX)
+    all.stats <- main.burden.wrapper(data, query=paste(size, freq, "unbalanced", sep="."), meta, action="any",
+                                     af.fields, ac.fields, sv.subsets=NULL, all.stats,
+                                     keep.idx.list=lapply(data, function(d){which(d$bed$chrom %in% c("chrX", "chrY"))}),
+                                     paste(args$out_prefix, paste(freq, size, "unbalanced_sv_per_genome.by_cancer.allosomal_only", sep="_"), sep="."),
+                                     main.title=paste("Pct. w/", freq.names[freq],
+                                                      "Unbalanced SV",
+                                                      if(size == "large"){">1Mb"}else{">100kb"}),
+                                     barplot.height=barplot.height, barplot.width=barplot.width,
+                                     barplot.units="percent", autosomal=FALSE,
+                                     custom.hypothesis=paste(size, freq, "unbalanced", "allosomal_only", sep="."))
+    # Add one separate test for all large *balanced* SVs
+    # (INS + INV + qualifying CPX)
+    all.stats <- main.burden.wrapper(data, query=paste(size, freq, "balanced", sep="."), meta, action="any",
+                                     af.fields, ac.fields, sv.subsets=NULL, all.stats,
+                                     paste(args$out_prefix, paste(freq, size, "balanced_sv_per_genome.by_cancer", sep="_"), sep="."),
+                                     main.title=paste("Pct. w/", freq.names[freq],
+                                                      "Balanced SV",
+                                                      if(size == "large"){">1Mb"}else{">100kb"}),
+                                     barplot.height=barplot.height, barplot.width=barplot.width,
+                                     barplot.units="percent", autosomal=FALSE)
+  }
 }
+
+
+# Regression analysis of largest rare unbalanced SV per genome
+cancers.km.layer.ordered <- c("EWS", "NBL", "OS", "control", "pancan")
+for(freq in c("rare", "vrare", "singleton")){
+  largest.sv.data <-
+    supercategory.burden.test(data=data,
+                              query=paste(freq, "unbalanced.notsmall.genomic_imbalance", sep="."),
+                              meta=meta, family=binomial(), action="max",
+                              af.fields=af.fields, ac.fields=ac.fields)
+  all.stats <- rbind(all.stats, largest.sv.data$new.stats)
+  largest.sv <- apply(largest.sv.data$ad.df[[1]], 2, max, na.rm=T)
+  surv.models <- lapply(cancers.km.layer.ordered, function(cancer){
+    elig.sids <- intersect(get.eligible.samples(meta, cancer)$cases, names(largest.sv))
+    survfit(Surv(log10(largest.sv[elig.sids]), rep(1, length(elig.sids))) ~ 1)
+  })
+  pdf(paste(args$out_prefix, freq, "genomic_imbalance_km", "pdf", sep="."),
+      height=2.25, width=2.5)
+  svlen.km.plot(surv.models, cancer.colors[cancers.km.layer.ordered], ci.alpha=0,
+                xlab=paste("Largest", freq.names[freq], "SV"),
+                ylab="Proportion of Samples", xlim=log10(c(100000, 1000000)),
+                lwds=c(2, 2, 2, 3, 3))
+  dev.off()
+}
+
+
+# TODO: need to implement this in a more memory-efficient way
+# # Sum total of genomic imbalance per genome by SV type
+# for(freq in c("rare", "vrare", "singleton")){
+#   sv.subsets <- lapply(c("DEL", "DUP"), function(svtype){
+#     list(svtype,
+#          as.character(unlist(sapply(data, function(info){
+#            rownames(info$bed)[which(info$bed$SVTYPE == svtype)]
+#          }))),
+#          paste(freq.names[freq], sv.abbreviations[svtype], "Alleles per Sample"))
+#   })
+#   all.stats <- main.burden.wrapper(data, query=paste(freq, "genomic_imbalance"), meta, action="sum",
+#                                    af.fields, ac.fields, sv.subsets=sv.subsets, all.stats,
+#                                    paste(args$out_prefix, paste(freq, "total_genomic_imbalance.by_cancer", sep="_"), sep="."),
+#                                    main.title=paste(freq.names[freq], "Dosage Imbalance (log10)"),
+#                                    barplot.height=barplot.height, barplot.width=barplot.width)
+# }
+
 
 # Genomic disorder analysis, if optioned
 if(!is.null(args$genomic_disorder_hits)){
@@ -404,6 +518,24 @@ if(!is.null(args$genomic_disorder_hits)){
     }
   }
 }
+
+
+# TODO: need to implement this in a more memory-efficient way
+# # Number of rare/vrare/singleton variants (of any size) per genome by SV type
+# for(freq in c("rare", "vrare", "singleton")){
+#   sv.subsets <- lapply(c("DEL", "DUP", "INV", "CPX", "CTX"), function(svtype){
+#     list(svtype,
+#          as.character(unlist(sapply(data, function(info){
+#            rownames(info$bed)[which(info$bed$SVTYPE == svtype)]
+#          }))),
+#          paste(freq.names[freq], sv.abbreviations[svtype], "Alleles per Sample"))
+#   })
+#   all.stats <- main.burden.wrapper(data, query=freq, meta, action="sum",
+#                                    af.fields, ac.fields, sv.subsets=sv.subsets, all.stats,
+#                                    paste(args$out_prefix, paste(freq, "sv_per_genome.by_cancer", sep="_"), sep="."),
+#                                    main.title=paste(freq.names[freq], "SV Alleles per Sample"),
+#                                    barplot.height=barplot.height, barplot.width=barplot.width)
+# }
 
 
 # Number of rare/vrare/singleton LoF, CG, IEDs per genome

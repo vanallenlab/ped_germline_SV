@@ -8,14 +8,18 @@ svlen.km.plot(
   surv.models,
   colors,
   group.names = NULL,
+  lwds = NULL,
   ci.alpha = 0.15,
-  legend = TRUE,
+  legend = FALSE,
   legend.names = NULL,
+  legend.pos = "topright",
   legend.label.spacing = 0.075,
   title = NULL,
   xlab = NULL,
-  xlims = log10(c(10000, 1e+06)),
-  parmar = c(2, 2.5, 1, 1)
+  xlims = log10(c(10000, 1000000)),
+  ylab = NULL,
+  ylims = NULL,
+  parmar = c(2, 3, 1, 1)
 )
 }
 \arguments{
@@ -25,11 +29,15 @@ svlen.km.plot(
 
 \item{group.names}{(Optional) group names to assign to each list element in \code{surv.models}}
 
+\item{lwds}{(Optional) vector of \code{lwd} for each of surv.models [default: 3]}
+
 \item{ci.alpha}{Transparency value \code{alpha} for confidence interval shading [default: 0.15]}
 
-\item{legend}{Should a legend be plotted?}
+\item{legend}{Should a legend be plotted? [default: FALSE]}
 
 \item{legend.names}{(Optional) mapping of \code{values} to labels for legend}
+
+\item{legend.pos}{(Optional) position for legend. See \code{\link[=legend]{legend()}} [default: "topright"]}
 
 \item{legend.label.spacing}{Minimum vertical spacing between legend labels [default: 0.075]}
 
@@ -38,6 +46,10 @@ svlen.km.plot(
 \item{xlab}{(Optional) Title for X axis}
 
 \item{xlims}{(Optional) two-element vector of start and stop values for X-axis, in log10(SVLEN)}
+
+\item{ylab}{(Optional) Title for Y axis}
+
+\item{ylims}{(Optional) two-element vector of start and stop values for Y-axis}
 
 \item{parmar}{Margin values passed to par()}
 }

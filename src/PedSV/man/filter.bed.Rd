@@ -61,8 +61,13 @@ should be applied to \code{bed}. Recognized filters currently include:
 \item \code{rare} : AF < 1\%
 \item \code{vrare} : AF < 0.1\%
 \item \code{singleton} : AC = 1
+\item \code{notsmall} : SVLEN >= 50,000 or SVTYPE = CTX
 \item \code{large} : SVLEN > 1,000,000 or SVTYPE = CTX
 \item \code{karyotypic} : SVLEN > 5,000,000 or SVTYPE = CTX
+\item \code{unbalanced} : replaces \code{SVLEN} with total genomic imbalance before applying
+any size-based filters
+\item \code{balanced} : less than 50bp of total genomic imbalance, excluding CTX
+\item \code{quasi-balanced} : less than 5kb of total genomic imbalance, excluding CTX
 \item \code{gene_disruptive} or \code{genes_disrupted} : any SV with predicted LoF, PED, CG, or IED
 \item \code{single_gene_disruptive} : as above, but further restricting to SVs impacting just one gene
 \item \code{lof} : predicted LoF and/or PED consequences
@@ -74,7 +79,13 @@ should be applied to \code{bed}. Recognized filters currently include:
 If \code{query} is provided as a vector, it should contain any of the above terms.
 If it is provided as a single character string, it must be period-delimited.
 
+If no \code{query} is provided, the input \code{bed} will be returned after applying
+other filters as relevant (e.g., if \code{autosomal} is \code{TRUE})
+
 If \code{use.gnomad.freqs} is \code{TRUE} and any of \code{rare}, \code{vrare}, or \code{singleton}
 are included in \code{query}, then variants will be further filtered
 to be < \code{gnomad.max.freq} according to \code{gnomad.column}
+}
+\seealso{
+\code{\link[=load.sv.bed]{load.sv.bed()}}
 }

@@ -532,10 +532,20 @@ task BurdenTests {
         bedtools intersect \
           -r -wa -wb -f ~{genomic_disorder_recip_frac} \
           -a $bed -b ~{select_first([genomic_disorder_bed])} \
-        | awk '{ if ($5==$NF) print $4 }'
+        | awk -v OFS="\t" '{ if ($5==$NF) print $4, $(NF-1) }'
       done < ~{write_lines(beds)} \
-      | sort -V | uniq > gd_hits.vids.list
+      | sort -V | uniq > gd_hits.pairs.tsv
+      cut -f1 gd_hits.pairs.tsv | sort -V | uniq > gd_hits.vids.list
       cmd="$cmd --genomic-disorder-hits gd_hits.vids.list"
+
+      # If GD BED provided, also collect rates per disease per GD and run association tests per GD
+      gd_cmd="/opt/ped_germline_SV/analysis/association/gd_assoc.R"
+      gd_cmd="$gd_cmd $( awk -v OFS=" " -v ORS=" " '{ print "--bed", $1 }' ~{write_lines(beds)} )"
+      gd_cmd="$gd_cmd $( awk -v OFS=" " -v ORS=" " '{ print "--ad", $1 }' ~{write_lines(ad_matrixes)} )"
+      gd_cmd="$gd_cmd --metadata ~{sample_metadata_tsv} --subset-samples ~{samples_list}"
+      gd_cmd="$gd_cmd --genomic-disorder-hits gd_hits.pairs.tsv --outfile ~{prefix}.BurdenTests/~{prefix}.gd_association_stats.tsv"
+      echo -e "\n\nNow running genomic disorder association tests with the following command:\n$gd_cmd\n"
+      eval $gd_cmd
     fi
 
     # Run burden tests
@@ -687,6 +697,11 @@ task CohortSummaryPlots {
     /opt/ped_germline_SV/analysis/landscape/plot_sv_site_summary.R \
       --af-field ~{af_field} \
       --ac-field ~{ac_field} \
+      --out-prefix ~{prefix}.SummaryPlots/~{prefix} \
+      ~{bed}
+
+    # Plot AF correlations vs. gnomAD v4 SVs
+    /opt/ped_germline_SV/analysis/landscape/gnomad_af_comparison.R \
       --out-prefix ~{prefix}.SummaryPlots/~{prefix} \
       ~{bed}
 

@@ -44,6 +44,7 @@
 #' * `"count"` : return the count of non-reference variants per sample
 #' irrespective of genotype
 #' * `"sum"` : return the sum of allele dosages for all query rows per sample
+#' * `"max"` : return the maximum value for all query rows per sample
 #'
 #' @return numeric vector or data.frame, depending on `action`
 #'
@@ -199,8 +200,12 @@ compress.ad.matrix <- function(ad.df, action, weights=NULL,
     query.res <- apply(ad.df, 2, function(vals){
       sum(as.numeric(vals), na.rm=T)
     })
-  }
-  if(length(col.na) > 0 & action != "verbose"){
+  }else if(action == "max"){
+  query.res <- apply(ad.df, 2, function(vals){
+    max(as.numeric(vals), na.rm=T)
+  })
+}
+if(length(col.na) > 0 & action != "verbose"){
     query.res[col.na] <- NA
   }
   names(query.res) <- colnames(ad.df)

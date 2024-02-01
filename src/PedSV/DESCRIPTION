@@ -19,7 +19,8 @@ Suggests:
 Imports:
     bedr,
     logistf,
-    survival
+    survival,
+    viridis
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
