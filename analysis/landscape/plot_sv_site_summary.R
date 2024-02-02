@@ -313,13 +313,13 @@ bed <- PedSV::load.sv.bed(args$bed, drop.cohort.frequencies=drop.cohort.freqs,
 
 # Plot stacked bar colored by frequency and type
 pdf(paste(args$out_prefix, "sv_site_counts.pdf", sep="."),
-    height=1.7, width=2)
+    height=1.7, width=2.1)
 plot.count.bars(bed, args$af_field, args$ac_field)
 dev.off()
 
 # Ridgeplot of SV sizes
 pdf(paste(args$out_prefix, "sv_size_distribs.pdf", sep="."),
-    height=1.85, width=2.2)
+    height=1.7, width=2.2)
 ridgeplot(get.svlen.densities(bed), xlims=log10(c(10, 5000000)), x.axis=FALSE,
           fill=hex2grey(DEL.colors[["light2"]]),
           border=hex2grey(DEL.colors[["dark1"]]), border.lwd=1.25,
@@ -350,8 +350,8 @@ for(pop in intersect(names(pop.colors), pops.in.bed)){
   }
   if(paste(col.prefix, "AF", sep="_") %in% colnames(bed)){
     cat(paste("HWE for ", pop, ":\n", sep=""))
-    png(paste(args$out_prefix, pop, "HWE.png", sep="."),
-        height=1000, width=1000, res=400)
+    tiff(paste(args$out_prefix, pop, "HWE.tiff", sep="."),
+        height=1280, width=1280, res=400)
     plot.HWE(bed, pop=col.prefix, title=pop.names.short[pop], full.legend=T)
     dev.off()
   }

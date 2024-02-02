@@ -173,23 +173,25 @@ format.pval <- function(p, nsmall=2, max.decimal=3, equality="=", min.neg.log10.
 #'
 #' @param x independent variable vector
 #' @param y dependent variable vector
-#' @param palette 256-color palette to be applied based on density \[default: `viridis()`\]
+#' @param palette 256-color palette to be applied based on density \[default: viridis()\]
+#' @param bandwidth `bandwidth` parameter passed to [densCols()]
 #'
 #' @details Inspired by heatscatter.R from Colby Chiang:
 #'  https://github.com/cc2qe/voir/blob/master/bin/heatscatter.R
 #'
 #' @return dataframe of values to be plotted with density and colors
 #'
-#' @seealso [viridis()]
+#' @seealso [viridis()], [densCols()]
 #'
 #' @export
-color.points.by.density <- function(x, y, palette=NULL){
+color.points.by.density <- function(x, y, palette=NULL, bandwidth=1){
   # Based on heatscatter.R from Colby Chiang
   # (https://github.com/cc2qe/voir/blob/master/bin/heatscatter.R)
   plot.df <- data.frame("x"=x, "y"=y)
   plot.df <- plot.df[which(!is.infinite(plot.df$x) & !is.infinite(plot.df$y)
                            & !is.na(plot.df$x) & !is.na(plot.df$y)), ]
-  dens <- densCols(plot.df$x, plot.df$y, colramp=colorRampPalette(c("black", "white")))
+  dens <- densCols(plot.df$x, plot.df$y, bandwidth=bandwidth,
+                   colramp=colorRampPalette(c("black", "white")))
   plot.df$dens <- col2rgb(dens)[1, ] + 1L
   if(is.null(palette)){
     require(viridis, quietly=TRUE)

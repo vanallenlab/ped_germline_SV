@@ -25,8 +25,10 @@
 #' @param title Main title for plot \[default: NULL\]
 #' @param x.title Title for X-axis
 #' @param x.title.line Line for X-axis title (`title.line` parameter for [PedSV::clean.axis])
+#' @param xlims Limits for X-axis
 #' @param y.title Title for Y-axis
 #' @param y.title.line Line for axis titles (`title.line` parameter for [PedSV::clean.axis])
+#' @param ylims Limits for Y-axis
 #' @param legend.vals Named vector mapping category names to colors \[default: NULL\]
 #' @param legend.labels Optional vector to overwrite names of `legend.vals`
 #' @param cex Character expansion factor for individual points \[default: 0.3\]
@@ -39,8 +41,9 @@
 #'
 #' @export pc.scatterplot
 #' @export
-pc.scatterplot <- function(pcs, pc.X, pc.Y, colors, title=NULL, x.title=NULL,
-                           x.title.line=0.5, y.title=NULL, y.title.line=0.5,
+pc.scatterplot <- function(pcs, pc.X, pc.Y, colors, title=NULL,
+                           x.title=NULL, x.title.line=0.5, xlims=NULL,
+                           y.title=NULL, y.title.line=0.5, ylims=NULL,
                            legend.vals=NULL, legend.labels=NULL,
                            cex=0.3, parmar=c(2.5, 2.5, 1, 1)){
   if(!is.numeric(pc.X)){
@@ -51,8 +54,14 @@ pc.scatterplot <- function(pcs, pc.X, pc.Y, colors, title=NULL, x.title=NULL,
   }
   x <- pcs[, pc.X]
   y <- pcs[, pc.Y]
+  if(is.null(xlims)){
+    xlims <- range(x)
+  }
+  if(is.null(ylims)){
+    ylims <- range(y)
+  }
 
-  prep.plot.area(xlims=range(x), ylims=range(y), parmar=parmar, xaxs="r", yaxs="r")
+  prep.plot.area(xlims, ylims, parmar=parmar, xaxs="r", yaxs="r")
   mtext(3, text=title, font=2)
 
   if(is.null(x.title)){

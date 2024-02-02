@@ -33,7 +33,7 @@ gnomad.pop.map <- c("AFR" = "AFR",
 # Plotting functions #
 ######################
 # Plot AF correlation vs. gnomAD for a single population
-plot.af.comparison <- function(bed, pop, cohort, pt.cex=0.15){
+plot.af.comparison <- function(bed, pop, cohort, pt.cex=0.15, bandwidth=1.5){
   # Get plot data
   bed <- filter.bed(bed, query="", autosomal=TRUE, pass.only=TRUE)
   x <- bed[, gsub("^_", "", paste(cohort, pop, "AF", sep="_"))]
@@ -45,7 +45,7 @@ plot.af.comparison <- function(bed, pop, cohort, pt.cex=0.15){
   ax.lims <- c(min(c(x.min, y.min)), log10(1))
 
   # Prep plot area
-  prep.plot.area(xlims=ax.lims, ylims=ax.lims, parmar=c(2.5, 3.25, 1, 0.2),
+  prep.plot.area(xlims=ax.lims, ylims=ax.lims, parmar=c(2.5, 3.4, 1, 0.1),
                  xaxs="r", yaxs="r")
   abline(0, 1, col="gray30")
   rect(xleft=par("usr")[1], xright=x.min, ybottom=par("usr")[3], ytop=par("usr")[4],
@@ -60,11 +60,12 @@ plot.af.comparison <- function(bed, pop, cohort, pt.cex=0.15){
   clean.axis(1, at=log10(logscale.major), title="Allele Freq. (This Study)",
              labels=ax.labels)
   clean.axis(2, at=log10(logscale.major), title="Allele Freq. (gnomAD)",
-             labels=ax.labels, title.line=1.25)
+             labels=ax.labels, title.line=1.3)
   mtext(3, text=pop.names.long[pop], font=2, line=0)
 
   # Add points colored by SV type to make common insertion
-  points(x, y, col=pop.colors[pop], pch=19, cex=pt.cex, xpd=T)
+  plot.df <- color.points.by.density(x, y, bandwidth=2)
+  points(plot.df$x, plot.df$y, col=plot.df$col, pch=19, cex=pt.cex, xpd=T)
 
   # Add correlation coefficient below title
   cor.stats <- cor.test(10^x, 10^y, use="complete.obs")
@@ -90,6 +91,7 @@ args <- parser$parse_args()
 
 # # DEV:
 # args <- list("bed" = "~/scratch/PedSV.v2.5.2.full_cohort.analysis_samples.sites.bed.gz",
+#              "cohort_prefix" = "",
 #              "out_prefix" = "~/scratch/PedSV.v2.5.2.dev.full_cohort")
 
 
@@ -119,10 +121,10 @@ for(pop in intersect(names(pop.colors), pops.in.bed)){
   }
   if(paste(col.prefix, "AF", sep="_") %in% colnames(bed)){
     cat(paste("gnomAD AF comparison for ", pop.names.long[pop], ":\n", sep=""))
-    png(paste(args$out_prefix, pop, "vs_gnomad.png", sep="."),
-        height=1125, width=1125, res=400)
+    tiff(paste(args$out_prefix, pop, "vs_gnomad.tiff", sep="."),
+        height=1280, width=1280, res=400)
     cor.stats <- plot.af.comparison(bed, pop, args$cohort_prefix)
-    cat(paste("R2 =", cor.stats$estimate^2, "\nP =", cor.stats$p.value, "\n"))
     dev.off()
+    cat(paste("R2 =", cor.stats$estimate^2, "\nP =", cor.stats$p.value, "\n"))
   }
 }

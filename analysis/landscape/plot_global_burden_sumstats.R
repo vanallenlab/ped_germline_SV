@@ -61,7 +61,7 @@ plot.or.by.freq <- function(plot.stats, title=NULL, connect.cancers=c(),
   ymax <- min(c(max.log.y, max(c(0, or.range[2]+(diff(or.range)/4)))))
 
   # Prep plot area
-  prep.plot.area(xlims=c(0.25, 2.75), ylims=c(ymin, ymax), parmar=c(2.1, 2.6, 1.1, 0.1))
+  prep.plot.area(xlims=c(0.25, 2.75), ylims=c(ymin, ymax), parmar=c(2.1, 2.6, 1.1, 0.1), yaxs="r")
   axis(1, at=0.5:2.5, tick=F, line=-0.9, labels=c("AF<1%", "AF<0.1%", "AC=1"),
        cex.axis=5/6)
   mtext("SV Frequency", 1, 1)
@@ -104,8 +104,13 @@ plot.or.by.freq <- function(plot.stats, title=NULL, connect.cancers=c(),
 
   # Add all point estimates last
   sapply(names(freq.names), function(freq){
-    points(coords[, paste(freq, c("x", "y"), sep=".")], pch=23,
-           bg=cancer.colors[rownames(plot.stats)], col="black")
+    for(cancer in rownames(plot.stats)){
+      points(coords[cancer, paste(freq, c("x", "y"), sep=".")],
+             pch=if(cancer == "pancan"){23}else{18},
+             cex=if(cancer == "pancan"){1.1}else{0.9},
+             bg=if(cancer == "pancan"){cancer.colors[cancer]}else{NA},
+             col=if(cancer == "pancan"){"black"}else{cancer.colors[cancer]})
+    }
   })
 }
 
@@ -116,16 +121,16 @@ plot.or.by.freq <- function(plot.stats, title=NULL, connect.cancers=c(),
 # Two simple command-line arguments
 args <- commandArgs(trailingOnly=T)
 
-# #DEV:
-# args <- c("~/scratch/PedSV.v2.1.case_control.dev.global_burden_tests.tsv",
-#           "~/scratch/PedSVv.2.1.case_control.dev")
+# # DEV:
+# args <- c("/Users/ryan/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_MS/PedSV_figures/PedSV.v2.5.3_analysis_outputs/stats/PedSV.v2.5.3.global_burden_tests.tsv.gz",
+#           "~/scratch/PedSV.v.2.5.3.full_cohort.dev")
 
 # Load sumstats
 ss <- read.table(args[1], header=T, sep="\t", comment.char="", check.names=F)
 colnames(ss)[1] <- gsub("^#", "", colnames(ss)[1])
 
 # Plot effect sizes of large SVs
-sapply(c("", "DEL", "DUP", "INV", "CPX"), function(suffix){
+sapply(c("", "DEL", "DUP", "INV", "CPX", "unbalanced"), function(suffix){
   plot.stats <- merge.by.freq(lapply(names(freq.names), function(freq){
     hyp <- gsub("\\.$", "", paste("large", freq, suffix, sep="."))
     clean.sumstats.singleHyp(ss, hyp, freq)
@@ -134,10 +139,12 @@ sapply(c("", "DEL", "DUP", "INV", "CPX"), function(suffix){
   sv.name <- if(suffix == ""){"SVs"}else{sv.abbreviations[suffix]}
   pdf(paste(args[2], ".large_", svtype, ".or_by_freq.pdf", sep=""),
       height=2.25, width=2.25)
-  plot.or.by.freq(plot.stats, title=paste("Large (>1Mb)", sv.name),
+  plot.or.by.freq(plot.stats,
+                  title=if(suffix == "unbalanced"){"Unbalanced SVs >1Mb"}else{paste("Large (>1Mb)", sv.name)},
                   shaded.pancan.ci=T, connect.cancers="pancan")
   dev.off()
 })
+
 
 # Plot effect sizes of gene-disruptive SVs
 sapply(c("", "LoF", "CG", "IED", "nonLoF_disruptive"), function(suffix){

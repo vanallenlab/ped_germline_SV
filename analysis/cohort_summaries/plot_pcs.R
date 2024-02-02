@@ -88,7 +88,7 @@ meta <- meta[c(which(meta$disease == "control"),
                which(meta$disease != "control")), ]
 
 # Plot PCs
-pdf.dim <- 3.5
+pdf.dim <- 3
 axis.title.line <- 0.65
 parmar <- c(2.65, 2.65, 0.5, 0.5)
 pop.legend.labels <- sapply(names(pop.colors), function(pop){

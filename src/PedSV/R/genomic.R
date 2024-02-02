@@ -41,13 +41,13 @@
 #' * `rare` : AF < 1%
 #' * `vrare` : AF < 0.1%
 #' * `singleton` : AC = 1
-#' * `notsmall` : SVLEN >= 50,000 or SVTYPE = CTX
-#' * `large` : SVLEN > 1,000,000 or SVTYPE = CTX
-#' * `karyotypic` : SVLEN > 5,000,000 or SVTYPE = CTX
+#' * `notsmall` : SVLEN > 100,000
+#' * `large` : SVLEN > 1,000,000
+#' * `karyotypic` : SVLEN > 5,000,000
 #' * `unbalanced` : replaces `SVLEN` with total genomic imbalance before applying
 #' any size-based filters
-#' * `balanced` : less than 50bp of total genomic imbalance, excluding CTX
-#' * `quasi-balanced` : less than 5kb of total genomic imbalance, excluding CTX
+#' * `balanced` : less than 50bp of total genomic imbalance
+#' * `quasi-balanced` : less than 1kb of total genomic imbalance
 #' * `gene_disruptive` or `genes_disrupted` : any SV with predicted LoF, PED, CG, or IED
 #' * `single_gene_disruptive` : as above, but further restricting to SVs impacting just one gene
 #' * `lof` : predicted LoF and/or PED consequences
@@ -121,21 +121,19 @@ filter.bed <- function(bed, query, af.field="POPMAX_AF", ac.field="AC",
       keep.idx <- intersect(keep.idx, which(bed[, gnomad.column] < 0.01))
   }
   if("notsmall" %in% query.parts){
-    keep.idx <- intersect(keep.idx, which(bed$SVLEN > 50000 | bed$SVTYPE == "CTX"))
+    keep.idx <- intersect(keep.idx, which(bed$SVLEN > 100000))
   }
   if("large" %in% query.parts){
-    keep.idx <- intersect(keep.idx, which(bed$SVLEN > 1000000 | bed$SVTYPE == "CTX"))
+    keep.idx <- intersect(keep.idx, which(bed$SVLEN > 1000000))
   }
   if("karyotypic" %in% query.parts){
-    keep.idx <- intersect(keep.idx, which(bed$SVLEN > 5000000 | bed$SVTYPE == "CTX"))
+    keep.idx <- intersect(keep.idx, which(bed$SVLEN > 5000000))
   }
   if("balanced" %in% query.parts){
     keep.idx <- intersect(keep.idx, which(calc.genomic.imbalance(bed) < 50))
-    keep.idx <- intersect(keep.idx, which(bed$SVTYPE != "CTX"))
   }
   if("quasi-balanced" %in% query.parts){
-    keep.idx <- intersect(keep.idx, which(calc.genomic.imbalance(bed) < 5000))
-    keep.idx <- intersect(keep.idx, which(bed$SVTYPE != "CTX"))
+    keep.idx <- intersect(keep.idx, which(calc.genomic.imbalance(bed) < 1000))
   }
   lof.count <- sapply(bed$PREDICTED_LOF, length) + sapply(bed$PREDICTED_PARTIAL_EXON_DUP, length)
   cg.count <- sapply(bed$PREDICTED_COPY_GAIN, length)

@@ -4,14 +4,16 @@
 \alias{color.points.by.density}
 \title{Color points by density}
 \usage{
-color.points.by.density(x, y, palette = NULL)
+color.points.by.density(x, y, palette = NULL, bandwidth = 1)
 }
 \arguments{
 \item{x}{independent variable vector}
 
 \item{y}{dependent variable vector}
 
-\item{palette}{256-color palette to be applied based on density [default: \code{viridis()}]}
+\item{palette}{256-color palette to be applied based on density [default: viridis()]}
+
+\item{bandwidth}{\code{bandwidth} parameter passed to \code{\link[=densCols]{densCols()}}}
 }
 \value{
 dataframe of values to be plotted with density and colors
@@ -24,5 +26,5 @@ Inspired by heatscatter.R from Colby Chiang:
 https://github.com/cc2qe/voir/blob/master/bin/heatscatter.R
 }
 \seealso{
-\code{\link[=viridis]{viridis()}}
+\code{\link[=viridis]{viridis()}}, \code{\link[=densCols]{densCols()}}
 }

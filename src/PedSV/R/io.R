@@ -136,8 +136,8 @@ load.sample.metadata <- function(tsv.in, keep.samples=NULL,
 
   # Infer whether each sample carries an aneuploidy
   auto.aneu <- apply(df[, paste("chr", 1:22, "_CopyNumber", sep="")], 1,
-                     function(ploidies){any(ploidies > 2.9 | ploidies < 1.1)})
-  sex.aneu <- abs(df$chrX_CopyNumber + df$chrY_CopyNumber - 2) > 0.9
+                     function(ploidies){any(ploidies > 2.8 | ploidies < 1.2)})
+  sex.aneu <- abs(df$chrX_CopyNumber + df$chrY_CopyNumber - 2) > 0.8
   df$autosomal_aneuploidy <- auto.aneu
   df$sex_aneuploidy <- sex.aneu
   df$any_aneuploidy <- (auto.aneu | sex.aneu)

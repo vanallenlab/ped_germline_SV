@@ -96,14 +96,6 @@ workflow PedSvMainAnalysis {
   }
   File? sv_exclusion_list = ConcatVariantExclusionLists.outfile
 
-  call StudyWideSummaryPlots {
-    input:
-      sample_metadata_tsv = sample_metadata_tsv,
-      samples_list = full_cohort_samples_list,
-      prefix = study_prefix,
-      docker = pedsv_r_docker
-  }
-
   # call Gwas.SvGwas as StudyWideGwas {
   #   input:
   #     dense_vcf = full_cohort_dense_vcf,
@@ -254,14 +246,14 @@ workflow PedSvMainAnalysis {
 
   call BurdenTests as StudyWideBurdenTests {
     input:
-      beds = [trio_bed, case_control_bed],
-      bed_idxs = [trio_bed_idx, case_control_bed_idx],
-      ad_matrixes = [trio_ad_matrix, case_control_ad_matrix],
-      ad_matrix_idxs = [trio_ad_matrix_idx, case_control_ad_matrix_idx],
+      beds = [full_cohort_bed],
+      bed_idxs = [full_cohort_bed_idx],
+      ad_matrixes = [full_cohort_ad_matrix],
+      ad_matrix_idxs = [full_cohort_ad_matrix_idx],
       sample_metadata_tsv = sample_metadata_tsv,
       samples_list = all_samples_list,
-      af_fields = ["POPMAX_AF", "POPMAX_AF"],
-      ac_fields = ["AC", "AC"],
+      af_fields = ["POPMAX_AF"],
+      ac_fields = ["AC"],
       variant_exclusion_list = sv_exclusion_list,
       gene_lists = gene_lists,
       gene_list_names = gene_list_names,
@@ -309,36 +301,6 @@ workflow PedSvMainAnalysis {
       docker = pedsv_r_docker
   }
 
-  # call Gwas.SvGwas as TrioCohortGwas {
-  #   input:
-  #     dense_vcf = trio_dense_vcf,
-  #     dense_vcf_idx = trio_dense_vcf_idx,
-  #     ad_matrix = trio_ad_matrix,
-  #     ad_matrix_idx = trio_ad_matrix_idx,
-  #     sample_metadata_tsv = sample_metadata_tsv,
-  #     samples_list = trio_samples_list,
-  #     ref_fai = ref_fai,
-  #     prefix = study_prefix + ".trio_cohort",
-  #     bcftools_query_options = trio_gwas_bcftools_query_options,
-  #     pedsv_docker = pedsv_docker,
-  #     pedsv_r_docker = pedsv_r_docker
-  # }
-
-  # call Gwas.SvGwas as CaseControlCohortGwas {
-  #   input:
-  #     dense_vcf = case_control_dense_vcf,
-  #     dense_vcf_idx = case_control_dense_vcf_idx,
-  #     ad_matrix = case_control_ad_matrix,
-  #     ad_matrix_idx = case_control_ad_matrix_idx,
-  #     sample_metadata_tsv = sample_metadata_tsv,
-  #     samples_list = case_control_samples_list,
-  #     ref_fai = ref_fai,
-  #     prefix = study_prefix + ".case_control_cohort",
-  #     bcftools_query_options = case_control_gwas_bcftools_query_options,
-  #     pedsv_docker = pedsv_docker,
-  #     pedsv_r_docker = pedsv_r_docker
-  # }
-
   call Rvas.SvGenicRvas as TrioCohortRvas {
     input:
       gtf = gtf,
@@ -379,8 +341,8 @@ workflow PedSvMainAnalysis {
 
   call UnifyOutputs {
     input:
-      tarballs = [StudyWideSummaryPlots.plots_tarball,
-                  FullCohortSummaryPlots.plots_tarball,
+      tarballs = [FullCohortSummaryPlots.plots_tarball,
+                  AnalysisCohortSummaryPlots.plots_tarball,
                   StudyWideBurdenTests.plots_tarball,
                   TrioCohortSummaryPlots.plots_tarball,
                   CaseControlCohortSummaryPlots.plots_tarball,
@@ -421,51 +383,6 @@ task ConcatTextFiles {
     docker: docker
     memory: "1.5 GB"
     cpu: 1
-    disks: "local-disk " + disk_gb + " HDD"
-    preemptible: 3
-  }
-}
-
-
-# Basic study-wide summary plots
-task StudyWideSummaryPlots {
-  input {
-    File sample_metadata_tsv
-    File samples_list
-    String prefix
-    String docker
-  }
-
-  Int disk_gb = ceil(2 * size([sample_metadata_tsv], "GB")) + 10
-
-  command <<<
-    set -eu -o pipefail
-
-    # Prep output directory
-    mkdir StudyWideSummaryPlots
-    for subdir in pca; do
-      mkdir StudyWideSummaryPlots/$subdir
-    done
-
-    # Plot PCs colored by ancestry
-    /opt/ped_germline_SV/analysis/cohort_summaries/plot_pcs.R \
-      --subset-samples ~{samples_list} \
-      --out-prefix StudyWideSummaryPlots/pca/~{prefix} \
-      ~{sample_metadata_tsv}
-    gzip -f StudyWideSummaryPlots/pca/*.tsv
-
-    # Compress output
-    tar -czvf StudyWideSummaryPlots.tar.gz StudyWideSummaryPlots
-  >>>
-
-  output {
-    File plots_tarball = "StudyWideSummaryPlots.tar.gz"
-  }
-
-  runtime {
-    docker: docker
-    memory: "15.5 GB"
-    cpu: 4
     disks: "local-disk " + disk_gb + " HDD"
     preemptible: 3
   }
@@ -685,13 +602,25 @@ task CohortSummaryPlots {
     String docker
   }
 
-  Int disk_gb = ceil(2 * size([bed], "GB")) + 10
+  Int disk_gb = ceil(2 * size([bed, sample_metadata_tsv], "GB")) + 10
 
   command <<<
     set -eu -o pipefail
 
     # Prep output directory
     mkdir ~{prefix}.SummaryPlots
+
+    # Plot PCs colored by ancestry
+    /opt/ped_germline_SV/analysis/cohort_summaries/plot_pcs.R \
+      --subset-samples ~{sample_list} \
+      --out-prefix ~{prefix}.SummaryPlots/~{prefix} \
+      ~{sample_metadata_tsv}
+
+    # Plot sex ploidy colored by sex assignment
+    /opt/ped_germline_SV/analysis/cohort_summaries/plot_sex_ploidy.R \
+      --subset-samples ~{sample_list} \
+      --out-prefix ~{prefix}.SummaryPlots/~{prefix} \
+      ~{sample_metadata_tsv}
 
     # Plot SV counts and sizes
     /opt/ped_germline_SV/analysis/landscape/plot_sv_site_summary.R \
