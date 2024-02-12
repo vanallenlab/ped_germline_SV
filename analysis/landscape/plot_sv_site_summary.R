@@ -313,7 +313,7 @@ bed <- PedSV::load.sv.bed(args$bed, drop.cohort.frequencies=drop.cohort.freqs,
 
 # Plot stacked bar colored by frequency and type
 pdf(paste(args$out_prefix, "sv_site_counts.pdf", sep="."),
-    height=1.7, width=2.1)
+    height=1.6, width=2.1)
 plot.count.bars(bed, args$af_field, args$ac_field)
 dev.off()
 
@@ -351,7 +351,7 @@ for(pop in intersect(names(pop.colors), pops.in.bed)){
   if(paste(col.prefix, "AF", sep="_") %in% colnames(bed)){
     cat(paste("HWE for ", pop, ":\n", sep=""))
     tiff(paste(args$out_prefix, pop, "HWE.tiff", sep="."),
-        height=1280, width=1280, res=400)
+        height=1300, width=1300, res=400)
     plot.HWE(bed, pop=col.prefix, title=pop.names.short[pop], full.legend=T)
     dev.off()
   }

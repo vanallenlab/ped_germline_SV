@@ -121,13 +121,25 @@ filter.bed <- function(bed, query, af.field="POPMAX_AF", ac.field="AC",
       keep.idx <- intersect(keep.idx, which(bed[, gnomad.column] < 0.01))
   }
   if("notsmall" %in% query.parts){
-    keep.idx <- intersect(keep.idx, which(bed$SVLEN > 100000))
+    if("unbalanced" %in% query.parts){
+      keep.idx <- intersect(keep.idx, which(bed$SVLEN > 100000))
+    }else{
+      keep.idx <- intersect(keep.idx, which(bed$SVLEN > 100000 | bed$SVTYPE == "CTX"))
+    }
   }
   if("large" %in% query.parts){
-    keep.idx <- intersect(keep.idx, which(bed$SVLEN > 1000000))
+    if("unbalanced" %in% query.parts){
+      keep.idx <- intersect(keep.idx, which(bed$SVLEN > 1000000))
+    }else{
+      keep.idx <- intersect(keep.idx, which(bed$SVLEN > 1000000 | bed$SVTYPE == "CTX"))
+    }
   }
   if("karyotypic" %in% query.parts){
-    keep.idx <- intersect(keep.idx, which(bed$SVLEN > 5000000))
+    if("unbalanced" %in% query.parts){
+      keep.idx <- intersect(keep.idx, which(bed$SVLEN > 5000000))
+    }else{
+      keep.idx <- intersect(keep.idx, which(bed$SVLEN > 5000000 | bed$SVTYPE == "CTX"))
+    }
   }
   if("balanced" %in% query.parts){
     keep.idx <- intersect(keep.idx, which(calc.genomic.imbalance(bed) < 50))

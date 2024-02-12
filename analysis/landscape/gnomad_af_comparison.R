@@ -23,17 +23,17 @@ PedSV::load.constants("all")
 
 # Declare local constants
 gnomad.pop.map <- c("AFR" = "AFR",
-             "AMR" = "AMR",
-             "EAS" = "EAS",
-             "EUR" = "NFE",
-             "SAS" = "SAS")
+                    "AMR" = "AMR",
+                    "EAS" = "EAS",
+                    "EUR" = "NFE",
+                    "SAS" = "SAS")
 
 
 ######################
 # Plotting functions #
 ######################
 # Plot AF correlation vs. gnomAD for a single population
-plot.af.comparison <- function(bed, pop, cohort, pt.cex=0.15, bandwidth=1.5){
+plot.af.comparison <- function(bed, pop, cohort, pt.cex=0.1, bandwidth=2, alpha=1){
   # Get plot data
   bed <- filter.bed(bed, query="", autosomal=TRUE, pass.only=TRUE)
   x <- bed[, gsub("^_", "", paste(cohort, pop, "AF", sep="_"))]
@@ -64,8 +64,10 @@ plot.af.comparison <- function(bed, pop, cohort, pt.cex=0.15, bandwidth=1.5){
   mtext(3, text=pop.names.long[pop], font=2, line=0)
 
   # Add points colored by SV type to make common insertion
-  plot.df <- color.points.by.density(x, y, bandwidth=2)
-  points(plot.df$x, plot.df$y, col=plot.df$col, pch=19, cex=pt.cex, xpd=T)
+  plot.df <- color.points.by.density(x, y, bandwidth=bandwidth,
+                                     palette=colorRampPalette(pop.palettes[[pop]][4:2])(256))
+  # plot.df <- data.frame("x"=x, "y"=y, "col"=as.character(pop.colors[pop]))
+  points(plot.df$x, plot.df$y, col=adjustcolor(plot.df$col, alpha=alpha), pch=19, cex=pt.cex, xpd=T)
 
   # Add correlation coefficient below title
   cor.stats <- cor.test(10^x, 10^y, use="complete.obs")
@@ -90,9 +92,9 @@ parser$add_argument("--out-prefix", metavar="path", type="character", required=T
 args <- parser$parse_args()
 
 # # DEV:
-# args <- list("bed" = "~/scratch/PedSV.v2.5.2.full_cohort.analysis_samples.sites.bed.gz",
+# args <- list("bed" = "~/scratch/PedSV.v2.5.3.full_cohort.analysis_samples.sites.bed.gz",
 #              "cohort_prefix" = "",
-#              "out_prefix" = "~/scratch/PedSV.v2.5.2.dev.full_cohort")
+#              "out_prefix" = "~/scratch/PedSV.v2.5.3.dev.full_cohort")
 
 
 # Infer frequency columns to use
@@ -122,9 +124,10 @@ for(pop in intersect(names(pop.colors), pops.in.bed)){
   if(paste(col.prefix, "AF", sep="_") %in% colnames(bed)){
     cat(paste("gnomAD AF comparison for ", pop.names.long[pop], ":\n", sep=""))
     tiff(paste(args$out_prefix, pop, "vs_gnomad.tiff", sep="."),
-        height=1280, width=1280, res=400)
+         height=1300, width=1300, res=400)
     cor.stats <- plot.af.comparison(bed, pop, args$cohort_prefix)
     dev.off()
     cat(paste("R2 =", cor.stats$estimate^2, "\nP =", cor.stats$p.value, "\n"))
   }
 }
+

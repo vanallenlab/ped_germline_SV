@@ -98,7 +98,7 @@ plot.waterfall <- function(counts, meta, pop.spacer=0.05){
       sids <- rownames(meta)[which(meta$inferred_ancestry == pop
                                    & metadata.cancer.label.map[meta$disease] == pheno)]
       if(length(sids) > 0){
-        vals <- sort(counts[sids], decreasing=T)
+        vals <- sort(counts[sids], decreasing=F)
         n.vals <- length(vals)
         rect(xleft=n.plotted+(1:n.vals)-1, xright=n.plotted+(1:n.vals),
              ybottom=0, ytop=vals, col=cancer.colors[pheno], border=cancer.colors[pheno])
@@ -144,7 +144,7 @@ meta <- load.sample.metadata(args$metadata, keep.samples=names(counts),
 
 # Plot waterfall
 pdf(paste(args$out_prefix, "svs_per_sample.pdf", sep="."),
-    height=1.6, width=4.5)
+    height=1.6, width=4.6)
 plot.waterfall(counts, meta)
 dev.off()
 

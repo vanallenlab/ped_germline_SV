@@ -93,7 +93,7 @@ pc.scatterplot <- function(pcs, pc.X, pc.Y, colors, title=NULL,
       "bottomright"
     }
     legend(legend.pos, legend=names(legend.vals), pch=21, pt.bg=legend.vals,
-           pt.cex=1.5, bty="n", border=NA)
+           pt.cex=1.5, bty="n", border=NA, cex=5/6)
   }
 }
 
