@@ -30,12 +30,14 @@ PedSV::load.constants("all")
 clean.sumstats.singleHyp <- function(ss, hypothesis, stat.prefix=NULL){
   tdf <- ss[which(ss$hypothesis == hypothesis),
             c("disease", "coefficient", "std.err", "P.value")]
-  tdf$ci_diff <- (qnorm(0.975) * tdf$std.err)
+  tdf$lower <- exp(tdf$coefficient + (qnorm(0.025) * tdf$std.err))
+  tdf$upper <- exp(tdf$coefficient + (qnorm(0.975) * tdf$std.err))
+  tdf$coefficient <- exp(tdf$coefficient)
   tdf$std.err <- NULL
   if(is.null(stat.prefix)){
-    colnames(tdf) <- c("disease", "or", "p", "ci_diff")
+    colnames(tdf) <- c("disease", "or", "p", "lower", "upper")
   }else{
-    colnames(tdf) <- c("disease", paste(stat.prefix, c("or", "p", "ci_diff"), sep="."))
+    colnames(tdf) <- c("disease", paste(stat.prefix, c("or", "p", "lower", "upper"), sep="."))
   }
   return(tdf)
 }
@@ -54,18 +56,22 @@ merge.by.freq <- function(ss.list){
 ######################
 # Plot effect sizes versus frequency bins for all four cancers
 plot.or.by.freq <- function(plot.stats, title=NULL, connect.cancers=c(),
-                            shaded.pancan.ci=FALSE, max.log.y=4){
+                            shaded.pancan.ci=FALSE, min.y.symmetry=0.1){
   # Get plot values
   or.range <- range(plot.stats[, grep("\\.or$", colnames(plot.stats))], na.rm=T)
-  ymin <- max(c(-max.log.y, min(c(0, or.range[1]-(diff(or.range)/4)))))
-  ymax <- min(c(max.log.y, max(c(0, or.range[2]+(diff(or.range)/4)))))
+  ylims <- c(0, max(c(ymin, or.range[2]+(diff(or.range)/4))))
+  # Get plot values
+  or.range <- range(plot.stats[, grep("\\.or$", colnames(plot.stats))], na.rm=T)
+  ymin <- min(c(1-min.y.symmetry, or.range[1]-(diff(or.range)/4)))
+  ymax <- max(c(1+min.y.symmetry, or.range[2]+(diff(or.range)/4)))
 
   # Prep plot area
   prep.plot.area(xlims=c(0.25, 2.75), ylims=c(ymin, ymax), parmar=c(2.1, 2.6, 1.1, 0.1), yaxs="r")
   axis(1, at=0.5:2.5, tick=F, line=-0.9, labels=c("AF<1%", "AF<0.1%", "AC=1"),
        cex.axis=5/6)
   mtext("SV Frequency", 1, 1)
-  clean.axis(2, at=log(2^(-10:10)), labels=2^(-10:10), title="Odds Ratio", infinite=T)
+  y.ax.len <- diff(par("usr")[3:4])
+  clean.axis(2, title="Odds Ratio", infinite=T)
   mtext(title, 3, 0)
 
   # Infer location of points when swarmed
@@ -81,9 +87,8 @@ plot.or.by.freq <- function(plot.stats, title=NULL, connect.cancers=c(),
   # Add shaded area for pan-cancer CI
   if(shaded.pancan.ci){
     ci.x <- as.numeric(coords["pancan", grep("\\.x$", colnames(coords))])
-    ci.y <- as.numeric(coords["pancan", grep("\\.y$", colnames(coords))])
-    ci.y.all <- c(ci.y + plot.stats["pancan", grep("\\.ci_diff$", colnames(plot.stats))],
-                  rev(ci.y - plot.stats["pancan", grep("\\.ci_diff$", colnames(plot.stats))]))
+    ci.y.all <- as.numeric(c(plot.stats["pancan", grep("\\.lower$", colnames(plot.stats))],
+    rev(plot.stats["pancan", grep("\\.upper$", colnames(plot.stats))])))
     polygon(x=c(ci.x, rev(ci.x)), y=ci.y.all,
             border=NA, bty="n", col="white")
     polygon(x=c(ci.x, rev(ci.x)), y=ci.y.all,
@@ -91,7 +96,7 @@ plot.or.by.freq <- function(plot.stats, title=NULL, connect.cancers=c(),
   }
 
   # Add line for null (OR=1)
-  abline(h=0, lty=5)
+  abline(h=1, lty=5)
 
   # Add lines for individual cancers
     for(cancer in connect.cancers){
@@ -129,6 +134,7 @@ args <- commandArgs(trailingOnly=T)
 ss <- read.table(args[1], header=T, sep="\t", comment.char="", check.names=F)
 colnames(ss)[1] <- gsub("^#", "", colnames(ss)[1])
 
+
 # Plot effect sizes of large SVs
 sapply(c("", "DEL", "DUP", "INV", "CPX", "unbalanced"), function(suffix){
   plot.stats <- merge.by.freq(lapply(names(freq.names), function(freq){
@@ -144,6 +150,11 @@ sapply(c("", "DEL", "DUP", "INV", "CPX", "unbalanced"), function(suffix){
                   shaded.pancan.ci=T, connect.cancers="pancan")
   dev.off()
 })
+
+
+# Generate one-off horizontal double-wide barplot of rare unbalanced vs. balanced for main figure
+stats2barplotdf(ss[which(ss$hypothesis == "large.rare.unbalanced"), ], ci.mode="binomial")
+stats2barplotdf(ss[which(ss$hypothesis == "large.rare.balanced"), ], ci.mode="binomial")
 
 
 # Plot effect sizes of gene-disruptive SVs
