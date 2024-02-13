@@ -200,3 +200,117 @@ color.points.by.density <- function(x, y, palette=NULL, bandwidth=1){
   plot.df$col <- palette[plot.df$dens]
   plot.df[order(plot.df$dens), ]
 }
+
+
+#' Add phenotype barplots
+#'
+#' Add stacked barplots by phenotype to an existing plot
+#'
+#' @param plot.df Plotting dataframe. See [barplot.by.phenotype()].
+#' @param bar.mids Midpoints for all bars (controls first)
+#' @param bar.hex Bar width
+#' @param control.sep Separation constant between cases & controls
+#' @param horiz Should the bars be plotted horizontally? \[default: TRUE\]
+#' @param color.by.sig Should the case bars be shaded by significance? \[default: TRUE\]
+#' @param legend.on.bars Should a legend be written on the bars? \[default: FALSE\]
+#'
+#' @seealso [barplot.by.phenotype()]
+#'
+#' @export add.pheno.bars
+#' @export
+add.pheno.bars <- function(plot.df, bar.mids, bar.hex, control.sep, horiz=TRUE,
+                           color.by.sig=TRUE, legend.on.bars=FALSE){
+  # Infer positional parameters
+  n.pheno <- nrow(plot.df)
+  # if(!horiz){plot.df <- plot.df[n.pheno:1, ]}
+  control.idx <- 1:n.pheno
+  case.idx <- control.idx + n.pheno
+  staggered.bar.mids <- c(bar.mids+control.sep, bar.mids-control.sep)
+  bar.width.min <- staggered.bar.mids - (bar.hex/2)
+  bar.width.max <- staggered.bar.mids + (bar.hex/2)
+  bar.val.min <- rep(0, 2*n.pheno)
+  bar.val.max <- as.numeric(c(plot.df[, 4], plot.df[, 1]))
+  ci.min <- as.numeric(c(plot.df[, 5], plot.df[, 2]))
+  ci.max <- as.numeric(c(plot.df[, 6], plot.df[, 3]))
+  longest.control <- head(which(plot.df[, 4] == max(plot.df[, 4], na.rm=T)), 1)
+  longest.case <- head(which(plot.df[, 1] == max(plot.df[, 1], na.rm=T)), 1) + n.pheno
+
+  # Set X and Y values according to value of horiz
+  if(horiz){
+    bar.x.left <- bar.val.min
+    bar.x.right <- bar.val.max
+    bar.y.bottom <- bar.width.min
+    bar.y.top <- bar.width.max
+    ci.x0 <- ci.min
+    ci.x1 <- ci.max
+    ci.y0 <- staggered.bar.mids
+    ci.y1 <- staggered.bar.mids
+    legend.text.x <- rep(0-(0.05*diff(par("usr")[1:2])), 2)
+    legend.text.y <- c(staggered.bar.mids[longest.control]+(bar.hex/5)+control.sep,
+                       staggered.bar.mids[longest.case]+(bar.hex/10)-control.sep)
+  }else{
+    bar.x.left <- bar.width.min
+    bar.x.right <- bar.width.max
+    bar.y.bottom <- bar.val.min
+    bar.y.top <- bar.val.max
+    ci.x0 <- staggered.bar.mids
+    ci.x1 <- staggered.bar.mids
+    ci.y0 <- ci.min
+    ci.y1 <- ci.max
+    legend.text.x <- c(staggered.bar.mids[longest.control]+(bar.hex/5)+control.sep,
+                       staggered.bar.mids[longest.case]+(bar.hex/10)-control.sep)
+    legend.text.y <- rep(0-(0.05*diff(par("usr")[3:4])), 2)
+  }
+
+  # Set coloring for case bars based on cancer type and value of color.by.sig
+  sig.idx <- which(plot.df[, 7] < 0.05)
+  bar.pals <- lapply(rownames(plot.df), function(pheno){
+    if(pheno %in% names(cancer.palettes)){
+      cancer.palettes[[pheno]]
+    }else{
+      cancer.palettes[["pancan"]]
+    }
+  })
+  bar.cols <- sapply(bar.pals, function(pal){pal["light1"]})
+  ci.cols <- sapply(bar.pals, function(pal){pal["main"]})
+  if(color.by.sig){
+    for(i in sig.idx){
+      bar.cols[i] <- bar.pals[[i]]["main"]
+      ci.cols[i] <- bar.pals[[i]]["dark1"]
+    }
+  }
+
+  # Add control bars
+  rect(xleft=bar.x.left[control.idx], xright=bar.x.right[control.idx],
+       ybottom=bar.y.bottom[control.idx], ytop=bar.y.top[control.idx],
+       col=control.colors[["main"]], border=NA, bty="n")
+  segments(x0=ci.x0[control.idx], x1=ci.x1[control.idx],
+           y0=ci.y0[control.idx], y1=ci.y1[control.idx],
+           lwd=2, lend="butt", col=cancer.palettes[["control"]]["dark1"])
+  if(legend.on.bars){
+    text(x=legend.text.x[1], y=legend.text.y[1],
+         pos=4, label=control.label, cex=4/6, col=control.colors[["dark2"]])
+  }
+  rect(xleft=bar.x.left[control.idx], xright=bar.x.right[control.idx],
+       ybottom=bar.y.bottom[control.idx], ytop=bar.y.top[control.idx],
+       col=NA, xpd=T)
+
+  # Add case bars
+  rect(xleft=bar.x.left[case.idx], xright=bar.x.right[case.idx],
+       ybottom=bar.y.bottom[case.idx], ytop=bar.y.top[case.idx],
+       col=bar.cols, border=NA, bty="n")
+  segments(x0=ci.x0[case.idx], x1=ci.x1[case.idx],
+           y0=ci.y0[case.idx], y1=ci.y1[case.idx],
+           lwd=2, lend="butt", col=ci.cols)
+  if(legend.on.bars){
+    text(x=legend.text.x[2], y=legend.text.y[2], pos=4, label=case.label,
+         cex=4/6, col=bar.pals[[longest.case-n.pheno]][["dark2"]])
+  }
+  rect(xleft=bar.x.left[case.idx], xright=bar.x.right[case.idx],
+       ybottom=bar.y.bottom[case.idx], ytop=bar.y.top[case.idx],
+       col=NA, xpd=T)
+}
+
+
+
+

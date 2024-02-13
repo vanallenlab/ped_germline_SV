@@ -170,6 +170,7 @@ ridgeplot <- function(data, names=NULL, hill.overlap=0.35, xlims=NULL, x.axis=TR
 #' @param top.axis.units Specify units for top axis. Options are NULL (for
 #' numeric) or "percent" \[default: NULL\]
 #' @param title Custom title for top axis
+#' @param orient.cases Should casees be plotted on the `top` or `bottom` of controls? \[default: "top"\]
 #' @param custom.pheno.labels Custom phenotype labels for the groups on the
 #' Y axis, if desired.
 #' @param legend.on.bars Should "case" and "control" labels be printed on the
@@ -205,10 +206,8 @@ barplot.by.phenotype <- function(plot.df, bar.hex=0.5, case.control.sep=0.375,
   # Vertically order cases and controls
   if(orient.cases == "top"){
     control.sep <- case.control.sep/2
-    case.sep <- -case.control.sep/2
   }else{
     control.sep <- -case.control.sep/2
-    case.sep <- case.control.sep/2
   }
 
   # Prep plot area
@@ -227,62 +226,9 @@ barplot.by.phenotype <- function(plot.df, bar.hex=0.5, case.control.sep=0.375,
   }
   axis(2, at=y.mids, tick=F, line=-0.85, las=2, cex.axis=5.5/6, labels=y.labels)
 
-  # Add control bars
-  rect(ybottom=y.mids-(bar.hex/2)+control.sep,
-       ytop=y.mids+(bar.hex/2)+control.sep,
-       xleft=0, xright=plot.df[, 4],
-       col=control.colors[["main"]], border=NA, bty="n")
-  segments(y0=y.mids+control.sep,
-           y1=y.mids+control.sep,
-           x0=plot.df[, 5], x1=plot.df[, 6], lwd=2, lend="butt",
-           col=cancer.palettes[["control"]]["dark1"])
-  if(legend.on.bars){
-    longest.control <- head(which(plot.df[, 4] == max(plot.df[, 4], na.rm=T)), 1)
-    text(x=0-(0.05*diff(par("usr")[1:2])),
-         y=y.mids[longest.control]+(bar.hex/5)+control.sep,
-         pos=4, label=control.label, cex=4/6, col=control.colors[["dark2"]])
-  }
-  rect(ybottom=y.mids-(bar.hex/2)+control.sep,
-       ytop=y.mids+(bar.hex/2)+control.sep,
-       xleft=0, xright=plot.df[, 4],
-       col=NA, xpd=T)
-
-  # Add bars, CI ticks, and outer borders
-  sig.idx <- which(plot.df[, 7] < 0.05)
-  bar.pals <- lapply(rownames(plot.df), function(pheno){
-    if(pheno %in% names(cancer.palettes)){
-      cancer.palettes[[pheno]]
-    }else{
-      cancer.palettes[["pancan"]]
-    }
-  })
-  bar.cols <- sapply(bar.pals, function(pal){pal["light1"]})
-  ci.cols <- sapply(bar.pals, function(pal){pal["main"]})
-  if(color.by.sig){
-    for(i in sig.idx){
-      bar.cols[i] <- bar.pals[[i]]["main"]
-      ci.cols[i] <- bar.pals[[i]]["dark1"]
-    }
-  }
-  rect(ybottom=y.mids-(bar.hex/2)+case.sep,
-       ytop=y.mids+(bar.hex/2)+case.sep,
-       xleft=0, xright=plot.df[, 1],
-       col=bar.cols,
-       border=NA, bty="n")
-  segments(y0=y.mids+case.sep,
-           y1=y.mids+case.sep,
-           x0=plot.df[, 2], x1=plot.df[, 3], lwd=2, lend="butt",
-           col=ci.cols)
-  if(legend.on.bars){
-    longest.case <- head(which(plot.df[, 1] == max(plot.df[, 1], na.rm=T)), 1)
-    text(x=0-(0.05*diff(par("usr")[1:2])),
-         y=y.mids[longest.case]+(bar.hex/10)+case.sep,
-         pos=4, label=case.label, cex=4/6, col=bar.pals[[longest.case]][["dark2"]])
-  }
-  rect(ybottom=y.mids-(bar.hex/2)+case.sep,
-       ytop=y.mids+(bar.hex/2)+case.sep,
-       xleft=0, xright=plot.df[, 1],
-       col=NA, xpd=T)
+  # Add bars
+  add.pheno.bars(plot.df, bar.mids=y.mids, bar.hex=bar.hex, control.sep=control.sep,
+                 horiz=TRUE, color.by.sig=color.by.sig, legend.on.bars=legend.on.bars)
 
   # Add P values
   sapply(1:nrow(plot.df), function(i){
@@ -297,6 +243,96 @@ barplot.by.phenotype <- function(plot.df, bar.hex=0.5, case.control.sep=0.375,
          labels=p.label, col.axis=p.col)
   })
 }
+
+
+#' Double-wide barpolot of values per cancer type
+#'
+#' Generate two side-by-side sets of barplots of two values for each cancer type
+#'
+#' @param plot.df.l Data.frame of values to plot on the left. See [barplot.by.phenotype()].
+#' @param plot.df.r Data.frame of values to plot on the right. See [barplot.by.phenotype()].
+#' @param bar.wex Relative width for each bar \[default: 0.5\]
+#' @param case.control.sep Relative separation between overlapping case
+#' and control bars \[default: 0.375\]
+#' @param group.spacer Distance between left and right barplot groups \[default: 0.5\]
+#' @param color.by.sig Should bars be shaded differently by significance
+#' level? \[default: TRUE\]
+#' @param add.left.axis Should the left axis be added? \[default: TRUE\]
+#' @param left.axis.units Specify units for left axis. Options are NULL (for
+#' numeric) or "percent" \[default: NULL\]
+#' @param title Custom title for left axis
+#' @param orient.cases Should cases be plotted to the `left` or `right` of controls? \[default: "left"\]
+#' @param label.l Optional label for left set of bars.
+#' @param label.r Optional label for right set of bars.
+#' @param parmar Value of `mar` passed to `par()`
+#'
+#' @details This function is effectively a double-wide set of [barplot.by.phenotype()].
+#' As such, please refer to [barplot.by.phenotype()] for more information.
+#'
+#' @seealso [barplot.by.phenotype()]
+#'
+#' @export doublewide.barplot.by.phenotype
+#' @export
+doublewide.barplot.by.phenotype <-
+  function(plot.df.l, plot.df.r, bar.wex=0.5, case.control.sep=0.375,
+           group.spacer=0.5, color.by.sig=TRUE, add.left.axis=TRUE,
+           left.axis.units=NULL, title="Value", orient.cases="left",
+           label.l=NULL, label.r=NULL, parmar=c(1.1, 2.25, 0.5, 0.25)){
+    # Get plot dimensions
+    both.plot.df <- rbind(plot.df.l, plot.df.r)
+    ylims <- c(0, min(c(2*max(both.plot.df[, c(1, 4)], na.rm=T),
+                        max(both.plot.df[, 1:6], na.rm=T)),
+                      na.rm=T))
+    xlims <- c(-0.5*group.spacer, nrow(both.plot.df) + (1.5*group.spacer))
+    x.mids.l <- (1:nrow(plot.df.l))-0.5
+    x.mids.r <- (1:nrow(plot.df.r))-0.5 + group.spacer + nrow(plot.df.l)
+    group.x.mean.l <- mean(c(0, nrow(plot.df.l)))
+    group.x.mean.r <- mean(c(0, nrow(plot.df.l))) + nrow(plot.df.l) + group.spacer
+
+    # Horizontally order cases and controls
+    if(orient.cases == "left"){
+      control.sep <- case.control.sep/2
+    }else{
+      control.sep <- -case.control.sep/2
+    }
+
+    # Prep plot area
+    prep.plot.area(xlims, ylims, parmar=parmar, xaxs="i", yaxs="r")
+    axis(1, at=c(0, nrow(plot.df.l)), tck=0, labels=NA)
+    axis(1, at=c(0, nrow(plot.df.r)) + nrow(plot.df.l) + group.spacer, tck=0, labels=NA)
+    if(add.left.axis){
+      clean.axis(2, label.units=left.axis.units,
+                 title=title, infinite.positive=TRUE, tck=-0.015,
+                 label.line=-0.8, title.line=0.35, max.ticks=5)
+    }
+    axis(1, at=c(group.x.mean.l, group.x.mean.r), tick=F, line=-0.85,
+         labels=c(label.l, label.r))
+
+    # Add bars
+    add.pheno.bars(plot.df.l, bar.mids=x.mids.l,
+                   bar.hex=bar.wex, control.sep=control.sep,
+                   horiz=FALSE, color.by.sig=color.by.sig)
+    add.pheno.bars(plot.df.r, bar.mids=x.mids.r,
+                   bar.hex=bar.wex, control.sep=control.sep,
+                   horiz=FALSE, color.by.sig=color.by.sig)
+
+    # Add P value annotations
+    p.spacer <- 0.05 * diff(par("usr")[3:4])
+    sapply(1:nrow(plot.df.l), function(x){
+      p <- plot.df.l[x, 7]
+      xpos <- x.mids.l[x] - control.sep
+      ypos <- max(plot.df.l[x, 1:6], na.rm=T) + p.spacer
+      p.label <- if(p<0.0005){"***"}else if(p<0.005){"**"}else if(p<0.05){"*"}else{NULL}
+      text(x=xpos, y=ypos, labels=p.label, font=2, xpd=T)
+    })
+    sapply(1:nrow(plot.df.r), function(x){
+      p <- plot.df.r[x, 7]
+      xpos <- x.mids.r[x] - control.sep
+      ypos <- max(plot.df.r[x, 1:6], na.rm=T) + p.spacer
+      p.label <- if(p<0.0005){"***"}else if(p<0.005){"**"}else if(p<0.05){"*"}else{NULL}
+      text(x=xpos, y=ypos, labels=p.label, font=2, xpd=T)
+    })
+  }
 
 
 #' Kaplan-Meyer plots of SV length

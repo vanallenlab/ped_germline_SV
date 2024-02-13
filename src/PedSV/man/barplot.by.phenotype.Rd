@@ -38,6 +38,8 @@ numeric) or "percent" [default: NULL]}
 
 \item{title}{Custom title for top axis}
 
+\item{orient.cases}{Should casees be plotted on the \code{top} or \code{bottom} of controls? [default: "top"]}
+
 \item{custom.pheno.labels}{Custom phenotype labels for the groups on the
 Y axis, if desired.}
 

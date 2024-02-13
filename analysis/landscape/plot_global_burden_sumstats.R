@@ -59,9 +59,6 @@ plot.or.by.freq <- function(plot.stats, title=NULL, connect.cancers=c(),
                             shaded.pancan.ci=FALSE, min.y.symmetry=0.1){
   # Get plot values
   or.range <- range(plot.stats[, grep("\\.or$", colnames(plot.stats))], na.rm=T)
-  ylims <- c(0, max(c(ymin, or.range[2]+(diff(or.range)/4))))
-  # Get plot values
-  or.range <- range(plot.stats[, grep("\\.or$", colnames(plot.stats))], na.rm=T)
   ymin <- min(c(1-min.y.symmetry, or.range[1]-(diff(or.range)/4)))
   ymax <- max(c(1+min.y.symmetry, or.range[2]+(diff(or.range)/4)))
 
@@ -88,7 +85,7 @@ plot.or.by.freq <- function(plot.stats, title=NULL, connect.cancers=c(),
   if(shaded.pancan.ci){
     ci.x <- as.numeric(coords["pancan", grep("\\.x$", colnames(coords))])
     ci.y.all <- as.numeric(c(plot.stats["pancan", grep("\\.lower$", colnames(plot.stats))],
-    rev(plot.stats["pancan", grep("\\.upper$", colnames(plot.stats))])))
+                             rev(plot.stats["pancan", grep("\\.upper$", colnames(plot.stats))])))
     polygon(x=c(ci.x, rev(ci.x)), y=ci.y.all,
             border=NA, bty="n", col="white")
     polygon(x=c(ci.x, rev(ci.x)), y=ci.y.all,
@@ -99,12 +96,12 @@ plot.or.by.freq <- function(plot.stats, title=NULL, connect.cancers=c(),
   abline(h=1, lty=5)
 
   # Add lines for individual cancers
-    for(cancer in connect.cancers){
-      segments(x0=as.numeric(coords[cancer, grep("\\.x$", colnames(coords))][1:2]),
-               x1=as.numeric(coords[cancer, grep("\\.x$", colnames(coords))][2:3]),
-               y0=as.numeric(coords[cancer, grep("\\.y$", colnames(coords))][1:2]),
-               y1=as.numeric(coords[cancer, grep("\\.y$", colnames(coords))][2:3]),
-               lwd=if(cancer=="pancan"){3}else{2}, col=cancer.colors[cancer])
+  for(cancer in connect.cancers){
+    segments(x0=as.numeric(coords[cancer, grep("\\.x$", colnames(coords))][1:2]),
+             x1=as.numeric(coords[cancer, grep("\\.x$", colnames(coords))][2:3]),
+             y0=as.numeric(coords[cancer, grep("\\.y$", colnames(coords))][1:2]),
+             y1=as.numeric(coords[cancer, grep("\\.y$", colnames(coords))][2:3]),
+             lwd=if(cancer=="pancan"){3}else{2}, col=cancer.colors[cancer])
   }
 
   # Add all point estimates last
@@ -153,8 +150,13 @@ sapply(c("", "DEL", "DUP", "INV", "CPX", "unbalanced"), function(suffix){
 
 
 # Generate one-off horizontal double-wide barplot of rare unbalanced vs. balanced for main figure
-stats2barplotdf(ss[which(ss$hypothesis == "large.rare.unbalanced"), ], ci.mode="binomial")
-stats2barplotdf(ss[which(ss$hypothesis == "large.rare.balanced"), ], ci.mode="binomial")
+pdf(paste(args[2], ".large_rare_unbal_vs_bal.double_bars.pdf", sep=""),
+    height=2.25, width=4.25)
+doublewide.barplot.by.phenotype(plot.df.l=stats2barplotdf(ss[which(ss$hypothesis == "large.rare.unbalanced"), ], ci.mode="binomial"),
+                                plot.df.r=stats2barplotdf(ss[which(ss$hypothesis == "large.rare.balanced"), ], ci.mode="binomial"),
+                                left.axis.units="percent", title="Samples w/Rare SV >1Mb",
+                                label.l="Unbalanced", label.r="Balanced")
+dev.off()
 
 
 # Plot effect sizes of gene-disruptive SVs
@@ -174,4 +176,14 @@ sapply(c("", "LoF", "CG", "IED", "nonLoF_disruptive"), function(suffix){
   plot.or.by.freq(plot.stats, title=title, shaded.pancan.ci=T, connect.cancers="pancan")
   dev.off()
 })
+
+
+# Generate one-off horizontal double-wide barplot of rare unbalanced vs. balanced for main figure
+pdf(paste(args[2], ".singleton_lof_vs_cg.double_bars.pdf", sep=""),
+    height=2.25, width=4.25)
+doublewide.barplot.by.phenotype(plot.df.l=stats2barplotdf(ss[which(ss$hypothesis == "singleton.gene_disruptive.singleton_LoF_SVs"), ]),
+                                plot.df.r=stats2barplotdf(ss[which(ss$hypothesis == "singleton.gene_disruptive.singleton_CG_SVs"), ]),
+                                title="Singleton SVs per Sample",
+                                label.l="Loss-of-Function (LoF)", label.r="Gene Copy Gain (CG)")
+dev.off()
 

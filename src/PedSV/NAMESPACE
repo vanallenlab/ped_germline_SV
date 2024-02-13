@@ -2,11 +2,13 @@
 
 S3method(barplot,by.phenotype)
 S3method(format,pval)
+export(add.pheno.bars)
 export(barplot.by.phenotype)
 export(calc.genomic.imbalance)
 export(clean.axis)
 export(color.points.by.density)
 export(compress.ad.matrix)
+export(doublewide.barplot.by.phenotype)
 export(filter.bed)
 export(format.pval)
 export(get.complete.trios)
