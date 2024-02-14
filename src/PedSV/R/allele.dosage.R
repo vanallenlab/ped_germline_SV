@@ -130,6 +130,7 @@ query.ad.matrix <- function(ad, query.regions=NULL, query.ids=NULL,
 #' @param na.behavior Specify how `NA` entries in `ad.df` should be treated when
 #' compressing. See `Details`.
 #' @param na.frac Fraction of `NA` entries allowed before failing a sample. See `Details`.
+#' @param keep.vids Optional vector of variant IDs to keep \[default: keep all rows in `ad.df`\]
 #'
 #' @return numeric vector
 #'
@@ -144,7 +145,8 @@ query.ad.matrix <- function(ad, query.regions=NULL, query.ids=NULL,
 #' @export compress.ad.matrix
 #' @export
 compress.ad.matrix <- function(ad.df, action, weights=NULL,
-                               na.behavior="threshold", na.frac=0.05){
+                               na.behavior="threshold", na.frac=0.05,
+                               keep.vids=NULL){
   if(nrow(ad.df) < 2){
     if(nrow(ad.df) == 0 | action == "verbose"){
       return(ad.df)
@@ -153,6 +155,9 @@ compress.ad.matrix <- function(ad.df, action, weights=NULL,
       names(ad.vals) <- colnames(ad.df)
       return(ad.vals)
     }
+  }
+  if(!is.null(keep.vids)){
+    ad.df <- ad.df[intersect(rownames(ad.df), keep.vids), ]
   }
   if(na.behavior == "all"){
     na.fx <- all

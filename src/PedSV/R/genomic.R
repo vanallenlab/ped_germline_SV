@@ -41,7 +41,7 @@
 #' * `rare` : AF < 1%
 #' * `vrare` : AF < 0.1%
 #' * `singleton` : AC = 1
-#' * `notsmall` : SVLEN > 100,000
+#' * `notsmall` : SVLEN > 50,000
 #' * `large` : SVLEN > 1,000,000
 #' * `karyotypic` : SVLEN > 5,000,000
 #' * `unbalanced` : replaces `SVLEN` with total genomic imbalance before applying
@@ -122,9 +122,9 @@ filter.bed <- function(bed, query, af.field="POPMAX_AF", ac.field="AC",
   }
   if("notsmall" %in% query.parts){
     if("unbalanced" %in% query.parts){
-      keep.idx <- intersect(keep.idx, which(bed$SVLEN > 100000))
+      keep.idx <- intersect(keep.idx, which(bed$SVLEN > 50000))
     }else{
-      keep.idx <- intersect(keep.idx, which(bed$SVLEN > 100000 | bed$SVTYPE == "CTX"))
+      keep.idx <- intersect(keep.idx, which(bed$SVLEN > 50000 | bed$SVTYPE == "CTX"))
     }
   }
   if("large" %in% query.parts){

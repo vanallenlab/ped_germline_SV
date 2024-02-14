@@ -17,10 +17,11 @@
 #########
 # Load necessary libraries and constants
 options(scipen=1000, stringsAsFactors=F)
-require(PedSV, quietly=TRUE)
-require(Hmisc, quietly=TRUE)
-require(survival, quietly=TRUE)
 require(argparse, quietly=TRUE)
+require(Hmisc, quietly=TRUE)
+require(PedSV, quietly=TRUE)
+require(stats, quietly=TRUE)
+require(survival, quietly=TRUE)
 PedSV::load.constants("all")
 
 
@@ -148,33 +149,6 @@ supercategory.burden.test <- function(data, query, meta, action, family,
   return(list("ad.df" = ad.df, "new.stats" = new.stats))
 }
 
-# Helper function to convert burden test stats to barplot-compliant data.frame
-stats2plot <- function(stats, ci.mode="normal"){
-  n.phenos <- nrow(stats)
-  values <- as.numeric(c(stats$case.mean, stats$control.mean))
-  ns <- as.numeric(c(stats$n.case, stats$n.control))
-  if(ci.mode == "normal"){
-    stdevs <- as.numeric(c(stats$case.stdev, stats$control.stdev))
-    ci.margins <- stdevs / sqrt(ns) * qnorm(0.975)
-    ci.lowers <- values - ci.margins
-    ci.uppers <- values + ci.margins
-  }else if(ci.mode == "binomial"){
-    require(Hmisc, quietly=TRUE)
-    cis <- Hmisc::binconf(x=round(values * ns), n=ns)
-    ci.lowers <- cis[, "Lower"]
-    ci.uppers <- cis[, "Upper"]
-  }
-  pvals <- as.numeric(stats$P.value)
-  plot.df <- data.frame("case.value" = values[1:n.phenos],
-                        "case.ci.lower" = ci.lowers[1:n.phenos],
-                        "case.ci.upper" = ci.uppers[1:n.phenos],
-                        "control.value" = values[(1:n.phenos) + n.phenos],
-                        "control.ci.lower" = ci.lowers[(1:n.phenos) + n.phenos],
-                        "control.ci.upper" = ci.uppers[(1:n.phenos) + n.phenos],
-                        "p" = pvals, row.names=stats$disease)
-  plot.df[intersect(names(cancer.colors[1:4]), rownames(plot.df)), ]
-}
-
 # Main wrapper function to run one category of burden test for each SV type
 # Note: sv.subsets must be a list of three-element lists, where each inner list
 # is of the format (prefix, SV IDs to include, plot title)
@@ -205,7 +179,7 @@ main.burden.wrapper <- function(data, query, meta, action, af.fields, ac.fields,
   all.stats <- rbind(all.stats, new.stats)
   pdf(paste(out.prefix, "ALL.pdf", sep="."),
       height=barplot.height, width=barplot.width)
-  barplot.by.phenotype(stats2plot(new.stats, ci.mode), title=main.title,
+  barplot.by.phenotype(stats2barplotdf(new.stats, ci.mode), title=main.title,
                        top.axis.units=barplot.units)
   dev.off()
   ad.dfs <- supercategory.res[["ad.df"]]
@@ -233,7 +207,7 @@ main.burden.wrapper <- function(data, query, meta, action, af.fields, ac.fields,
       all.stats <- rbind(all.stats, new.stats)
       pdf(paste(out.prefix, subset.info[[1]], "pdf", sep="."),
           height=barplot.height, width=barplot.width)
-      barplot.by.phenotype(stats2plot(new.stats, ci.mode), title=subset.info[[3]],
+      barplot.by.phenotype(stats2barplotdf(new.stats, ci.mode), title=subset.info[[3]],
                            top.axis.units=barplot.units)
       dev.off()
     }
@@ -350,12 +324,13 @@ if(is.null(args$ac_field)){
 }
 
 # Prepare data.frame for collecting test statistics
-all.stats <- data.frame("hypothesis"=character(0), "disease"=character(0),
-                        "model"=character(0), "n.case"=numeric(0),
-                        "case.mean"=numeric(0), "n.control"=numeric(0),
-                        "control.mean"=numeric(0), "coefficient"=numeric(0),
-                        "std.err"=numeric(0), "test.statistic"=numeric(0),
-                        "P.value"=numeric(0), "test"=character(0))
+empty.stats.df <- data.frame("hypothesis"=character(0), "disease"=character(0),
+                             "model"=character(0), "n.case"=numeric(0),
+                             "case.mean"=numeric(0), "n.control"=numeric(0),
+                             "control.mean"=numeric(0), "coefficient"=numeric(0),
+                             "std.err"=numeric(0), "test.statistic"=numeric(0),
+                             "P.value"=numeric(0), "test"=character(0))
+all.stats <- empty.stats.df
 
 # Set plot dimensions
 barplot.height <- 0.5 + (length(unique(meta$disease)) / 4)
@@ -403,7 +378,7 @@ for(freq in c("rare", "vrare", "singleton")){
                                      barplot.height=barplot.height, barplot.width=barplot.width,
                                      barplot.units="percent", autosomal=FALSE)
     # Add one separate test for all large *unbalanced* SVs
-    # (DEL + DUP + aneuploidy + CTX + qualifying CPX)
+    # (DEL + DUP + aneuploidy + qualifying CPX)
     all.stats <- main.burden.wrapper(data, query=paste(size, freq, "unbalanced", sep="."), meta, action="any",
                                      af.fields, ac.fields, sv.subsets=NULL, all.stats,
                                      paste(args$out_prefix, paste(freq, size, "unbalanced_sv_per_genome.by_cancer", sep="_"), sep="."),
@@ -413,7 +388,7 @@ for(freq in c("rare", "vrare", "singleton")){
                                      barplot.height=barplot.height, barplot.width=barplot.width,
                                      barplot.units="percent", autosomal=FALSE)
     # Add one separate test for all large *unbalanced* *autosomal* SVs
-    # (DEL + DUP + aneuploidy + CTX + qualifying CPX)
+    # (DEL + DUP + aneuploidy + qualifying CPX)
     all.stats <- main.burden.wrapper(data, query=paste(size, freq, "unbalanced", sep="."), meta, action="any",
                                      af.fields, ac.fields, sv.subsets=NULL, all.stats,
                                      paste(args$out_prefix, paste(freq, size, "unbalanced_sv_per_genome.by_cancer.autosomal_only", sep="_"), sep="."),
@@ -424,7 +399,7 @@ for(freq in c("rare", "vrare", "singleton")){
                                      barplot.units="percent", autosomal=TRUE,
                                      custom.hypothesis=paste(size, freq, "unbalanced", "autosomal_only", sep="."))
     # Add one separate test for all large *unbalanced* *allosomal* SVs
-    # (DEL + DUP + aneuploidy + CTX + qualifying CPX)
+    # (DEL + DUP + aneuploidy + qualifying CPX)
     all.stats <- main.burden.wrapper(data, query=paste(size, freq, "unbalanced", sep="."), meta, action="any",
                                      af.fields, ac.fields, sv.subsets=NULL, all.stats,
                                      keep.idx.list=lapply(data, function(d){which(d$bed$chrom %in% c("chrX", "chrY"))}),
@@ -446,30 +421,110 @@ for(freq in c("rare", "vrare", "singleton")){
                                      barplot.height=barplot.height, barplot.width=barplot.width,
                                      barplot.units="percent", autosomal=FALSE)
   }
+  # Add one separate test for all huge (>5Mb) *unbalanced* SVs
+  # (DEL + DUP + aneuploidy + qualifying CPX)
+  all.stats <- main.burden.wrapper(data, query=paste("karyotypic", freq, "unbalanced", sep="."), meta, action="any",
+                                   af.fields, ac.fields, sv.subsets=NULL, all.stats,
+                                   paste(args$out_prefix, paste(freq, "karyotypic_unbalanced_sv_per_genome.by_cancer", sep="_"), sep="."),
+                                   main.title=paste("Pct. w/", freq.names[freq],
+                                                    "Unbalanced SV >5Mb"),
+                                   barplot.height=barplot.height, barplot.width=barplot.width,
+                                   barplot.units="percent", autosomal=FALSE)
 }
 
 
-# Regression analysis of largest rare unbalanced SV per genome
+
+# Focused secondary analyses of largest rare unbalanced SV per genome
 for(freq in c("rare", "vrare", "singleton")){
+  # Collect all SV data
   largest.sv.data <-
     supercategory.burden.test(data=data,
                               query=paste(freq, "unbalanced.notsmall.genomic_imbalance", sep="."),
                               meta=meta, family=binomial(), action="max",
                               af.fields=af.fields, ac.fields=ac.fields)
   all.stats <- rbind(all.stats, largest.sv.data$new.stats)
+
+  # K-M style visualization of largest unbalanced SV vs. case status
   largest.sv <- apply(largest.sv.data$ad.df[[1]], 2, max, na.rm=T)
-  cancers.km.layer.ordered <- c(metadata.cancer.label.map[rev(setdiff(unique(meta[names(largest.sv), "disease"]), "control"))],
-               "control", "pancan")
+  cancers.km.layer.ordered <- c("control", "pancan")
   surv.models <- lapply(cancers.km.layer.ordered, function(cancer){
     elig.sids <- intersect(get.eligible.samples(meta, cancer)$cases, names(largest.sv))
     survfit(Surv(log10(largest.sv[elig.sids]), rep(1, length(elig.sids))) ~ 1)
   })
+  ylims <- c(0, max(sapply(surv.models, function(ss){
+    max(ss$surv[which(ss$time>log10(50000))], na.rm=T)
+  }), na.rm=T) + 0.025)
   pdf(paste(args$out_prefix, freq, "genomic_imbalance_km", "pdf", sep="."),
-      height=2.25, width=2.5)
-  svlen.km.plot(surv.models, cancer.colors[cancers.km.layer.ordered], ci.alpha=0,
+      height=2, width=2.5)
+  svlen.line.plot(x.svlen=lapply(surv.models, function(sm){sm$time}),
+                  y.value=lapply(surv.models, function(sm){sm$surv}),
+                  ci.lower=lapply(surv.models, function(sm){sm$lower}),
+                  ci.upper=lapply(surv.models, function(sm){sm$upper}),
+                  colors=cancer.colors[cancers.km.layer.ordered], ci.alpha=0,
                 xlab=paste("Largest", freq.names[freq], "SV"),
-                ylab="Proportion of Samples", xlim=log10(c(100000, 1000000)),
-                lwds=c(rep(2, length(cancers.km.layer.ordered)-2), 3, 3))
+                ylab="Samples (%)", xlim=log10(c(50000, 5000000)),
+                lwds=c(3, 3), x.axis.labels=c("50kb", "500kb", "5Mb"),
+                ylims=ylims, y.axis.units="percent",
+                x.axis.labels.at=log10(c(50000, 500000, 5000000)),
+                parmar=c(2, 3, 0.25, 1))
+  rect(xleft=log10(500000), xright=log10(5000000), ybottom=0, ytop=0.05,
+       col=NA, lty=2, xpd=T)
+  dev.off()
+
+  # Small inset plot starting at 500kb
+  pdf(paste(args$out_prefix, freq, "genomic_imbalance_km.inset", "pdf", sep="."),
+      height=0.6*(12/5), width=0.65*(12/5))
+  svlen.line.plot(x.svlen=lapply(surv.models, function(sm){sm$time}),
+                y.value=lapply(surv.models, function(sm){sm$surv}),
+                ci.lower=lapply(surv.models, function(sm){sm$lower}),
+                ci.upper=lapply(surv.models, function(sm){sm$upper}),
+                colors=cancer.colors[cancers.km.layer.ordered], ci.alpha=0,
+                xlab=NA, ylab=NA, xlim=log10(c(500000, 5000000)),
+                ylims=c(0, 0.05), y.axis.units="percent",
+                lwds=c(rep(2, length(cancers.km.layer.ordered)-2), 3, 3),
+                x.axis.labels=c("1Mb", "5Mb"),
+                x.axis.labels.at=log10(c(1000000, 5000000)), x.tck=-0.025,
+                parmar=c(1.15, 1.75, 0.4, 0.75))
+  dev.off()
+
+  # Burden test series every log-step
+  ad.df <- get.ad.values(data, query=paste(freq, "notsmall", "unbalanced", sep="."),
+                         action="verbose", af.fields=af.fields, ac.fields=ac.fields,
+                         autosomal=FALSE)
+  unbal.sv.size <- unlist(lapply(data, function(l){v <- calc.genomic.imbalance(l$bed); names(v) <- rownames(l$bed); return(v)}))
+  size.burden.stats <- empty.stats.df
+  size.or.x <- 10^seq(4, log10(5000000), 0.05)
+  for(size in size.or.x){
+    qual.sv.ids <- names(unbal.sv.size)[which(unbal.sv.size >= size)]
+    ad.vals <- unlist(lapply(ad.df, compress.ad.matrix, action="any", keep.vids=qual.sv.ids))
+    ad.vals[intersect(rownames(meta)[which(meta$any_aneuploidy)], names(ad.vals))] <- 1
+    new.burden.stats <- burden.test(data, query=paste(freq, ".", size/1000, "kb", sep=""),
+                                    meta=meta, ad.vals=ad.vals, family=binomial(),
+                                    af.fields=af.fields, ac.field=ac.fields)
+    size.burden.stats <- rbind(size.burden.stats, new.burden.stats)
+  }
+  size.burden.y.ln <- as.numeric(size.burden.stats[which(size.burden.stats$disease == "pancan"), "coefficient"])
+  size.burden.y.ln.se <- as.numeric(size.burden.stats[which(size.burden.stats$disease == "pancan"), "std.err"])
+  size.burden.y <- exp(size.burden.y.ln)
+  size.burden.y.smooth <- predict(smooth.spline(size.or.x, size.burden.y, spar=2), newdata=size.or.x)$y
+  size.burden.ci.lower <- exp(size.burden.y.ln + (qnorm(0.025) * size.burden.y.ln.se))
+  size.burden.ci.lower.smooth <- predict(smooth.spline(size.or.x, size.burden.ci.lower, spar=2), newdata=size.or.x)$y
+  size.burden.ci.upper <- exp(size.burden.y.ln + (qnorm(0.975) * size.burden.y.ln.se))
+  size.burden.ci.upper.smooth <- predict(smooth.spline(size.or.x, size.burden.ci.upper, spar=2), newdata=size.or.x)$y
+  pdf(paste(args$out_prefix, freq, "genomic_imbalance_effect_size", "pdf", sep="."),
+      height=2, width=2)
+  svlen.line.plot(x.svlen=list(log10(size.or.x)),
+                  y.value=list(size.burden.y.smooth),
+                  ci.lower=list(size.burden.ci.lower.smooth),
+                  ci.upper=list(size.burden.ci.upper.smooth),
+                  step=FALSE, colors=cancer.colors["pancan"], ci.alpha=0.25,
+                  xlab=paste("Largest", freq.names[freq], "SV"),
+                  ylab="Odds Ratio", y.title.line=0.1, xlim=log10(c(50000, 5000000)),
+                  lwds=c(3, 3), x.axis.labels=c("50kb", "500kb", "5Mb"),
+                  ylims=c(min(c(0.8, min(size.burden.y.smooth))),
+                          max(c(1.2, 1.1*size.burden.y.smooth))),
+                  x.axis.labels.at=log10(c(50000, 500000, 5000000)),
+                  parmar=c(2, 2, 0.25, 1))
   dev.off()
 }
 
@@ -631,7 +686,7 @@ for(freq in c("rare", "vrare", "singleton")){
   all.stats <- rbind(all.stats, new.stats)
   pdf(paste(args$out_prefix, freq, "n_genes_disrupted_per_genome.by_cancer.pdf", sep="."),
       height=barplot.height, width=barplot.width)
-  barplot.by.phenotype(stats2plot(new.stats, ci.mode="normal"),
+  barplot.by.phenotype(stats2barplotdf(new.stats, ci.mode="normal"),
                        title=paste("# Genes with", freq.names[freq], "LoF SV per Sample"))
   dev.off()
 }
@@ -692,4 +747,3 @@ colnames(all.stats)[1] <- paste("#", colnames(all.stats)[1], sep="")
 write.table(all.stats,
             paste(args$out_prefix, "global_burden_tests.tsv", sep="."),
             col.names=T, row.names=F, sep="\t", quote=F)
-

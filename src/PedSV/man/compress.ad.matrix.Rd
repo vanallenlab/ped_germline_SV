@@ -9,7 +9,8 @@ compress.ad.matrix(
   action,
   weights = NULL,
   na.behavior = "threshold",
-  na.frac = 0.05
+  na.frac = 0.05,
+  keep.vids = NULL
 )
 }
 \arguments{
@@ -24,6 +25,8 @@ not present in this vector will be assigned weight = 1. [default: no weighting]}
 compressing. See \code{Details}.}
 
 \item{na.frac}{Fraction of \code{NA} entries allowed before failing a sample. See \code{Details}.}
+
+\item{keep.vids}{Optional vector of variant IDs to keep [default: keep all rows in \code{ad.df}]}
 }
 \value{
 numeric vector

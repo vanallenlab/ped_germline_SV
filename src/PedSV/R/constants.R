@@ -170,7 +170,7 @@ load.constants <- function(subset, envir=.GlobalEnv){
     "OS.colors" = OS.colors,
     "sex.colors" = c("MALE" = male.colors[["main"]],
                      "FEMALE" = female.colors[["main"]],
-                     "OTHER" = "#9382B3"),
+                     "OTHER" = "#D19554"),
     "MALE.colors" = male.colors,
     "FEMALE.colors" = female.colors,
     "pop.colors" = c("AFR" = AFR.colors[["main"]],

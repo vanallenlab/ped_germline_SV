@@ -17,7 +17,8 @@ doublewide.barplot.by.phenotype(
   orient.cases = "left",
   label.l = NULL,
   label.r = NULL,
-  parmar = c(1.1, 2.25, 0.5, 0.25)
+  group.label.cex = 1,
+  parmar = c(1.15, 2.25, 0.5, 0.25)
 )
 }
 \arguments{
@@ -47,6 +48,8 @@ numeric) or "percent" [default: NULL]}
 \item{label.l}{Optional label for left set of bars.}
 
 \item{label.r}{Optional label for right set of bars.}
+
+\item{group.label.cex}{Character expansion used for \code{label.l} and \code{label.r} [default: 1]}
 
 \item{parmar}{Value of \code{mar} passed to \code{par()}}
 }

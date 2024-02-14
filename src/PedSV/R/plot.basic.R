@@ -264,6 +264,7 @@ barplot.by.phenotype <- function(plot.df, bar.hex=0.5, case.control.sep=0.375,
 #' @param orient.cases Should cases be plotted to the `left` or `right` of controls? \[default: "left"\]
 #' @param label.l Optional label for left set of bars.
 #' @param label.r Optional label for right set of bars.
+#' @param group.label.cex Character expansion used for `label.l` and `label.r` \[default: 1\]
 #' @param parmar Value of `mar` passed to `par()`
 #'
 #' @details This function is effectively a double-wide set of [barplot.by.phenotype()].
@@ -277,7 +278,8 @@ doublewide.barplot.by.phenotype <-
   function(plot.df.l, plot.df.r, bar.wex=0.5, case.control.sep=0.375,
            group.spacer=0.5, color.by.sig=TRUE, add.left.axis=TRUE,
            left.axis.units=NULL, title="Value", orient.cases="left",
-           label.l=NULL, label.r=NULL, parmar=c(1.1, 2.25, 0.5, 0.25)){
+           label.l=NULL, label.r=NULL, group.label.cex=1,
+           parmar=c(1.15, 2.25, 0.5, 0.25)){
     # Get plot dimensions
     both.plot.df <- rbind(plot.df.l, plot.df.r)
     ylims <- c(0, min(c(2*max(both.plot.df[, c(1, 4)], na.rm=T),
@@ -305,8 +307,10 @@ doublewide.barplot.by.phenotype <-
                  title=title, infinite.positive=TRUE, tck=-0.015,
                  label.line=-0.8, title.line=0.35, max.ticks=5)
     }
-    axis(1, at=c(group.x.mean.l, group.x.mean.r), tick=F, line=-0.85,
-         labels=c(label.l, label.r))
+    sapply(1:2, function(i){
+      axis(1, at=c(group.x.mean.l, group.x.mean.r)[i], tick=F, line=-0.9,
+           cex.axis=group.label.cex, labels=c(label.l, label.r)[i])
+    })
 
     # Add bars
     add.pheno.bars(plot.df.l, bar.mids=x.mids.l,
@@ -335,15 +339,18 @@ doublewide.barplot.by.phenotype <-
   }
 
 
-#' Kaplan-Meyer plots of SV length
+#' Plot values vs. SV length
 #'
-#' Customized Kaplan-Meyer "survival" plots of one or more strata by longest SV
-#' per sample
+#' Generic function to plot one or more (x, y) datasets versus SV length
 #'
-#' @param surv.models List of one or more [`survival::summary.survfit`] objects
-#' @param colors Vector of colors for the list elements in `surv.models`
-#' @param group.names (Optional) group names to assign to each list element in `surv.models`
-#' @param lwds (Optional) vector of `lwd` for each of surv.models \[default: 3\]
+#' @param x.svlen List of SV length values to be plotted on X axis; one element per stratum
+#' @param y.value List of values to be plotted on Y axis; one element per stratum
+#' @param colors Vector of colors for the list elements in `x.svlen` and `y.value`
+#' @param ci.lower (Optional) List of lower confidence interval bounds per `y.value`; one element per stratum
+#' @param ci.upper (Optional) List of lower confidence interval bounds per `y.value`; one element per stratum
+#' @param group.names (Optional) group names to assign to each list element  in `x.svlen` and `y.value`
+#' @param step Should the line be rendered as a step function (a la Kaplan-Meyer)? \[default: TRUE\]
+#' @param lwds (Optional) vector of `lwd` for each line \[default: 3\]
 #' @param ci.alpha Transparency value `alpha` for confidence interval shading \[default: 0.15\]
 #' @param legend Should a legend be plotted? \[default: FALSE\]
 #' @param legend.names (Optional) mapping of `values` to labels for legend
@@ -353,78 +360,95 @@ doublewide.barplot.by.phenotype <-
 #' @param xlab (Optional) Title for X axis
 #' @param xlims (Optional) two-element vector of start and stop values for X-axis, in log10(SVLEN)
 #' @param ylab (Optional) Title for Y axis
+#' @param y.title.line Value for `title.line` passed to [PedSV::clean.axis()] \[default: 1\]
+#' @param y.axis.units Specify units for Y axis. Options are NULL (for
+#' numeric) or "percent" \[default: NULL\]
 #' @param ylims (Optional) two-element vector of start and stop values for Y-axis
+#' @param x.axis.labels (Optional) custom labels for X axis
+#' @param x.axis.labels.at (Optional) custom positions for X axis labels
+#' @param x.tck Value of `tck` passed to [clean.axis()]
 #' @param parmar Margin values passed to par()
 #'
-#' @seealso [`survival::Surv`], [`survival::survfit`], [`survival::summary.survfit`]
-#'
-#' @export svlen.km.plot
+#' @export svlen.line.plot
 #' @export
-svlen.km.plot <- function(surv.models, colors, group.names=NULL, lwds=NULL, ci.alpha=0.15,
+svlen.line.plot <- function(x.svlen, y.value, colors, ci.lower=NULL, ci.upper=NULL,
+                            group.names=NULL, step=TRUE, lwds=NULL, ci.alpha=0.15,
                           legend=FALSE, legend.names=NULL, legend.pos="topright",
                           legend.label.spacing=0.075, title=NULL, xlab=NULL,
-                          xlims=log10(c(10000, 1000000)), ylab=NULL, ylims=NULL,
-                          parmar=c(2, 3, 1, 1)){
-  # Ensure survival library and PedSV scale constants are loaded within function scope
-  require(survival, quietly=TRUE)
+                          xlims=log10(c(10000, 1000000)), ylab="Value", y.title.line=1,
+                          y.axis.units=NULL, ylims=NULL, x.axis.labels=NULL,
+                          x.axis.labels.at=NULL, x.tck=-0.01, parmar=c(2, 3, 1, 1)){
+  # Ensure PedSV scale constants are loaded within function scope
   PedSV::load.constants("scales", envir=environment())
 
   # Get plotting values
   if(is.null(group.names)){
-    group.names <- names(surv.models)
+    group.names <- names(x.svlen)
   }
-  n.groups <- length(surv.models)
+  n.groups <- length(x.svlen)
   if(is.null(lwds)){
     lwds <- rep(1, n.groups)
   }
   if(is.null(legend.names)){
-    legend.names <- names(surv.models)
+    legend.names <- names(x.svlen)
   }
   if(is.null(xlab)){
     xlab <- "Size of Largest SV"
   }
   if(is.null(ylab)){
-    ylab <- bquote("Samples with" >= 1 ~ "SV")
+    ylab <- "Value"
   }
   if(is.null(xlims)){
-    xlims <- c(0, max(sapply(surv.models, function(ss){max(ss$time, na.rm=T)})))
+    xlims <- c(0, max(unlist(x.svlen), na.rm=T))
   }
   if(is.null(ylims)){
-    ylims <- c(0, max(sapply(surv.models, function(ss){max(ss$surv[which(ss$time>xlims[1])], na.rm=T)}), na.rm=T) + 0.025)
+    ylims <- range(unlist(y.value), na.rm=T)
+  }
+  if(is.null(x.axis.labels)){
+    x.axis.labels <- logscale.demi.bp.labels
+  }
+  if(is.null(x.axis.labels.at)){
+    x.axis.labels.at <- log10(logscale.demi.bp)
   }
 
   # Prep plot area
   prep.plot.area(xlims, ylims, parmar)
 
   # Add confidence intervals
-  # Loop over this twice: first to lay white backgrounds, then add colors
-  for(layer in c("white", "colors")){
-    sapply(1:n.groups, function(i){
-      n.times <- length(surv.models[[i]]$time)
-      if(n.times > 1){
-        x.bottom <- c(0, PedSV::stretch.vector(surv.models[[i]]$time, 2)[-2*n.times])
-        x.top <- rev(x.bottom)
-        y.bottom <- c(1, 1, PedSV::stretch.vector(surv.models[[i]]$lower, 2)[-c(2*n.times-c(0, 1))])
-        y.top <- rev(c(1, 1, PedSV::stretch.vector(surv.models[[i]]$upper, 2)[-c(2*n.times-c(0, 1))]))
-        polygon(x=c(x.bottom, x.top), y=c(y.bottom, y.top), border=NA, bty="n",
-                col=if(layer == "white"){"white"}else{adjustcolor(colors[[i]], alpha=ci.alpha)})
-      }
-    })
+  if(!is.null(ci.lower) & !is.null(ci.upper)){
+    # Loop over this twice: first to lay white backgrounds, then add colors
+    for(layer in c("white", "colors")){
+      sapply(1:n.groups, function(i){
+        n.times <- length(x.svlen[[i]])
+        if(n.times > 1){
+          if(step){
+            x.bottom <- c(0, PedSV::stretch.vector(x.svlen[[i]], 2)[-2*n.times])
+            x.top <- rev(x.bottom)
+            y.bottom <- c(1, 1, PedSV::stretch.vector(ci.lower[[i]], 2)[-c(2*n.times-c(0, 1))])
+            y.top <- rev(c(1, 1, PedSV::stretch.vector(ci.upper[[i]], 2)[-c(2*n.times-c(0, 1))]))
+          }else{
+            x.bottom <- x.svlen[[i]]
+            x.top <- rev(x.svlen[[i]])
+            y.bottom <- ci.lower[[i]]
+            y.top <- rev(ci.upper[[i]])
+          }
+          polygon(x=c(x.bottom, x.top), y=c(y.bottom, y.top), border=NA, bty="n",
+                  col=if(layer == "white"){"white"}else{adjustcolor(colors[[i]], alpha=ci.alpha)})
+        }
+      })
+    }
   }
 
-  # Add K-M curves
+  # Add lines
   sapply(1:n.groups, function(i){
-    n.times <- length(surv.models[[i]]$time)
-    # If summary.survfit returns no data, this is either because
-    # there are no patients in this group or nobody died.
-    # If the latter, we can plot as a flat line at Y=1 until rmean.endtime (I think?)
-    if(surv.models[[i]]$n > 0){
-      if(n.times == 0){
-        x <- c(0, surv.models[[i]]$rmean.endtime)
-        y <- c(1, 1)
+    n.times <- length(x.svlen[[i]])
+    if(n.times > 0){
+      if(step){
+        x <- c(0, PedSV::stretch.vector(x.svlen[[i]], 2))
+        y <- c(1, 1, PedSV::stretch.vector(y.value[[i]], 2))[1:length(x)]
       }else{
-        x <- c(0, PedSV::stretch.vector(surv.models[[i]]$time, 2))
-        y <- c(1, 1, PedSV::stretch.vector(surv.models[[i]]$surv, 2))[1:length(x)]
+        x <- x.svlen[[i]]
+        y <- y.value[[i]]
       }
       points(x, y, type="l", col=colors[[i]], lwd=lwds[i])
     }
@@ -432,12 +456,12 @@ svlen.km.plot <- function(surv.models, colors, group.names=NULL, lwds=NULL, ci.a
 
   # Add axes
   clean.axis(1, at=log10(logscale.minor), labels=NA, infinite=TRUE,
-             title=xlab, label.line=-0.75, title.line=0, tck=-0.01)
-  clean.axis(1, at=log10(logscale.demi.bp), labels=logscale.demi.bp.labels,
+             title=xlab, label.line=-0.75, title.line=0, tck=x.tck)
+  clean.axis(1, at=x.axis.labels.at, labels=x.axis.labels,
              infinite=FALSE, title=NA, label.line=-0.75, title.line=0, tck=-0.0225)
   clean.axis(2, title=ylab, infinite=TRUE, tck=-0.0175,
-             label.units="percent", title.line=1)
-  mtext(title, side=3, line=0, font=2)
+             label.units=y.axis.units, title.line=y.title.line)
+  mtext(title, side=3, line=0)
 
   # Add legend
   if(legend){

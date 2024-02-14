@@ -61,7 +61,7 @@ should be applied to \code{bed}. Recognized filters currently include:
 \item \code{rare} : AF < 1\%
 \item \code{vrare} : AF < 0.1\%
 \item \code{singleton} : AC = 1
-\item \code{notsmall} : SVLEN > 100,000
+\item \code{notsmall} : SVLEN > 50,000
 \item \code{large} : SVLEN > 1,000,000
 \item \code{karyotypic} : SVLEN > 5,000,000
 \item \code{unbalanced} : replaces \code{SVLEN} with total genomic imbalance before applying
