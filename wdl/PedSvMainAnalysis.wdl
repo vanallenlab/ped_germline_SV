@@ -15,7 +15,6 @@
 version 1.0
 
 
-# import "https://raw.githubusercontent.com/vanallenlab/ped_germline_SV/main/wdl/SvGwas.wdl" as Gwas
 import "https://raw.githubusercontent.com/vanallenlab/ped_germline_SV/main/wdl/SvGenicRvas.wdl" as Rvas
 
 
@@ -57,6 +56,8 @@ workflow PedSvMainAnalysis {
     # String full_cohort_gwas_bcftools_query_options = ""
 
     # Note: the below inputs should contain ALL individuals in study, including relatives
+    File full_cohort_w_relatives_vcf
+    File full_cohort_w_relatives_vcf_idx
     File full_cohort_w_relatives_bed
     File full_cohort_w_relatives_bed_idx
     File full_cohort_w_relatives_ad_matrix
@@ -95,22 +96,6 @@ workflow PedSvMainAnalysis {
     }
   }
   File? sv_exclusion_list = ConcatVariantExclusionLists.outfile
-
-  # call Gwas.SvGwas as StudyWideGwas {
-  #   input:
-  #     dense_vcf = full_cohort_dense_vcf,
-  #     dense_vcf_idx = full_cohort_dense_vcf_idx,
-  #     ad_matrix = full_cohort_ad_matrix,
-  #     ad_matrix_idx = full_cohort_ad_matrix_idx,
-  #     sample_metadata_tsv = sample_metadata_tsv,
-  #     samples_list = all_samples_list,
-  #     ref_fai = ref_fai,
-  #     prefix = study_prefix,
-  #     bcftools_query_options = full_cohort_gwas_bcftools_query_options,
-  #     gwas_mem_gb = 31,
-  #     pedsv_docker = pedsv_docker,
-  #     pedsv_r_docker = pedsv_r_docker
-  # }
 
   call Rvas.SvGenicRvas as StudyWideRvas {
     input:
@@ -168,6 +153,15 @@ workflow PedSvMainAnalysis {
         prefix = study_prefix + ".case_control_cohort." + contig,
         docker = pedsv_r_docker
     }
+
+    call PrecomputePerSampleBurdens {
+      input:
+        vcf = full_cohort_w_relatives_vcf,
+        vcf_idx = full_cohort_w_relatives_vcf_idx,
+        contig = contig,
+        prefix = study_prefix + ".full_cohort_w_relatives",
+        docker = pedsv_docker
+    }
   }
 
   call MergeSVsPerSample as MergeFullCohortSVsPerSample {
@@ -192,6 +186,21 @@ workflow PedSvMainAnalysis {
       sample_list = case_control_samples_list,
       prefix = study_prefix + ".case_control_cohort",
       docker = ubuntu_docker
+  }
+
+  call CombinePerSampleBurdens {
+    input:
+      rare_sv_count_tsvs = PrecomputePerSampleBurdens.rare_sv_counts,
+      vrare_sv_count_tsvs = PrecomputePerSampleBurdens.vrare_sv_counts,
+      singleton_sv_count_tsvs = PrecomputePerSampleBurdens.singleton_sv_counts,
+      rare_del_imbalance_tsvs = PrecomputePerSampleBurdens.rare_del_imbalance,
+      vrare_del_imbalance_tsvs = PrecomputePerSampleBurdens.vrare_del_imbalance,
+      singleton_del_imbalance_tsvs = PrecomputePerSampleBurdens.singleton_del_imbalance,
+      rare_dup_imbalance_tsvs = PrecomputePerSampleBurdens.rare_dup_imbalance,
+      vrare_dup_imbalance_tsvs = PrecomputePerSampleBurdens.vrare_dup_imbalance,
+      singleton_dup_imbalance_tsvs = PrecomputePerSampleBurdens.singleton_dup_imbalance,
+      prefix = study_prefix + ".full_cohort_w_relatives",
+      docker = pedsv_docker
   }
 
   call CohortSummaryPlots as FullCohortSummaryPlots {
@@ -259,6 +268,7 @@ workflow PedSvMainAnalysis {
       gene_list_names = gene_list_names,
       genomic_disorder_bed = genomic_disorder_bed,
       genomic_disorder_recip_frac = genomic_disorder_recip_frac,
+      precomputed_burden_stats = CombinePerSampleBurdens.precomputed_burden_stats_tsv,
       prefix = study_prefix,
       docker = pedsv_r_docker
   }
@@ -278,6 +288,7 @@ workflow PedSvMainAnalysis {
       gene_list_names = gene_list_names,
       genomic_disorder_bed = genomic_disorder_bed,
       genomic_disorder_recip_frac = genomic_disorder_recip_frac,
+      precomputed_burden_stats = CombinePerSampleBurdens.precomputed_burden_stats_tsv,
       prefix = study_prefix + ".trio_cohort",
       docker = pedsv_r_docker
   }
@@ -297,6 +308,7 @@ workflow PedSvMainAnalysis {
       gene_list_names = gene_list_names,
       genomic_disorder_bed = genomic_disorder_bed,
       genomic_disorder_recip_frac = genomic_disorder_recip_frac,
+      precomputed_burden_stats = CombinePerSampleBurdens.precomputed_burden_stats_tsv,
       prefix = study_prefix + ".case_control_cohort",
       docker = pedsv_r_docker
   }
@@ -406,6 +418,7 @@ task BurdenTests {
     Array[String]? gene_list_names
     File? genomic_disorder_bed
     Float genomic_disorder_recip_frac = 0.5
+    File? precomputed_burden_stats
     
     String prefix
     String docker
@@ -440,6 +453,9 @@ task BurdenTests {
     fi
     if [ ~{defined(variant_exclusion_list)} == "true" ]; then
       cmd="$cmd --exclude-variants ~{variant_exclusion_list}"
+    fi
+    if [ ~{defined(precomputed_burden_stats)} == "true" ]; then
+      cmd="$cmd --precomputed-burden-stats ~{precomputed_burden_stats}"
     fi
     cmd="$cmd --out-prefix ~{prefix}.BurdenTests/~{prefix}"
 
@@ -581,6 +597,286 @@ task MergeSVsPerSample {
     memory: "3.5 GB"
     cpu: 2
     disks: "local-disk " + disk_gb + " HDD"
+    preemptible: 3
+  }
+}
+
+
+# Precompute per-sample genome-wide burden statistics that are too 
+# memory intensive to do efficiently in R
+task PrecomputePerSampleBurdens {
+  input {
+    File vcf
+    File vcf_idx
+    String contig
+    String prefix
+    String docker
+
+    Float mem_gb = 7.5
+    Int? disk_gb
+  }
+
+  Int default_disk_gb = ceil(3 * size([vcf], "GB")) + 20
+
+  command <<<
+    set -eu -o pipefail
+
+    # Subset to chromosome of interest
+    tabix -h ~{vcf} ${contig} | bgzip -c > ~{contig}.vcf.gz
+
+    # Get dummy list of samples in VCF with zero counts for filling missing samples
+    bcftools query -l ~{contig}.vcf.gz | awk -v OFS="\t" '{ print $1, "0" }' \
+    > zeroes.tsv
+
+    # Filter VCF to isolate rare SVs
+    bcftools view \
+      --include 'INFO/gnomad_v3.1_sv_POPMAX_AF < 0.01 & AF < 0.01 & FILTER == "PASS"' \
+      -Oz -o rare.vcf.gz \
+      ~{contig}.vcf.gz
+    tabix -p vcf -f rare.vcf.gz
+
+    # Count rare SVs per sample
+    bcftools query \
+      --include 'GT="alt"' \
+      --format '[%SAMPLE\t1\n]' \
+      rare.vcf.gz \
+    | cat - zeroes.tsv \
+    | /opt/ped_germline_SV/analysis/utilities/sum_values_per_sample.py \
+    | cat <( echo -e "#sample\trare_sv_count" ) - \
+    | gzip -c \
+    > ~{prefix}.rare_sv_per_sample.~{contig}.tsv.gz
+
+    # Count very rare SVs per sample
+    bcftools query \
+      --include 'GT="alt" & AF < 0.001' \
+      --format '[%SAMPLE\t1\n]' \
+      rare.vcf.gz \
+    | cat - zeroes.tsv \
+    | /opt/ped_germline_SV/analysis/utilities/sum_values_per_sample.py \
+    | cat <( echo -e "#sample\tvrare_sv_count" ) - \
+    | gzip -c \
+    > ~{prefix}.vrare_sv_per_sample.~{contig}.tsv.gz
+
+    # Count singleton SVs per sample
+    bcftools query \
+      --include 'INFO/AC == 1 & GT="alt"' \
+      --format '[%SAMPLE\t1\n]' \
+      rare.vcf.gz \
+    | cat - zeroes.tsv \
+    | /opt/ped_germline_SV/analysis/utilities/sum_values_per_sample.py \
+    | cat <( echo -e "#sample\tsingleton_sv_count" ) - \
+    | gzip -c \
+    > ~{prefix}.singleton_sv_per_sample.~{contig}.tsv.gz
+
+    # Prepare for dosage imbalance-based calculations
+    /opt/ped_germline_SV/analysis/landscape/prep_dosage_imbalance_vcf.py \
+      --vcf-out rare.imbalance.vcf.gz \
+      rare.vcf.gz
+
+    # Collect CNV type-specific genomic imbalance per frequency tranche
+    for CNV in DEL DUP; do
+      case $CNV in
+        DEL)
+          info=DEL_IMBALANCE
+          ;;
+        DUP)
+          info=DUP_IMBALANCE
+          ;;
+      esac
+
+      # Sum rare imbalance per sample
+      bcftools query \
+        --include "GT=\"alt\" & INFO/$info > 0" \
+        --format "[%SAMPLE\t%INFO/$info\n]" \
+        rare.imbalance.vcf.gz \
+      | cat - zeroes.tsv \
+      | /opt/ped_germline_SV/analysis/utilities/sum_values_per_sample.py \
+      | cat <( echo -e "#sample\trare_imbalance_$CNV" ) - \
+      | gzip -c \
+      > ~{prefix}.rare_imbalance_per_sample.$CNV.~{contig}.tsv.gz
+
+      # Sum very rare imbalance per sample
+      bcftools query \
+        --include "GT=\"alt\" & INFO/AF < 0.001 & INFO/$info > 0" \
+        --format "[%SAMPLE\t%INFO/$info\n]" \
+        rare.imbalance.vcf.gz \
+      | cat - zeroes.tsv \
+      | /opt/ped_germline_SV/analysis/utilities/sum_values_per_sample.py \
+      | cat <( echo -e "#sample\tvrare_imbalance_$CNV" ) - \
+      | gzip -c \
+      > ~{prefix}.vrare_imbalance_per_sample.$CNV.~{contig}.tsv.gz
+
+      # Sum singleton imbalance per sample
+      bcftools query \
+        --include "GT=\"alt\" & INFO/AC == 1 & INFO/$info > 0" \
+        --format "[%SAMPLE\t%INFO/$info\n]" \
+        rare.imbalance.vcf.gz \
+      | cat - zeroes.tsv \
+      | /opt/ped_germline_SV/analysis/utilities/sum_values_per_sample.py \
+      | cat <( echo -e "#sample\tsingleton_imbalance_$CNV" ) - \
+      | gzip -c \
+      > ~{prefix}.singleton_imbalance_per_sample.$CNV.~{contig}.tsv.gz
+
+    done
+
+  >>>
+
+  output {
+    File rare_sv_counts = "~{prefix}.rare_sv_per_sample.~{contig}.tsv.gz"
+    File vrare_sv_counts = "~{prefix}.vrare_sv_per_sample.~{contig}.tsv.gz"
+    File singleton_sv_counts = "~{prefix}.singleton_sv_per_sample.~{contig}.tsv.gz"
+    File rare_del_imbalance = "~{prefix}.rare_imbalance_per_sample.DEL.~{contig}.tsv.gz"
+    File vrare_del_imbalance = "~{prefix}.vrare_imbalance_per_sample.DEL.~{contig}.tsv.gz"
+    File singleton_del_imbalance = "~{prefix}.singleton_imbalance_per_sample.DEL.~{contig}.tsv.gz"
+    File rare_dup_imbalance = "~{prefix}.rare_imbalance_per_sample.DUP.~{contig}.tsv.gz"
+    File vrare_dup_imbalance = "~{prefix}.vrare_imbalance_per_sample.DUP.~{contig}.tsv.gz"
+    File singleton_dup_imbalance = "~{prefix}.singleton_imbalance_per_sample.DUP.~{contig}.tsv.gz"
+  }
+
+  runtime {
+    docker: docker
+    memory: mem_gb + " GB"
+    disks: "local-disk " + select_first([disk_gb, default_disk_gb]) + " HDD"
+    preemptible: 3
+  }
+}
+
+
+# Combine outputs generated by PrecomputePerSampleBurdens
+task CombinePerSampleBurdens {
+  input {
+    Array[File] rare_sv_count_tsvs
+    Array[File] vrare_sv_count_tsvs
+    Array[File] singleton_sv_count_tsvs
+    Array[File] rare_del_imbalance_tsvs
+    Array[File] vrare_del_imbalance_tsvs
+    Array[File] singleton_del_imbalance_tsvs
+    Array[File] rare_dup_imbalance_tsvs
+    Array[File] vrare_dup_imbalance_tsvs
+    Array[File] singleton_dup_imbalance_tsvs
+    String prefix
+    String docker
+
+    Float mem_gb = 3.5
+    Int n_cpu = 2
+    Int? disk_gb
+  }
+
+  Int default_disk_gb = ceil(2 * size(flatten([rare_sv_count_tsvs, singleton_sv_count_tsvs]), "GB")) + 20
+
+  command <<<
+    set -eu -o pipefail
+
+    # Merge rare SV count data
+    zcat ~{sep=" " rare_sv_count_tsvs} \
+    | fgrep -v "#" \
+    | /opt/ped_germline_SV/analysis/utilities/sum_values_per_sample.py \
+    | cat <( echo -e "#sample\trare_sv_count" ) - \
+    | gzip -c \
+    > ~{prefix}.rare_sv_per_sample.tsv.gz
+
+    # Merge vrare SV count data
+    zcat ~{sep=" " vrare_sv_count_tsvs} \
+    | fgrep -v "#" \
+    | /opt/ped_germline_SV/analysis/utilities/sum_values_per_sample.py \
+    | cat <( echo -e "#sample\tvrare_sv_count" ) - \
+    | gzip -c \
+    > ~{prefix}.vrare_sv_per_sample.tsv.gz
+
+    # Merge singleton SV count data
+    zcat ~{sep=" " singleton_sv_count_tsvs} \
+    | fgrep -v "#" \
+    | /opt/ped_germline_SV/analysis/utilities/sum_values_per_sample.py \
+    | cat <( echo -e "#sample\tsingleton_sv_count" ) - \
+    | gzip -c \
+    > ~{prefix}.singleton_sv_per_sample.tsv.gz
+
+    # Merge rare DEL imbalance data
+    zcat ~{sep=" " rare_del_imbalance_tsvs} \
+    | fgrep -v "#" \
+    | /opt/ped_germline_SV/analysis/utilities/sum_values_per_sample.py \
+    | cat <( echo -e "#sample\trare_imbalance_DEL" ) - \
+    | gzip -c \
+    > ~{prefix}.rare_del_imbalance_per_sample.tsv.gz
+
+    # Merge vrare DEL imbalance data
+    zcat ~{sep=" " vrare_del_imbalance_tsvs} \
+    | fgrep -v "#" \
+    | /opt/ped_germline_SV/analysis/utilities/sum_values_per_sample.py \
+    | cat <( echo -e "#sample\tvrare_imbalance_DEL" ) - \
+    | gzip -c \
+    > ~{prefix}.vrare_del_imbalance_per_sample.tsv.gz
+
+    # Merge singleton DEL imbalance data
+    zcat ~{sep=" " singleton_del_imbalance_tsvs} \
+    | fgrep -v "#" \
+    | /opt/ped_germline_SV/analysis/utilities/sum_values_per_sample.py \
+    | cat <( echo -e "#sample\tsingleton_imbalance_DEL" ) - \
+    | gzip -c \
+    > ~{prefix}.singleton_del_imbalance_per_sample.tsv.gz
+
+    # Merge rare DUP imbalance data
+    zcat ~{sep=" " rare_dup_imbalance_tsvs} \
+    | fgrep -v "#" \
+    | /opt/ped_germline_SV/analysis/utilities/sum_values_per_sample.py \
+    | cat <( echo -e "#sample\trare_imbalance_DUP" ) - \
+    | gzip -c \
+    > ~{prefix}.rare_dup_imbalance_per_sample.tsv.gz
+
+    # Merge vrare DUP imbalance data
+    zcat ~{sep=" " vrare_dup_imbalance_tsvs} \
+    | fgrep -v "#" \
+    | /opt/ped_germline_SV/analysis/utilities/sum_values_per_sample.py \
+    | cat <( echo -e "#sample\tvrare_imbalance_DUP" ) - \
+    | gzip -c \
+    > ~{prefix}.vrare_dup_imbalance_per_sample.tsv.gz
+
+    # Merge singleton DUP imbalance data
+    zcat ~{sep=" " singleton_dup_imbalance_tsvs} \
+    | fgrep -v "#" \
+    | /opt/ped_germline_SV/analysis/utilities/sum_values_per_sample.py \
+    | cat <( echo -e "#sample\tsingleton_imbalance_DUP" ) - \
+    | gzip -c \
+    > ~{prefix}.singleton_dup_imbalance_per_sample.tsv.gz
+
+    # Sum imbalance data across DEL and DUP within a frequency tranche
+    for freq in rare vrare singleton; do
+      zcat \
+        ~{prefix}.${freq}_del_imbalance_per_sample.tsv.gz \
+        ~{prefix}.${freq}_dup_imbalance_per_sample.tsv.gz \
+      | fgrep -v "#" \
+      | /opt/ped_germline_SV/analysis/utilities/sum_values_per_sample.py \
+      | cat <( echo -e "#sample\t${freq}_imbalance_CNV" ) - \
+      | gzip -c \
+      > ~{prefix}.${freq}_cnv_imbalance_per_sample.tsv.gz
+    done
+
+    # Column-wise merge of all files above
+    /opt/ped_germline_SV/analysis/utilities/join_on_first_column.py \
+      --join outer \
+      --out-tsv ~{prefix}.precomputed_burden_stats.tsv.gz \
+      ~{prefix}.rare_sv_per_sample.tsv.gz \
+      ~{prefix}.vrare_sv_per_sample.tsv.gz \
+      ~{prefix}.singleton_sv_per_sample.tsv.gz \
+      ~{prefix}.rare_del_imbalance_per_sample.tsv.gz \
+      ~{prefix}.vrare_del_imbalance_per_sample.tsv.gz \
+      ~{prefix}.singleton_del_imbalance_per_sample.tsv.gz
+      ~{prefix}.rare_dup_imbalance_per_sample.tsv.gz \
+      ~{prefix}.vrare_dup_imbalance_per_sample.tsv.gz \
+      ~{prefix}.singleton_dup_imbalance_per_sample.tsv.gz \
+      ~{prefix}.rare_cnv_imbalance_per_sample.tsv.gz \
+      ~{prefix}.vrare_cnv_imbalance_per_sample.tsv.gz \
+      ~{prefix}.singleton_cnv_imbalance_per_sample.tsv.gz
+  >>>
+
+  output {
+    File precomputed_burden_stats_tsv = "~{prefix}.precomputed_burden_stats.tsv.gz"
+  }
+
+  runtime {
+    docker: docker
+    memory: mem_gb + " GB"
+    disks: "local-disk " + select_first([disk_gb, default_disk_gb]) + " HDD"
     preemptible: 3
   }
 }

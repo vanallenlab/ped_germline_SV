@@ -28,6 +28,20 @@ PedSV::load.constants("all")
 ##################
 # Data functions #
 ##################
+# Load precomputed burden stats from .tsv
+load.precomputed.burden.stats <- function(tsv.in, keep.samples=NULL){
+  df <- read.table(tsv.in, sep="\t", header=T, comment.char="")
+  rnames <- df[, 1]
+  df <- apply(df[, -1], 2, as.numeric)
+  df[which(is.na(df))] <- 0
+  rownames(df) <- rnames
+  if(!is.null(keep.samples)){
+    df <- df[intersect(rownames(df), keep.samples), ]
+  }
+  as.data.frame(df)
+}
+
+
 # Wrapper to format AD values as a single vector for a given query
 # Note: will return list of data frames, one per cohort, if action=="verbose"
 get.ad.values <- function(data, query, action, af.fields, ac.fields,
@@ -58,6 +72,7 @@ get.ad.values <- function(data, query, action, af.fields, ac.fields,
     unlist(res)
   }
 }
+
 
 # Wrapper to execute a single burden association test
 burden.test <- function(data, query, meta, ad.vals, family,
@@ -114,14 +129,21 @@ burden.test <- function(data, query, meta, ad.vals, family,
              "test.statistic", "P.value", "test")]
 }
 
+
 # Supercategory burden test for a category to prepare for rapid re-testing of subsets
 supercategory.burden.test <- function(data, query, meta, action, family,
                                       af.fields, ac.fields, keep.idx.list=NULL,
-                                      extra.terms=NULL, autosomal=TRUE){
-  ad.df <- get.ad.values(data, query=query, action="verbose", af.fields, ac.fields,
-                         keep.idx.list=keep.idx.list, autosomal=autosomal)
-  ad.df <- lapply(ad.df, function(df){df[, intersect(colnames(df), rownames(meta))]})
-  ad.vals <- unlist(lapply(ad.df, compress.ad.matrix, action=action))
+                                      extra.terms=NULL, autosomal=TRUE,
+                                      precomp.ad.vals=NULL){
+  if(is.null(precomp.ad.vals)){
+    ad.df <- get.ad.values(data, query=query, action="verbose", af.fields, ac.fields,
+                           keep.idx.list=keep.idx.list, autosomal=autosomal)
+    ad.df <- lapply(ad.df, function(df){df[, intersect(colnames(df), rownames(meta))]})
+    ad.vals <- unlist(lapply(ad.df, compress.ad.matrix, action=action))
+  }else{
+    ad.df <- NULL
+    ad.vals <- precomp.ad.vals
+  }
   query.parts <- unlist(strsplit(query, split=".", fixed=T))
   if(length(intersect(query.parts, c("notsmall", "large", "karyotypic"))) > 0
      & length(intersect(names(sv.colors), query.parts)) == 0
@@ -148,6 +170,7 @@ supercategory.burden.test <- function(data, query, meta, action, family,
                            family=family, extra.terms=extra.terms)
   return(list("ad.df" = ad.df, "new.stats" = new.stats))
 }
+
 
 # Main wrapper function to run one category of burden test for each SV type
 # Note: sv.subsets must be a list of three-element lists, where each inner list
@@ -241,6 +264,9 @@ parser$add_argument("--exclude-variants", metavar=".txt", type="character",
                     help=paste("list of variant IDs to exclude from analysis.",
                                "Not recommended for most use-cases.",
                                "[default: use all variants]"))
+parser$add_argument("--precomputed-burden-stats", metavar=".tsv", type="character",
+                    help=paste(".tsv of precomputed burden stats per sample for",
+                               "tests too laborious to perform in-memory in R"))
 parser$add_argument("--af-field", metavar="string", type="character", action="append",
                     help=paste("Column header to use for AF-related analyses.",
                                "Can be supplied once to be applied uniformly to",
@@ -261,6 +287,7 @@ args <- parser$parse_args()
 #              "gene_lists" = NULL,
 #              "genomic_disorder_hits" = NULL,
 #              "subset_samples" = "~/scratch/PedSV.v2.5.3.case_control_analysis_cohort.samples.list",
+#              "precomputed_burden_stats" = "~/scratch/test.m.tsv",
 #              "exclude_variants" = NULL,
 #              "af_field" = "POPMAX_AF",
 #              "ac_field" = "AC",
@@ -271,6 +298,7 @@ args <- parser$parse_args()
 #              "gene_lists" = NULL,
 #              "genomic_disorder_hits" = NULL,
 #              "subset_samples" = "~/scratch/PedSV.v2.5.3.trio_analysis_cohort.samples.list",
+#              "precomputed_burden_stats" = NULL,
 #              "exclude_variants" = NULL,
 #              "af_field" = "POPMAX_AF",
 #              "ac_field" = "AC",
@@ -281,6 +309,7 @@ args <- parser$parse_args()
 #              "gene_lists" = "~/scratch/PedSV.gene_lists.tsv",
 #              "genomic_disorder_hits" = NULL,
 #              "subset_samples" = "~/scratch/PedSV.v2.5.3.final_analysis_cohort.samples.list",
+#              "precomputed_burden_stats" = "~/scratch/test.m.tsv",
 #              "exclude_variants" = NULL,
 #              "af_field" = "POPMAX_AF",
 #              "ac_field" = "AC",
@@ -302,6 +331,13 @@ if(!is.null(args$subset_samples)){
   keepers <- read.table(args$subset_samples, header=F)[, 1]
 }
 meta <- load.sample.metadata(args$metadata, keep.samples=keepers, reassign.parents=FALSE)
+
+# Load precomputed burden stats (if provided) and subset to samples in meta
+precomp.stats <- NULL
+if(!is.null(args$precomputed_burden_stats)){
+  precomp.stats <- load.precomputed.burden.stats(args$precomputed_burden_stats,
+                                                 rownames(meta))
+}
 
 # Format AF/AC fields
 if(is.null(args$af_field)){
@@ -574,22 +610,26 @@ if(!is.null(args$genomic_disorder_hits)){
 }
 
 
-# TODO: need to implement this in a more memory-efficient way
-# # Number of rare/vrare/singleton variants (of any size) per genome by SV type
-# for(freq in c("rare", "vrare", "singleton")){
-#   sv.subsets <- lapply(c("DEL", "DUP", "INV", "CPX", "CTX"), function(svtype){
-#     list(svtype,
-#          as.character(unlist(sapply(data, function(info){
-#            rownames(info$bed)[which(info$bed$SVTYPE == svtype)]
-#          }))),
-#          paste(freq.names[freq], sv.abbreviations[svtype], "Alleles per Sample"))
-#   })
-#   all.stats <- main.burden.wrapper(data, query=freq, meta, action="sum",
-#                                    af.fields, ac.fields, sv.subsets=sv.subsets, all.stats,
-#                                    paste(args$out_prefix, paste(freq, "sv_per_genome.by_cancer", sep="_"), sep="."),
-#                                    main.title=paste(freq.names[freq], "SV Alleles per Sample"),
-#                                    barplot.height=barplot.height, barplot.width=barplot.width)
-# }
+# Total number of rare/vrare/singleton variants (of any size) per genome
+if(!is.null(precomp.stats)){
+  for(freq in c("rare", "vrare", "singleton")){
+    precomp.colname <- paste(freq, "sv_count", sep="_")
+    if(precomp.colname %in% colnames(precomp.stats)){
+      ad.vals <- as.vector(precomp.stats[, precomp.colname])
+      names(ad.vals) <- rownames(precomp.stats)
+      new.stats <- supercategory.burden.test(data, query=paste("all", freq, "per_genome", sep="_"),
+                                             meta, action="count", family=binomial(),
+                                             af.fields, ac.fields,
+                                             precomp.ad.vals=ad.vals)$new.stats
+      all.stats <- rbind(all.stats, new.stats)
+      pdf(paste(args$out_prefix, paste("all", freq, "per_genome", sep="_"), "pdf", sep="."),
+          height=barplot.height, width=barplot.width)
+      barplot.by.phenotype(stats2barplotdf(new.stats, "normal"),
+                           title=paste(freq.names[freq], "SVs per Genome"))
+      dev.off()
+    }
+  }
+}
 
 
 # Number of rare/vrare/singleton LoF, CG, IEDs per genome

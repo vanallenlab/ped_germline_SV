@@ -162,7 +162,7 @@ pdf(paste(args[2], ".large_rare_unbal_vs_bal.double_bars.pdf", sep=""),
 doublewide.barplot.by.phenotype(plot.df.l=stats2barplotdf(ss[which(ss$hypothesis == "large.rare.unbalanced"), ], ci.mode="binomial"),
                                 plot.df.r=stats2barplotdf(ss[which(ss$hypothesis == "large.rare.balanced"), ], ci.mode="binomial"),
                                 left.axis.units="percent", title="Samples w/Rare SV >1Mb",
-                                label.l="Unbalanced", label.r="Balanced")
+                                label.l="Unbalanced SVs", label.r="Balanced SVs")
 dev.off()
 
 
@@ -171,7 +171,7 @@ pdf(paste(args[2], ".large_rare_unbal_auto_vs_allo.double_bars.pdf", sep=""),
     height=doublebar.height, width=doublebar.width)
 doublewide.barplot.by.phenotype(plot.df.l=stats2barplotdf(ss[which(ss$hypothesis == "large.rare.unbalanced.autosomal_only"), ], ci.mode="binomial"),
                                 plot.df.r=stats2barplotdf(ss[which(ss$hypothesis == "large.rare.unbalanced.allosomal_only"), ], ci.mode="binomial"),
-                                left.axis.units="percent", title="Pct. w/Unbalanced SV >1Mb",
+                                left.axis.units="percent", title="Samples with SV",
                                 label.l="Autosomal", label.r="Allosomal")
 dev.off()
 
