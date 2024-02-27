@@ -8,7 +8,8 @@ load.sample.metadata(
   tsv.in,
   keep.samples = NULL,
   reassign.parents = TRUE,
-  other.keep.columns = NULL
+  other.keep.columns = NULL,
+  annotate.aneuploidy.bp = FALSE
 )
 }
 \arguments{
@@ -20,6 +21,8 @@ single-column flat text file of sample IDs to retain \link{default: keep all sam
 \item{reassign.parents}{Assign all parents to have \code{control} disease labels \link{default: TRUE}}
 
 \item{other.keep.columns}{Names of non-standard columns to be retained, if desired}
+
+\item{annotate.aneuploidy.bp}{Should genomic length of aneuploid chromosomes be annotated? [default: FALSE]}
 }
 \value{
 data.frame

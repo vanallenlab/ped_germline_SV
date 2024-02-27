@@ -221,6 +221,30 @@ load.constants <- function(subset, envir=.GlobalEnv){
 
   # Define scales
   logscale.major <- 10^(-10:10)
+  contig.lengths <- c("chr1" = 248956422,
+                      "chr2" = 242193529,
+                      "chr3" = 198295559,
+                      "chr4" = 190214555,
+                      "chr5" = 181538259,
+                      "chr6" = 170805979,
+                      "chr7" = 159345973,
+                      "chr8" = 145138636,
+                      "chr9" = 138394717,
+                      "chr10" = 133797422,
+                      "chr11" = 135086622,
+                      "chr12" = 133275309,
+                      "chr13" = 114364328,
+                      "chr14" = 107043718,
+                      "chr15" = 101991189,
+                      "chr16" = 90338345,
+                      "chr17" = 83257441,
+                      "chr18" = 80373285,
+                      "chr19" = 58617616,
+                      "chr20" = 64444167,
+                      "chr21" = 46709983,
+                      "chr22" = 50818468,
+                      "chrX" = 156040895,
+                      "chrY" = 57227415)
   scales <- list(
     "logscale.major" = logscale.major,
     "logscale.major.bp" = 10^(0:9),
@@ -236,7 +260,8 @@ load.constants <- function(subset, envir=.GlobalEnv){
     "logscale.minor" = as.numeric(sapply(logscale.major, function(e){(1:9)*e})),
     "yearscale.major" = 0:100 * 365,
     "yearscale.demi" = seq(0, 100, 0.5) * 365,
-    "yearscale.minor" = seq(0, 100, 1/12) * 365
+    "yearscale.minor" = seq(0, 100, 1/12) * 365,
+    "contig.lengths" = contig.lengths
   )
 
   # Define names

@@ -47,6 +47,7 @@ prep.plot.area <- function(xlims, ylims, parmar, xaxs="i", yaxs="i"){
 #' @param label.units Specify custom units for the axis label. Default of `NULL`
 #' will display numeric values. Options currently include "percent" for percentages.
 #' Can be overridden by supplying `labels` directly.
+#' @param parse.labels Should `labels` be parsed as R expressions? \[default: FALSE\]
 #' @param max.ticks Maximum number of axis ticks. Will be overridden by `at` \[default: 6\]
 #' @param title Axis title
 #' @param tck Value passed to `axis()`. See `?axis` for details. \[default: -0.025\]
@@ -64,8 +65,8 @@ prep.plot.area <- function(xlims, ylims, parmar, xaxs="i", yaxs="i"){
 #' @export clean.axis
 #' @export
 clean.axis <- function(side, at=NULL, labels=NULL, labels.at=NULL, label.units=NULL,
-                       max.ticks=6, title=NULL, tck=-0.025, cex.axis=5/6,
-                       label.line=-0.65, title.line=0.5,
+                       parse.labels=FALSE, max.ticks=6, title=NULL, tck=-0.025,
+                       cex.axis=5/6, label.line=-0.65, title.line=0.5,
                        infinite=FALSE, infinite.positive=FALSE, infinite.negative=FALSE){
   if(infinite){axis(side, at=c(-10e10, 10e10), tck=0, labels=NA)}
   if(is.null(at)){
@@ -94,7 +95,9 @@ clean.axis <- function(side, at=NULL, labels=NULL, labels.at=NULL, label.units=N
   }
   axis(side, at=at, labels=NA, tck=tck)
   sapply(1:length(labels.at), function(i){
-    if(is.numeric(labels[i])){
+    if(parse.labels){
+      label <- parse(text=labels[i])
+    }else if(is.numeric(labels[i])){
       label <- prettyNum(labels[i], big.mark=",")
     }else{
       label <- labels[i]

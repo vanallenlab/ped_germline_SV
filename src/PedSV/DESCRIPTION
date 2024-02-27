@@ -18,8 +18,10 @@ Suggests:
     Hmisc
 Imports:
     bedr,
+    beeswarm,
     logistf,
     survival,
+    vioplot,
     viridis
 Encoding: UTF-8
 LazyData: true

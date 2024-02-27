@@ -62,6 +62,7 @@ load.kinship.metrics <- function(tsv.in){
 #' single-column flat text file of sample IDs to retain [default: keep all samples]
 #' @param reassign.parents Assign all parents to have `control` disease labels [default: TRUE]
 #' @param other.keep.columns Names of non-standard columns to be retained, if desired
+#' @param annotate.aneuploidy.bp Should genomic length of aneuploid chromosomes be annotated? \[default: FALSE\]
 #'
 #' @returns data.frame
 #'
@@ -70,7 +71,8 @@ load.kinship.metrics <- function(tsv.in){
 #' @export load.sample.metadata
 #' @export
 load.sample.metadata <- function(tsv.in, keep.samples=NULL,
-                                 reassign.parents=TRUE, other.keep.columns=NULL){
+                                 reassign.parents=TRUE, other.keep.columns=NULL,
+                                 annotate.aneuploidy.bp=FALSE){
   # Load data
   df <- read.table(tsv.in, header=T, comment.char="", sep="\t", check.names=F,
                    stringsAsFactors=F)
@@ -135,12 +137,44 @@ load.sample.metadata <- function(tsv.in, keep.samples=NULL,
   }
 
   # Infer whether each sample carries an aneuploidy
+  PedSV::load.constants("scales")
   auto.aneu <- apply(df[, paste("chr", 1:22, "_CopyNumber", sep="")], 1,
                      function(ploidies){any(ploidies > 2.8 | ploidies < 1.2)})
+  auto.aneu.bp <- apply(df[, paste("chr", 1:22, "_CopyNumber", sep="")], 1,
+                        function(ploidies){sum(contig.lengths[which(abs(unlist(as.vector(ploidies)) - 2) > 0.8)])})
   sex.aneu <- abs(df$chrX_CopyNumber + df$chrY_CopyNumber - 2) > 0.8
+  sex.aneu.bp <- apply(df[, paste("chr", c("X", "Y"), "_CopyNumber", sep="")], 1,
+                       function(sex.vals){
+                         x <- as.numeric(sex.vals[1])
+                         y <- as.numeric(sex.vals[2])
+
+                         # Origin of X0 is ambiguous (XY w/lost Y or XX w/lost X)
+                         if(x < 1.8 & y < 0.2){
+                           return(-mean(contig.lengths[c("chrX", "chrY")]))
+                         }
+
+                         # If Y is present, can assume starting configuration of XY
+                         # and gained X and/or Y
+                         if(y > 0.2){
+                           bp <- round(abs(x - 0.8), 0) * contig.lengths["chrX"]
+                           bp <- bp + round(abs(y - 0.8), 0) * contig.lengths["chrY"]
+
+                         # If no Y present and not X0, can assume started as XX
+                         # and gained extra X
+                         }else{
+                           bp <- round(abs(x - 1.8), 0) * contig.lengths["chrX"]
+                         }
+                         return(bp)
+                       })
+  sex.aneu.bp[which(!sex.aneu)] <- 0
   df$autosomal_aneuploidy <- auto.aneu
   df$sex_aneuploidy <- sex.aneu
   df$any_aneuploidy <- (auto.aneu | sex.aneu)
+  if(annotate.aneuploidy.bp){
+    df$autosomal_aneuploidy_bp <- auto.aneu.bp
+    df$sex_aneuploidy_bp <- sex.aneu.bp
+    df$any_aneuploidy_bp <- abs(auto.aneu.bp) + abs(sex.aneu.bp)
+  }
 
   # Reorder columns and sort on sample ID before returning
   out.col.order <- c("study_phase", "batch", "study", "disease", "proband", "family_id",
@@ -150,7 +184,7 @@ load.sample.metadata <- function(tsv.in, keep.samples=NULL,
                      "insert_size", "median_coverage", "wgd_score",
                      colnames(df)[grep("^PC", colnames(df))],
                      colnames(df)[grep("_CopyNumber$", colnames(df))],
-                     colnames(df)[grep("_aneuploidy$", colnames(df))])
+                     colnames(df)[grep("_aneuploidy", colnames(df))])
   if(!is.null(other.keep.columns)){
     out.col.order <- c(out.col.order, setdiff(other.keep.columns, out.col.order))
   }

@@ -10,6 +10,7 @@ clean.axis(
   labels = NULL,
   labels.at = NULL,
   label.units = NULL,
+  parse.labels = FALSE,
   max.ticks = 6,
   title = NULL,
   tck = -0.025,
@@ -33,6 +34,8 @@ clean.axis(
 \item{label.units}{Specify custom units for the axis label. Default of \code{NULL}
 will display numeric values. Options currently include "percent" for percentages.
 Can be overridden by supplying \code{labels} directly.}
+
+\item{parse.labels}{Should \code{labels} be parsed as R expressions? [default: FALSE]}
 
 \item{max.ticks}{Maximum number of axis ticks. Will be overridden by \code{at} [default: 6]}
 

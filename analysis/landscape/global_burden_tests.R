@@ -309,7 +309,7 @@ args <- parser$parse_args()
 #              "gene_lists" = "~/scratch/PedSV.gene_lists.tsv",
 #              "genomic_disorder_hits" = NULL,
 #              "subset_samples" = "~/scratch/PedSV.v2.5.3.final_analysis_cohort.samples.list",
-#              "precomputed_burden_stats" = "~/scratch/test.m.tsv",
+#              "precomputed_burden_stats" = "~/scratch/PedSV.v2.5.3.full_cohort_w_relatives.precomputed_burden_stats.tsv.gz",
 #              "exclude_variants" = NULL,
 #              "af_field" = "POPMAX_AF",
 #              "ac_field" = "AC",
@@ -330,7 +330,8 @@ keepers <- NULL
 if(!is.null(args$subset_samples)){
   keepers <- read.table(args$subset_samples, header=F)[, 1]
 }
-meta <- load.sample.metadata(args$metadata, keep.samples=keepers, reassign.parents=FALSE)
+meta <- load.sample.metadata(args$metadata, keep.samples=keepers,
+                             reassign.parents=FALSE, annotate.aneuploidy.bp=TRUE)
 
 # Load precomputed burden stats (if provided) and subset to samples in meta
 precomp.stats <- NULL
@@ -371,6 +372,8 @@ all.stats <- empty.stats.df
 # Set plot dimensions
 barplot.height <- 0.5 + (length(unique(meta$disease)) / 4)
 barplot.width <- 3
+swarmplot.height <- 2.25
+swarmplot.width <- 0.75 + (length(unique(meta$disease)) / 2)
 
 
 # Count of large autosomal variants per genome by SV type
@@ -395,7 +398,7 @@ all.stats <- main.burden.wrapper(data, query="large", meta, action="any",
                                  barplot.units="percent")
 
 
-# Carrier rate of rare/vrare/singleton large (1Mb) & notsmall (100kb) variants per genome by SV type
+# Carrier rate of rare/vrare/singleton large (1Mb) & notsmall (50kb) variants per genome by SV type
 for(freq in c("rare", "vrare", "singleton")){
   for(size in c("large", "notsmall")){
     sv.subsets <- lapply(c("DEL", "DUP", "INV", "CPX"), function(svtype){
@@ -469,7 +472,6 @@ for(freq in c("rare", "vrare", "singleton")){
 }
 
 
-
 # Focused secondary analyses of largest rare unbalanced SV per genome
 for(freq in c("rare", "vrare", "singleton")){
   # Collect all SV data
@@ -497,12 +499,12 @@ for(freq in c("rare", "vrare", "singleton")){
                   ci.lower=lapply(surv.models, function(sm){sm$lower}),
                   ci.upper=lapply(surv.models, function(sm){sm$upper}),
                   colors=cancer.colors[cancers.km.layer.ordered], ci.alpha=0,
-                xlab=paste("Largest", freq.names[freq], "SV"),
-                ylab="Samples (%)", xlim=log10(c(50000, 5000000)),
-                lwds=c(3, 3), x.axis.labels=c("50kb", "500kb", "5Mb"),
-                ylims=ylims, y.axis.units="percent",
-                x.axis.labels.at=log10(c(50000, 500000, 5000000)),
-                parmar=c(2, 3, 0.25, 1))
+                  xlab=paste("Largest", freq.names[freq], "SV"),
+                  ylab="Samples (%)", xlim=log10(c(50000, 5000000)),
+                  lwds=c(3, 3), x.axis.labels=c("50kb", "500kb", "5Mb"),
+                  ylims=ylims, y.axis.units="percent",
+                  x.axis.labels.at=log10(c(50000, 500000, 5000000)),
+                  parmar=c(2, 3, 0.25, 1))
   rect(xleft=log10(500000), xright=log10(5000000), ybottom=0, ytop=0.05,
        col=NA, lty=2, xpd=T)
   dev.off()
@@ -511,16 +513,16 @@ for(freq in c("rare", "vrare", "singleton")){
   pdf(paste(args$out_prefix, freq, "genomic_imbalance_km.inset", "pdf", sep="."),
       height=0.6*(12/5), width=0.65*(12/5))
   svlen.line.plot(x.svlen=lapply(surv.models, function(sm){sm$time}),
-                y.value=lapply(surv.models, function(sm){sm$surv}),
-                ci.lower=lapply(surv.models, function(sm){sm$lower}),
-                ci.upper=lapply(surv.models, function(sm){sm$upper}),
-                colors=cancer.colors[cancers.km.layer.ordered], ci.alpha=0,
-                xlab=NA, ylab=NA, xlim=log10(c(500000, 5000000)),
-                ylims=c(0, 0.05), y.axis.units="percent",
-                lwds=c(rep(2, length(cancers.km.layer.ordered)-2), 3, 3),
-                x.axis.labels=c("1Mb", "5Mb"),
-                x.axis.labels.at=log10(c(1000000, 5000000)), x.tck=-0.025,
-                parmar=c(1.15, 1.75, 0.4, 0.75))
+                  y.value=lapply(surv.models, function(sm){sm$surv}),
+                  ci.lower=lapply(surv.models, function(sm){sm$lower}),
+                  ci.upper=lapply(surv.models, function(sm){sm$upper}),
+                  colors=cancer.colors[cancers.km.layer.ordered], ci.alpha=0,
+                  xlab=NA, ylab=NA, xlim=log10(c(500000, 5000000)),
+                  ylims=c(0, 0.05), y.axis.units="percent",
+                  lwds=c(rep(2, length(cancers.km.layer.ordered)-2), 3, 3),
+                  x.axis.labels=c("1Mb", "5Mb"),
+                  x.axis.labels.at=log10(c(1000000, 5000000)), x.tck=-0.025,
+                  parmar=c(1.15, 1.75, 0.4, 0.75))
   dev.off()
 
   # Burden test series every log-step
@@ -554,7 +556,7 @@ for(freq in c("rare", "vrare", "singleton")){
                   ci.lower=list(size.burden.ci.lower.smooth),
                   ci.upper=list(size.burden.ci.upper.smooth),
                   step=FALSE, colors=cancer.colors["pancan"], ci.alpha=0.25,
-                  xlab=paste("Largest", freq.names[freq], "SV"),
+                  xlab=paste("Largest", freq.names[freq], "CNV"),
                   ylab="Odds Ratio", y.title.line=0.1, xlim=log10(c(50000, 5000000)),
                   lwds=c(3, 3), x.axis.labels=c("50kb", "500kb", "5Mb"),
                   ylims=c(min(c(0.8, min(size.burden.y.smooth))),
@@ -565,22 +567,55 @@ for(freq in c("rare", "vrare", "singleton")){
 }
 
 
-# TODO: need to implement this in a more memory-efficient way
-# # Sum total of genomic imbalance per genome by SV type
-# for(freq in c("rare", "vrare", "singleton")){
-#   sv.subsets <- lapply(c("DEL", "DUP"), function(svtype){
-#     list(svtype,
-#          as.character(unlist(sapply(data, function(info){
-#            rownames(info$bed)[which(info$bed$SVTYPE == svtype)]
-#          }))),
-#          paste(freq.names[freq], sv.abbreviations[svtype], "Alleles per Sample"))
-#   })
-#   all.stats <- main.burden.wrapper(data, query=paste(freq, "genomic_imbalance"), meta, action="sum",
-#                                    af.fields, ac.fields, sv.subsets=sv.subsets, all.stats,
-#                                    paste(args$out_prefix, paste(freq, "total_genomic_imbalance.by_cancer", sep="_"), sep="."),
-#                                    main.title=paste(freq.names[freq], "Dosage Imbalance (log10)"),
-#                                    barplot.height=barplot.height, barplot.width=barplot.width)
-# }
+# Sum total of autosomal genomic imbalance per genome by SV type
+if(!is.null(precomp.stats)){
+  for(freq in c("rare", "vrare", "singleton")){
+    for(cnv in c("DEL", "DUP", "CNV")){
+      precomp.colname <- paste(freq, "imbalance", cnv, sep="_")
+      if(precomp.colname %in% colnames(precomp.stats)){
+
+        # Get precomputed values, which do not account for aneuploidies
+        ad.vals <- as.vector(precomp.stats[, precomp.colname])
+        names(ad.vals) <- rownames(precomp.stats)
+
+        # Add aneuploidies
+        auto.aneu.bp <- meta[names(ad.vals), "autosomal_aneuploidy_bp"]
+        sex.aneu.bp <- meta[names(ad.vals), "sex_aneuploidy_bp"]
+        if(cnv == "DEL"){
+          auto.aneu.bp <- sapply(auto.aneu.bp, function(v){min(c(0, v))})
+          sex.aneu.bp <- sapply(sex.aneu.bp, function(v){min(c(0, v))})
+        }else if(cnv == "DUP"){
+          auto.aneu.bp <- sapply(auto.aneu.bp, function(v){max(c(0, v))})
+          sex.aneu.bp <- sapply(sex.aneu.bp, function(v){max(c(0, v))})
+        }
+        ad.vals <- log10(ad.vals + abs(auto.aneu.bp) + abs(sex.aneu.bp))
+        ad.vals[which(is.infinite(ad.vals))] <- 0
+
+        # Run association test
+        new.stats <- supercategory.burden.test(data, query=paste("total", freq, cnv, "imbalance_per_genome", sep="_"),
+                                               meta, action="sum", family=binomial(),
+                                               af.fields, ac.fields,
+                                               precomp.ad.vals=ad.vals)$new.stats
+        all.stats <- rbind(all.stats, new.stats)
+
+        # Plot swarms
+        ylims <- c(min(ad.vals[which(!is.infinite(ad.vals))]), log10(5000000))
+        pdf(paste(args$out_prefix, paste("total", freq, cnv, "imbalance_per_genome", sep="_"), "pdf", sep="."),
+            height=swarmplot.height, width=swarmplot.width)
+        swarmplot.by.phenotype(ad.vals, meta, ylims=ylims,
+                               title=format.pval(as.numeric(new.stats$P.value)[1]),
+                               y.axis.title=bquote(Sigma ~ ("Dosage Imbalance")),
+                               title.line=0.5, y.title.line=1.3,
+                               y.ticks=log10(logscale.major.bp),
+                               y.tick.labels=logscale.major.bp.labels,
+                               parse.labels=FALSE,
+                               parmar=c(3, 3.5, 1.5, 0.25))
+        axis(2, at=log10(logscale.minor), labels=NA, tck=-0.0125)
+        dev.off()
+      }
+    }
+  }
+}
 
 
 # Genomic disorder analysis, if optioned
@@ -617,16 +652,26 @@ if(!is.null(precomp.stats)){
     if(precomp.colname %in% colnames(precomp.stats)){
       ad.vals <- as.vector(precomp.stats[, precomp.colname])
       names(ad.vals) <- rownames(precomp.stats)
-      new.stats <- supercategory.burden.test(data, query=paste("all", freq, "per_genome", sep="_"),
-                                             meta, action="count", family=binomial(),
-                                             af.fields, ac.fields,
-                                             precomp.ad.vals=ad.vals)$new.stats
-      all.stats <- rbind(all.stats, new.stats)
-      pdf(paste(args$out_prefix, paste("all", freq, "per_genome", sep="_"), "pdf", sep="."),
-          height=barplot.height, width=barplot.width)
-      barplot.by.phenotype(stats2barplotdf(new.stats, "normal"),
-                           title=paste(freq.names[freq], "SVs per Genome"))
-      dev.off()
+
+      # Perform this analysis within continental ancestry groups to
+      # more explicitly control for pop strat
+      cases.per.pop <- table(meta$inferred_ancestry[which(meta$disease != "control")])
+      sapply(names(cases.per.pop)[which(cases.per.pop > 50)], function(pop){
+        pop.meta <- meta[which(meta$inferred_ancestry == pop), ]
+        pop.ad.vals <- ad.vals[intersect(names(ad.vals),
+                                         rownames(meta)[which(meta$inferred_ancestry == pop)])]
+        ylims <- round(quantile(pop.ad.vals, probs=c(0.005, 0.995), na.rm=T), 0)
+        new.stats <- supercategory.burden.test(data, query=paste("all", freq, "per_genome", pop, "only", sep="_"),
+                                               pop.meta, action="count", family=binomial(),
+                                               af.fields, ac.fields,
+                                               precomp.ad.vals=pop.ad.vals)$new.stats
+        all.stats <- rbind(all.stats, new.stats)
+        pdf(paste(args$out_prefix, paste("all", freq, "per_genome", pop, "only", sep="_"), "pdf", sep="."),
+            height=swarmplot.height, width=swarmplot.width)
+        swarmplot.by.phenotype(pop.ad.vals, pop.meta, ylims=ylims,
+                               y.axis.title=paste(freq.names[freq], "SVs"))
+        dev.off()
+      })
     }
   }
 }

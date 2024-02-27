@@ -118,6 +118,7 @@ workflow PedSvMainAnalysis {
 
   scatter ( contig_info in contiglist ) {
     String contig = contig_info[0]
+    Int contig_len = contig_info[1]
 
     call GetSVsPerSample as GetFullCohortSVsPerSample {
       input:
@@ -161,6 +162,42 @@ workflow PedSvMainAnalysis {
         contig = contig,
         prefix = study_prefix + ".full_cohort_w_relatives",
         docker = pedsv_docker
+    }
+
+    call SlidingWindowTest as FullCohortSlidingWindowTest {
+      input:
+        sv_bed = full_cohort_bed,
+        sv_bed_idx = full_cohort_bed_idx,
+        ad_matrix = full_cohort_ad_matrix,
+        ad_matrix_idx = full_cohort_ad_matrix_idx,
+        contig = contig,
+        contig_len = contig_len,
+        prefix = study_prefix + ".full_cohort." + contig,
+        docker = pedsv_r_docker
+    }
+
+    call SlidingWindowTest as TrioCohortSlidingWindowTest {
+      input:
+        sv_bed = trio_bed,
+        sv_bed_idx = trio_bed_idx,
+        ad_matrix = trio_ad_matrix,
+        ad_matrix_idx = trio_ad_matrix_idx,
+        contig = contig,
+        contig_len = contig_len,
+        prefix = study_prefix + ".trio_cohort." + contig,
+        docker = pedsv_r_docker
+    }
+
+    call SlidingWindowTest as CaseControlCohortSlidingWindowTest {
+      input:
+        sv_bed = case_control_bed,
+        sv_bed_idx = case_control_bed_idx,
+        ad_matrix = case_control_ad_matrix,
+        ad_matrix_idx = case_control_ad_matrix_idx,
+        contig = contig,
+        contig_len = contig_len,
+        prefix = study_prefix + ".case_control_cohort." + contig,
+        docker = pedsv_r_docker
     }
   }
 
@@ -312,6 +349,12 @@ workflow PedSvMainAnalysis {
       prefix = study_prefix + ".case_control_cohort",
       docker = pedsv_r_docker
   }
+
+  # TODO: MERGE & PLOT SLIDING WINDOW TESTS FOR FULL COHORT
+
+  # TODO: MERGE & PLOT SLIDING WINDOW TESTS FOR CASE CONTROL COHORT
+
+  # TODO: MERGE & PLOT SLIDING WINDOW TESTS FOR TRIO COHORT
 
   call Rvas.SvGenicRvas as TrioCohortRvas {
     input:
@@ -559,6 +602,66 @@ task GetSVsPerSample {
 }
 
 
+# Run a sliding window CNV burden test for a single chromosome
+task SlidingWindowTest {
+  input {
+    File sv_bed
+    File sv_bed_idx
+    File ad_matrix
+    File ad_matrix_idx
+    String contig
+    Int contig_len
+    Int bin_size = 1000000
+    Int step_size = 1000000
+    Int min_sv_size = 50000
+    String prefix
+    String docker
+
+    Float mem_gb = 3.75
+    Int n_cpu = 2
+    Int? disk_gb
+  }
+
+  Int default_disk_gb = ceil(3 * size([sv_bed, ad_matrix], "GB")) + 20
+
+  command <<<
+    set -eu -o pipefail
+
+    # Make genomic bins
+    paste \
+      <( seq 0 ~{contig_len} ~{step_size} ) \
+      <( seq ~{bin_size} ~{contig_len + bin_size} ~{step_size} ) \
+    | awk -v contig="~{contig}" -v OFS="\t" '{ print contig, $1, $2 }' \
+    | bgzip -c \
+    > ~{contig}.bins.bed.gz
+    tabix -p bed -f ~{contig}.bins.bed.gz
+
+    # Filter SV data to contig of interest & CNVs greater than min_sv_size
+    tabix -h ~{sv_bed} ~{contig} | bgzip -c > ~{contig}.all_svs.bed.gz
+    tabix -p bed -f ~{contig}.all_svs.bed.gz
+    # TODO: implement filtering here
+
+    # Find overlap between SVs and bins
+    # TODO: implement this
+
+    # Compute test statistics for each bin
+    # TODO: implement this
+  >>>
+
+  output {
+    File bin_stats = "~{prefix}.sliding_window_stats.bed.gz"
+  }
+
+  runtime {
+    docker: docker
+    memory: mem_gb + " GB"
+    cpu: n_cpu
+    disks: "local-disk " + select_first([disk_gb, default_disk_gb]) + " HDD"
+    preemptible: 3
+  }
+}
+
+
 # Merge outputs of GetSVsPerSample across multiple chromosomes
 task MergeSVsPerSample {
   input {
@@ -622,7 +725,7 @@ task PrecomputePerSampleBurdens {
     set -eu -o pipefail
 
     # Subset to chromosome of interest
-    tabix -h ~{vcf} ${contig} | bgzip -c > ~{contig}.vcf.gz
+    tabix -h ~{vcf} ~{contig} | bgzip -c > ~{contig}.vcf.gz
 
     # Get dummy list of samples in VCF with zero counts for filling missing samples
     bcftools query -l ~{contig}.vcf.gz | awk -v OFS="\t" '{ print $1, "0" }' \
@@ -854,13 +957,13 @@ task CombinePerSampleBurdens {
     # Column-wise merge of all files above
     /opt/ped_germline_SV/analysis/utilities/join_on_first_column.py \
       --join outer \
-      --out-tsv ~{prefix}.precomputed_burden_stats.tsv.gz \
+      --tsv-out ~{prefix}.precomputed_burden_stats.tsv.gz \
       ~{prefix}.rare_sv_per_sample.tsv.gz \
       ~{prefix}.vrare_sv_per_sample.tsv.gz \
       ~{prefix}.singleton_sv_per_sample.tsv.gz \
       ~{prefix}.rare_del_imbalance_per_sample.tsv.gz \
       ~{prefix}.vrare_del_imbalance_per_sample.tsv.gz \
-      ~{prefix}.singleton_del_imbalance_per_sample.tsv.gz
+      ~{prefix}.singleton_del_imbalance_per_sample.tsv.gz \
       ~{prefix}.rare_dup_imbalance_per_sample.tsv.gz \
       ~{prefix}.vrare_dup_imbalance_per_sample.tsv.gz \
       ~{prefix}.singleton_dup_imbalance_per_sample.tsv.gz \
