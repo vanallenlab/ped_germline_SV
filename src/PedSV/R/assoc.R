@@ -190,10 +190,10 @@ get.phenotype.vector <- function(case.ids, control.ids){
 #' @param strict.fallback Implement Firth regression if a standard logit model returns
 #' any errors or warnings. Setting this to `FALSE` will only default to Firth
 #' regression if logit returns any errors or if the standard error of the genotype
-#' coefficient exceeds `nonstrict.se.tolerance` \[default: TRUE\]
-#' @param nonstrict.se.tolerance If `strict.fallback` is `FALSE`, only use Firth
-#' regression if a standard logit model produces a genotype effect standard error
-#' exceeding this value \[default: 10\]
+#' coefficient exceeds `se.tolerance` \[default: TRUE\]
+#' @param se.tolerance If `firth.fallback` is `TRUE` but `strict.fallback` is
+#' `FALSE`, only use Firth regression if a standard logit model produces a
+#' genotype effect standard error exceeding this value \[default: 10\]
 #' @param firth.always Always use Firth regression \[default: FALSE\]
 #' @param return.fit.summary Return the full summary of the fitted model. Only recommended
 #' for debugging purposes. Not recommended for analysis. \[default: FALSE\]
@@ -206,7 +206,7 @@ get.phenotype.vector <- function(case.ids, control.ids){
 #' @export
 pedsv.glm <- function(meta, X, Y, use.N.pcs=3, family=gaussian(), extra.terms=NULL,
                       firth.fallback=TRUE, strict.fallback=TRUE,
-                      nonstrict.se.tolerance=10, firth.always=FALSE,
+                      se.tolerance=10, firth.always=FALSE,
                       return.all.coefficients=FALSE){
   # Ensure Firth package is loaded
   require(logistf, quietly=TRUE)
@@ -248,10 +248,10 @@ pedsv.glm <- function(meta, X, Y, use.N.pcs=3, family=gaussian(), extra.terms=NU
       }else{
         fit <- tryCatch(logit.regression(test.df),
                         error=function(e){firth.regression(test.df)})
-        if(fit$method == "glm.fit"){
-          if(summary(fit)$coefficients["X", 2] > nonstrict.se.tolerance){
-            fit <- firth.regression(test.df)
-          }
+      }
+      if(fit$method == "glm.fit"){
+        if(summary(fit)$coefficients["X", 2] > se.tolerance){
+          fit <- firth.regression(test.df)
         }
       }
     }else{

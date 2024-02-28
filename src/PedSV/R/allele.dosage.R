@@ -62,8 +62,8 @@ query.ad.matrix <- function(ad, query.regions=NULL, query.ids=NULL,
   # Load region(s) of interest or whole matrix if query.regions is NULL
   if(inherits(ad, "character")){
     if(is.null(query.regions)){
-      ad <- read.table(ad, sep="\t", comment.char="", check.names=F,
-                       stringsAsFactors=F, row.names=NULL)
+      ad <- read.table(ad, header=T, comment.char="", check.names=F,
+                       stringsAsFactors=F)
       ad.header <- NULL
     }else{
       require(bedr, quietly=TRUE)

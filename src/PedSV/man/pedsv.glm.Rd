@@ -13,7 +13,7 @@ pedsv.glm(
   extra.terms = NULL,
   firth.fallback = TRUE,
   strict.fallback = TRUE,
-  nonstrict.se.tolerance = 10,
+  se.tolerance = 10,
   firth.always = FALSE,
   return.all.coefficients = FALSE
 )
@@ -39,11 +39,11 @@ traditional logistic regression fails to converge or dataset is quasi-separable
 \item{strict.fallback}{Implement Firth regression if a standard logit model returns
 any errors or warnings. Setting this to \code{FALSE} will only default to Firth
 regression if logit returns any errors or if the standard error of the genotype
-coefficient exceeds \code{nonstrict.se.tolerance} [default: TRUE]}
+coefficient exceeds \code{se.tolerance} [default: TRUE]}
 
-\item{nonstrict.se.tolerance}{If \code{strict.fallback} is \code{FALSE}, only use Firth
-regression if a standard logit model produces a genotype effect standard error
-exceeding this value [default: 10]}
+\item{se.tolerance}{If \code{firth.fallback} is \code{TRUE} but \code{strict.fallback} is
+\code{FALSE}, only use Firth regression if a standard logit model produces a
+genotype effect standard error exceeding this value [default: 10]}
 
 \item{firth.always}{Always use Firth regression [default: FALSE]}
 

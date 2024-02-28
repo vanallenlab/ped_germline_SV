@@ -172,6 +172,8 @@ workflow PedSvMainAnalysis {
         ad_matrix_idx = full_cohort_ad_matrix_idx,
         contig = contig,
         contig_len = contig_len,
+        sample_metadata_tsv = sample_metadata_tsv,
+        samples_list = all_samples_list,
         prefix = study_prefix + ".full_cohort." + contig,
         docker = pedsv_r_docker
     }
@@ -184,6 +186,8 @@ workflow PedSvMainAnalysis {
         ad_matrix_idx = trio_ad_matrix_idx,
         contig = contig,
         contig_len = contig_len,
+        sample_metadata_tsv = sample_metadata_tsv,
+        samples_list = trio_samples_list,
         prefix = study_prefix + ".trio_cohort." + contig,
         docker = pedsv_r_docker
     }
@@ -196,6 +200,8 @@ workflow PedSvMainAnalysis {
         ad_matrix_idx = case_control_ad_matrix_idx,
         contig = contig,
         contig_len = contig_len,
+        sample_metadata_tsv = sample_metadata_tsv,
+        samples_list = case_control_samples_list,
         prefix = study_prefix + ".case_control_cohort." + contig,
         docker = pedsv_r_docker
     }
@@ -350,11 +356,26 @@ workflow PedSvMainAnalysis {
       docker = pedsv_r_docker
   }
 
-  # TODO: MERGE & PLOT SLIDING WINDOW TESTS FOR FULL COHORT
+  call PlotSlidingWindowTests as PlotFullCohortSlidingWindows {
+    input:
+      stats = FullCohortSlidingWindowTest.bin_stats,
+      prefix = study_prefix,
+      docker = pedsv_r_docker
+  }
 
-  # TODO: MERGE & PLOT SLIDING WINDOW TESTS FOR CASE CONTROL COHORT
+  call PlotSlidingWindowTests as PlotTrioCohortSlidingWindows {
+    input:
+      stats = TrioCohortSlidingWindowTest.bin_stats,
+      prefix = study_prefix + ".trio_cohort",
+      docker = pedsv_r_docker
+  }
 
-  # TODO: MERGE & PLOT SLIDING WINDOW TESTS FOR TRIO COHORT
+  call PlotSlidingWindowTests as PlotCaseControlCohortSlidingWindows {
+    input:
+      stats = CaseControlCohortSlidingWindowTest.bin_stats,
+      prefix = study_prefix + ".case_control_cohort",
+      docker = pedsv_r_docker
+  }
 
   call Rvas.SvGenicRvas as TrioCohortRvas {
     input:
@@ -402,7 +423,10 @@ workflow PedSvMainAnalysis {
                   TrioCohortSummaryPlots.plots_tarball,
                   CaseControlCohortSummaryPlots.plots_tarball,
                   TrioCohortBurdenTests.plots_tarball,
-                  CaseControlCohortBurdenTests.plots_tarball],
+                  CaseControlCohortBurdenTests.plots_tarball,
+                  PlotFullCohortSlidingWindows.results_tarball,
+                  PlotTrioCohortSlidingWindows.results_tarball,
+                  PlotCaseControlCohortSlidingWindows.results_tarball],
       prefix = study_prefix + "_analysis_outputs",
       docker = ubuntu_docker,
       relocate_stats = true
@@ -611,8 +635,10 @@ task SlidingWindowTest {
     File ad_matrix_idx
     String contig
     Int contig_len
+    File sample_metadata_tsv
+    File samples_list
     Int bin_size = 1000000
-    Int step_size = 1000000
+    Int step_size = 250000
     Int min_sv_size = 50000
     String prefix
     String docker
@@ -629,9 +655,11 @@ task SlidingWindowTest {
 
     # Make genomic bins
     paste \
-      <( seq 0 ~{contig_len} ~{step_size} ) \
-      <( seq ~{bin_size} ~{contig_len + bin_size} ~{step_size} ) \
+      <( seq 0 ~{step_size} ~{contig_len} ) \
+      <( seq ~{bin_size} ~{step_size} $(( ~{contig_len} + ~{bin_size} )) ) \
     | awk -v contig="~{contig}" -v OFS="\t" '{ print contig, $1, $2 }' \
+    | awk -v bin_size=~{bin_size} -v last_end=$(( ~{contig_len} + ~{step_size} )) \
+      '{ if ($3-$2 <= bin_size && $3 <= last_end) print }' \
     | bgzip -c \
     > ~{contig}.bins.bed.gz
     tabix -p bed -f ~{contig}.bins.bed.gz
@@ -639,13 +667,66 @@ task SlidingWindowTest {
     # Filter SV data to contig of interest & CNVs greater than min_sv_size
     tabix -h ~{sv_bed} ~{contig} | bgzip -c > ~{contig}.all_svs.bed.gz
     tabix -p bed -f ~{contig}.all_svs.bed.gz
-    # TODO: implement filtering here
+    /opt/ped_germline_SV/analysis/landscape/filter_cnvs_for_sliding_window_test.R \
+      --bed-in ~{contig}.all_svs.bed.gz \
+      --minimum-size ~{min_sv_size} \
+      --bed-out ~{contig}.large_rare_cnvs.bed
+    while read chrom start end vid cnv intervals; do
+      if [ $cnv == "CPX" ]; then
+        echo $intervals | sed -e 's/,/\n/g' -e 's/[_:-]/\t/g' \
+        | awk -v min_size=~{min_sv_size} -v OFS="\t" -v vid=$vid \
+          '{ if ($1 ~ /DEL|DUP/ && $3-$2 >= min_size) print $2, $3, $4, vid, $1 }'
+      else
+        echo -e "$chrom\t$start\t$end\t$vid\t$cnv"
+      fi
+    done < <( grep -ve '^#' ~{contig}.large_rare_cnvs.bed ) \
+    | sort -Vk1,1 -k2,2n -k3,3n -k4,4V -k5,5V \
+    | cat <( head -n1 ~{contig}.large_rare_cnvs.bed ) - \
+    | bgzip -c \
+    > ~{contig}.large_rare_cnvs.bed.gz
+    tabix -p bed -f ~{contig}.large_rare_cnvs.bed.gz
+
+    # Preprocess AD matrix to reduce memory requirement downstream
+    tabix ~{ad_matrix} ~{contig} \
+    | fgrep -wf <( zcat ~{contig}.large_rare_cnvs.bed.gz | cut -f4 | sed '1d' ) \
+    | cat <( tabix -H ~{ad_matrix} ) - \
+    | bgzip -c \
+    > ~{contig}.large_rare_cnvs.ad.bed.gz
+    tabix -p bed -f ~{contig}.large_rare_cnvs.ad.bed.gz
 
     # Find overlap between SVs and bins
-    # TODO: implement this
+    for CNV in DEL DUP; do
+      zcat ~{contig}.large_rare_cnvs.bed.gz \
+      | awk -v cnv=$CNV '{ if ($NF==cnv) print }' \
+      | bedtools map \
+        -a ~{contig}.bins.bed.gz \
+        -b - \
+        -c 4 \
+        -o distinct \
+        -f $( echo -e "~{min_sv_size}\t~{bin_size}" \
+              | awk '{ printf "%.6f\n", $1 / $2 }' ) \
+      | cut -f4 \
+      | awk '{ if ($1==".") print "NA"; else print $1 }' \
+      > ~{contig}.hits.$CNV.txt
+    done
+    zcat ~{contig}.bins.bed.gz \
+    | paste \
+      - \
+      ~{contig}.hits.DEL.txt \
+      ~{contig}.hits.DUP.txt \
+    | cat \
+      <( echo -e "#chrom\tstart\tend\tDELs\tDUPs" ) - \
+    | bgzip -c \
+    > ~{contig}.counts.bed.gz
 
     # Compute test statistics for each bin
-    # TODO: implement this
+    /opt/ped_germline_SV/analysis/association/sliding_window_test.R \
+      --bed ~{contig}.counts.bed.gz \
+      --ad ~{contig}.large_rare_cnvs.ad.bed.gz \
+      --metadata ~{sample_metadata_tsv} \
+      --subset-samples ~{samples_list} \
+      --outfile ~{prefix}.sliding_window_stats.bed
+    bgzip -f ~{prefix}.sliding_window_stats.bed
   >>>
 
   output {
@@ -1075,6 +1156,50 @@ task CohortSummaryPlots {
 }
 
 
+# Merge & plot sliding window test statistics
+task PlotSlidingWindowTests {
+  input {
+    Array[File] stats
+    String prefix
+    String docker
+  }
+
+  Int disk_gb = ceil(2 * size(stats, "GB")) + 10
+
+  command <<<
+    set -eu -o pipefail
+
+    mkdir ~{prefix}.SlidingWindowResults
+
+    # Merge stats
+    zcat ~{sep=" " stats} | grep -ve '^#' \
+    | sort -Vk1,1 -k2,2n -k3,3n \
+    | cat <( zcat ~{stats[0]} | head -n1 ) - \
+    | bgzip -c \
+    > ~{prefix}.sliding_window_stats.bed.gz
+    tabix -p bed -f ~{prefix}.sliding_window_stats.bed.gz
+
+    # Visualize
+    # TODO: implement this
+
+    # Compress output
+    tar -czvf ~{prefix}.SlidingWindowResults.tar.gz ~{prefix}.SlidingWindowResults
+  >>>
+
+  output {
+    File results_tarball = "~{prefix}.SlidingWindowResults.tar.gz"
+  }
+
+  runtime {
+    docker: docker
+    memory: "3.5 GB"
+    cpu: 2
+    disks: "local-disk " + disk_gb + " HDD"
+    preemptible: 3
+  }
+}
+
+
 # Merge multiple tarballs
 task UnifyOutputs {
   input {
@@ -1102,6 +1227,7 @@ task UnifyOutputs {
     if [ ~{relocate_stats} == "true" ]; then
       mkdir ~{prefix}/stats
       find ~{prefix}/ -name "*.tsv.gz" | xargs -I {} mv {} ~{prefix}/stats/
+      find ~{prefix}/ -name "*.bed.gz" | xargs -I {} mv {} ~{prefix}/stats/
     fi
 
     # Compress output directory
