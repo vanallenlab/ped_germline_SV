@@ -32,8 +32,12 @@ cnvs <- c("DEL", "DUP", "CNV")
 # Load windows to be tested
 load.window.counts <- function(tsv.in){
   df <- read.table(tsv.in, header=T, sep="\t", check.names=F, comment.char="")
-  df$DELs <- sapply(df$DELs, strsplit, split=",", fixed=T)
-  df$DUPs <- sapply(df$DUPs, strsplit, split=",", fixed=T)
+  if(!all(is.na(df$DELs))){
+    df$DELs <- sapply(df$DELs, strsplit, split=",", fixed=T)
+  }
+  if(!all(is.na(df$DUPs))){
+    df$DUPs <- sapply(df$DUPs, strsplit, split=",", fixed=T)
+  }
   return(df)
 }
 
@@ -126,7 +130,7 @@ colnames(res) <- as.character(sapply(cnvs, function(cnv){sapply(cancers, functio
   paste(cancer, cnv,
         c("n_sv", "n_case", "case_nonref", "case_mean",
           "n_control", "control_nonref", "control_mean",
-          "beta", "beta_se", "test_stat", "neglog10_p", "model"), sep=".")
+          "beta", "beta_se", "zscore", "neglog10_p", "model"), sep=".")
 })}))
 
 # Merge results with coordinate column and write to --outfile

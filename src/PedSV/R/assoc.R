@@ -265,12 +265,13 @@ pedsv.glm <- function(meta, X, Y, use.N.pcs=3, family=gaussian(), extra.terms=NU
   }
 
   # Extract coefficient corresponding to independent variable
-  # Point estimate, stderr, test statistic, P-value
+  # Point estimate, stderr, Z-score, P-value
   if(!return.all.coefficients){
     if(firth){
-      c(as.numeric(c(fit$coefficients["X"],
+      beta <- fit$coefficients["X"]
+      c(as.numeric(c(beta,
                      sqrt(diag(vcov(fit)))["X"],
-                     qchisq(1-fit$prob, df=1)["X"],
+                     (if(beta >= 0){1}else{-1}) * sqrt(qchisq(1-fit$prob["X"], df=1)),
                      fit$prob["X"])), "flic")
     }else{
       c(summary(fit)[["coefficients"]]["X", ], "glm")

@@ -115,7 +115,7 @@ gd.res <- as.data.frame(do.call("rbind", lapply(gd.ids, function(gd.id){
 cancer.cols <- as.character(sapply(cancers, function(cancer){
   paste(cancer, c("n_sv", "n_case", "case_nonref", "case_mean",
                   "n_control", "control_nonref", "control_mean",
-                  "beta", "beta_se", "test_stat", "neglog10_p", "model"), sep=".")
+                  "beta", "beta_se", "zscore", "neglog10_p", "model"), sep=".")
 }))
 colnames(gd.res) <- c("gd.id", cancer.cols)
 

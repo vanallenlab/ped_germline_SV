@@ -68,8 +68,9 @@ workflow PedSvMainAnalysis {
     Array[String]? gene_list_names
     File? genomic_disorder_bed
     Float genomic_disorder_recip_frac = 0.5
-    File? rvas_exclude_regions
+    File? locus_assoc_exclude_regions
     Float? rvas_exclusion_frac_overlap
+    Float? sliding_window_exclusion_frac_overlap
 
     String pedsv_docker
     String pedsv_r_docker
@@ -108,7 +109,7 @@ workflow PedSvMainAnalysis {
       samples_list = all_samples_list,
       ref_fai = ref_fai,
       prefix = study_prefix,
-      exclude_regions = rvas_exclude_regions,
+      exclude_regions = locus_assoc_exclude_regions,
       exclusion_frac_overlap = rvas_exclusion_frac_overlap,
       pedsv_docker = pedsv_docker,
       pedsv_r_docker = pedsv_r_docker
@@ -172,6 +173,8 @@ workflow PedSvMainAnalysis {
         ad_matrix_idx = full_cohort_ad_matrix_idx,
         contig = contig,
         contig_len = contig_len,
+        exclude_regions = locus_assoc_exclude_regions,
+        exclusion_frac_overlap = sliding_window_exclusion_frac_overlap,
         sample_metadata_tsv = sample_metadata_tsv,
         samples_list = all_samples_list,
         prefix = study_prefix + ".full_cohort." + contig,
@@ -186,6 +189,8 @@ workflow PedSvMainAnalysis {
         ad_matrix_idx = trio_ad_matrix_idx,
         contig = contig,
         contig_len = contig_len,
+        exclude_regions = locus_assoc_exclude_regions,
+        exclusion_frac_overlap = sliding_window_exclusion_frac_overlap,
         sample_metadata_tsv = sample_metadata_tsv,
         samples_list = trio_samples_list,
         prefix = study_prefix + ".trio_cohort." + contig,
@@ -200,6 +205,8 @@ workflow PedSvMainAnalysis {
         ad_matrix_idx = case_control_ad_matrix_idx,
         contig = contig,
         contig_len = contig_len,
+        exclude_regions = locus_assoc_exclude_regions,
+        exclusion_frac_overlap = sliding_window_exclusion_frac_overlap,
         sample_metadata_tsv = sample_metadata_tsv,
         samples_list = case_control_samples_list,
         prefix = study_prefix + ".case_control_cohort." + contig,
@@ -388,7 +395,7 @@ workflow PedSvMainAnalysis {
       samples_list = trio_samples_list,
       ref_fai = ref_fai,
       prefix = study_prefix + ".trio_cohort",
-      exclude_regions = rvas_exclude_regions,
+      exclude_regions = locus_assoc_exclude_regions,
       exclusion_frac_overlap = rvas_exclusion_frac_overlap,
       pedsv_docker = pedsv_docker,
       pedsv_r_docker = pedsv_r_docker
@@ -407,7 +414,7 @@ workflow PedSvMainAnalysis {
       samples_list = case_control_samples_list,
       ref_fai = ref_fai,
       prefix = study_prefix + ".case_control_cohort",
-      exclude_regions = rvas_exclude_regions,
+      exclude_regions = locus_assoc_exclude_regions,
       exclusion_frac_overlap = rvas_exclusion_frac_overlap,
       pedsv_docker = pedsv_docker,
       pedsv_r_docker = pedsv_r_docker
@@ -635,6 +642,8 @@ task SlidingWindowTest {
     File ad_matrix_idx
     String contig
     Int contig_len
+    File? exclude_regions
+    Float exclusion_frac_overlap = 0.5
     File sample_metadata_tsv
     File samples_list
     Int bin_size = 1000000
@@ -661,7 +670,18 @@ task SlidingWindowTest {
     | awk -v bin_size=~{bin_size} -v last_end=$(( ~{contig_len} + ~{step_size} )) \
       '{ if ($3-$2 <= bin_size && $3 <= last_end) print }' \
     | bgzip -c \
-    > ~{contig}.bins.bed.gz
+    > ~{contig}.bins.pre_mask.bed.gz
+    if [ ~{defined(exclude_regions)} == "true" ]; then
+      bedtools coverage \
+        -a ~{contig}.bins.pre_mask.bed.gz \
+        -b ~{select_first(exclude_regions)} \
+      | awk -v OFS="\t" -v frac=~{exclusion_frac_overlap} \
+        '{ if ($NF < frac) print $1, $2, $3 }' \
+      | bgzip -c \
+      > ~{contig}.bins.bed.gz
+    else
+      cp ~{contig}.bins.pre_mask.bed.gz ~{contig}.bins.bed.gz
+    fi
     tabix -p bed -f ~{contig}.bins.bed.gz
 
     # Filter SV data to contig of interest & CNVs greater than min_sv_size
@@ -698,16 +718,23 @@ task SlidingWindowTest {
     for CNV in DEL DUP; do
       zcat ~{contig}.large_rare_cnvs.bed.gz \
       | awk -v cnv=$CNV '{ if ($NF==cnv) print }' \
-      | bedtools map \
-        -a ~{contig}.bins.bed.gz \
-        -b - \
-        -c 4 \
-        -o distinct \
-        -f $( echo -e "~{min_sv_size}\t~{bin_size}" \
-              | awk '{ printf "%.6f\n", $1 / $2 }' ) \
-      | cut -f4 \
-      | awk '{ if ($1==".") print "NA"; else print $1 }' \
-      > ~{contig}.hits.$CNV.txt
+      > ~{contig}.large_rare_cnvs.$CNV.bed
+      if [ $( cat ~{contig}.large_rare_cnvs.$CNV.bed | wc -l ) -gt 0 ]; then
+        bedtools map \
+          -a ~{contig}.bins.bed.gz \
+          -b ~{contig}.large_rare_cnvs.$CNV.bed \
+          -c 4 \
+          -o distinct \
+          -f $( echo -e "~{min_sv_size}\t~{bin_size}" \
+                | awk '{ printf "%.6f\n", $1 / $2 }' ) \
+        | cut -f4 \
+        | awk '{ if ($1==".") print "NA"; else print $1 }' \
+        > ~{contig}.hits.$CNV.txt
+      else
+        zcat ~{contig}.bins.bed.gz \
+        | awk '{ print "NA" }' \
+        > ~{contig}.hits.$CNV.txt
+      fi
     done
     zcat ~{contig}.bins.bed.gz \
     | paste \
