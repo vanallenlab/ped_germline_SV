@@ -13,13 +13,14 @@ svlen.line.plot(
   group.names = NULL,
   step = TRUE,
   lwds = NULL,
-  ci.alpha = 0.15,
+  ci.alpha = NULL,
   legend = FALSE,
   legend.names = NULL,
   legend.pos = "topright",
   legend.label.spacing = 0.075,
   title = NULL,
   xlab = NULL,
+  xlab.line = 0,
   xlims = log10(c(10000, 1000000)),
   ylab = "Value",
   y.title.line = 1,
@@ -61,6 +62,8 @@ svlen.line.plot(
 \item{title}{(Optional) Title for plot}
 
 \item{xlab}{(Optional) Title for X axis}
+
+\item{xlab.line}{Line parameter for \code{xlab} [default: 1]}
 
 \item{xlims}{(Optional) two-element vector of start and stop values for X-axis, in log10(SVLEN)}
 

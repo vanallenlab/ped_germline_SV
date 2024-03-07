@@ -279,12 +279,12 @@ doublewide.barplot.by.phenotype <-
            group.spacer=0.5, color.by.sig=TRUE, add.left.axis=TRUE,
            left.axis.units=NULL, title="Value", orient.cases="left",
            label.l=NULL, label.r=NULL, group.label.cex=1,
-           parmar=c(1.15, 2.25, 0.5, 0.25)){
+           parmar=c(1.15, 2.25, 0.75, 0.25)){
     # Get plot dimensions
     both.plot.df <- rbind(plot.df.l, plot.df.r)
-    ylims <- c(0, min(c(2*max(both.plot.df[, c(1, 4)], na.rm=T),
-                        max(both.plot.df[, 1:6], na.rm=T)),
-                      na.rm=T))
+    ylims <- c(0, 1.15*min(c(2*max(both.plot.df[, c(1, 4)], na.rm=T),
+                             max(both.plot.df[, 1:6], na.rm=T)),
+                           na.rm=T))
     xlims <- c(-0.5*group.spacer, nrow(both.plot.df) + (1.5*group.spacer))
     x.mids.l <- (1:nrow(plot.df.l))-0.5
     x.mids.r <- (1:nrow(plot.df.r))-0.5 + group.spacer + nrow(plot.df.l)
@@ -358,6 +358,7 @@ doublewide.barplot.by.phenotype <-
 #' @param legend.label.spacing Minimum vertical spacing between legend labels \[default: 0.075\]
 #' @param title (Optional) Title for plot
 #' @param xlab (Optional) Title for X axis
+#' @param xlab.line Line parameter for `xlab` \[default: 1\]
 #' @param xlims (Optional) two-element vector of start and stop values for X-axis, in log10(SVLEN)
 #' @param ylab (Optional) Title for Y axis
 #' @param y.title.line Value for `title.line` passed to [PedSV::clean.axis()] \[default: 1\]
@@ -372,12 +373,12 @@ doublewide.barplot.by.phenotype <-
 #' @export svlen.line.plot
 #' @export
 svlen.line.plot <- function(x.svlen, y.value, colors, ci.lower=NULL, ci.upper=NULL,
-                            group.names=NULL, step=TRUE, lwds=NULL, ci.alpha=0.15,
-                          legend=FALSE, legend.names=NULL, legend.pos="topright",
-                          legend.label.spacing=0.075, title=NULL, xlab=NULL,
-                          xlims=log10(c(10000, 1000000)), ylab="Value", y.title.line=1,
-                          y.axis.units=NULL, ylims=NULL, x.axis.labels=NULL,
-                          x.axis.labels.at=NULL, x.tck=-0.01, parmar=c(2, 3, 1, 1)){
+                            group.names=NULL, step=TRUE, lwds=NULL, ci.alpha=NULL,
+                            legend=FALSE, legend.names=NULL, legend.pos="topright",
+                            legend.label.spacing=0.075, title=NULL, xlab=NULL, xlab.line=0,
+                            xlims=log10(c(10000, 1000000)), ylab="Value", y.title.line=1,
+                            y.axis.units=NULL, ylims=NULL, x.axis.labels=NULL,
+                            x.axis.labels.at=NULL, x.tck=-0.01, parmar=c(2, 3, 1, 1)){
   # Ensure PedSV scale constants are loaded within function scope
   PedSV::load.constants("scales", envir=environment())
 
@@ -388,6 +389,9 @@ svlen.line.plot <- function(x.svlen, y.value, colors, ci.lower=NULL, ci.upper=NU
   n.groups <- length(x.svlen)
   if(is.null(lwds)){
     lwds <- rep(1, n.groups)
+  }
+  if(is.null(ci.alpha)){
+    ci.alpha <- rep(0.15, n.groups)
   }
   if(is.null(legend.names)){
     legend.names <- names(x.svlen)
@@ -433,7 +437,7 @@ svlen.line.plot <- function(x.svlen, y.value, colors, ci.lower=NULL, ci.upper=NU
             y.top <- rev(ci.upper[[i]])
           }
           polygon(x=c(x.bottom, x.top), y=c(y.bottom, y.top), border=NA, bty="n",
-                  col=if(layer == "white"){"white"}else{adjustcolor(colors[[i]], alpha=ci.alpha)})
+                  col=if(layer == "white"){"white"}else{adjustcolor(colors[[i]], alpha=ci.alpha[i])})
         }
       })
     }
@@ -456,7 +460,7 @@ svlen.line.plot <- function(x.svlen, y.value, colors, ci.lower=NULL, ci.upper=NU
 
   # Add axes
   clean.axis(1, at=log10(logscale.minor), labels=NA, infinite=TRUE,
-             title=xlab, label.line=-0.75, title.line=0, tck=x.tck)
+             title=xlab, label.line=-0.75, title.line=xlab.line, tck=x.tck)
   clean.axis(1, at=x.axis.labels.at, labels=x.axis.labels,
              infinite=FALSE, title=NA, label.line=-0.75, title.line=0, tck=-0.0225)
   clean.axis(2, title=ylab, infinite=TRUE, tck=-0.0175,
@@ -626,3 +630,288 @@ swarmplot.by.phenotype <- function(plot.vals, meta, title=NULL, title.line=0, ti
   mtext(3, text=title, line=title.line, cex=title.cex)
 }
 
+
+#' Manhattan plot
+#'
+#' Generate a Manhattan plot from association statistics
+#'
+#' @param df data frame of association statistics as read by [read.manhattan.stats()]
+#' @param cutoff smallest P-value to render \[default: 10^-8\]
+#' @param highlights data frame of regions to highlight
+#' @param highlight.color color to use for highlighted points
+#' @param highlight.name label for highlighted points
+#' @param mark.highlights boolean indicated to mark highlighted regions with small arrows \[default: FALSE\]
+#' @param colors vector of colors to assign sequentially to all chromosomes
+#' @param cutoff.color color to use for P-value cutoff line
+#' @param lab.prefix prefix to prepend to various labels
+#' @param ymax maximum Y-value to plot \[default: same as smallest P-value\]
+#' @param reflection boolean indicator to invert plot (useful for Miami plots)
+#' @param chrom.label.spacing minimum spacing between X-axis chromsome labels,
+#' specified as a proportion of the total X axis length \[default: 0.05\]
+#' @param pt.cex scaling factor for points \[default: 0.2\]
+#' @param label.cex scaling factor for label text
+#' @param chrom.label.cex scaling factor for chromosome labels on X-axis \[default: 0.75\]
+#' @param y.ax.cex scaling factor for labels on Y-axis \[default: 0.75\]
+#'
+#' @return None
+#'
+#' @export plot.manhattan
+#' @export
+plot.manhattan <- function(df, cutoff=1e-08, highlights=NULL,
+                           highlight.color="#4EE69A",
+                           highlight.name="Highlighted Loci",
+                           mark.highlights=FALSE,
+                           colors=c("gray15", "gray70"),
+                           cutoff.color="#D01C8B",
+                           lab.prefix=NULL,
+                           ymax=NULL, reflection=F,
+                           chrom.label.spacing=0.05,
+                           pt.cex=0.2, label.cex=1,
+                           chrom.label.cex=0.75,
+                           y.ax.cex=0.75){
+  contigs <- unique(df[, 1])
+  contigs <- contigs[which(!(is.na(contigs)))]
+
+  indexes <- as.data.frame(t(sapply(contigs, function(chr){
+    return(c(chr, 0, max(df[which(df[, 1] == chr), 2])))
+  })))
+  indexes$sum <- cumsum(indexes[, 3])
+  indexes$bg <- colors
+  indexes[, 2:4] <- apply(indexes[, 2:4], 2, as.numeric)
+  indexes$sum_prev <- c(0, indexes$sum[-nrow(indexes)])
+
+  df.plot <- as.data.frame(t(apply(df, 1, function(row){
+    contig.idx <- which(indexes[, 1]==row[1])
+    return(c(as.character(row[1]),
+             as.numeric(row[2]) + indexes[contig.idx, 4] - indexes[contig.idx, 3],
+             as.numeric(row[3]),
+             indexes[contig.idx, 5]))
+  })))
+  df.plot[, 2] <- as.numeric(as.character(df.plot[, 2]))
+  df.plot[, 3] <- as.numeric(as.character(df.plot[, 3]))
+  colnames(df.plot) <- c("chr", "pos", "p", "color")
+
+  # Drop rows with NA p-values
+  df.plot <- df.plot[which(!is.na(df.plot$p)), ]
+
+  if(is.null(ymax)){
+    ymax <- -log10(df[which(!(is.na(df[, 3]))), 3])
+    ymax <- max(max(ymax[which(!(is.infinite(ymax)))], na.rm=T), -log10(cutoff) + 2, na.rm=T)
+  }
+
+  if(reflection == F){
+    df.plot$neglog10 <- -log10(df.plot[, 3])
+    log.cutoff <- -log10(cutoff)
+    legend.pos <- "top"
+    x.ax <- 1
+    mars <- c(2.1, 3.1, 0.5, 1)
+    x.title <- T
+  }else{
+    df.plot$neglog10 <- log10(df.plot[, 3])
+    log.cutoff <- log10(cutoff)
+    legend.pos <- "bottom"
+    x.ax <- 3
+    ymax <- -ymax
+    mars <- c(0.5, 3.1, 0.6, 1)
+    x.title <- F
+  }
+
+  par(mar=mars, bty="n")
+  plot(x=c(0, max(indexes[, 4])), y=c(0, 1.1 * ymax), type="n",
+       yaxs="i", xaxt="n", yaxt="n", xlab="", ylab="")
+
+  if(!is.null(highlights)){
+    highlights <- t(apply(highlights, 1, function(coords){
+      if(coords[1] %in% contigs){
+        if(which(as.character(coords[1]) == contigs) > 1){
+          coords[2] <- coords[2] + indexes[as.integer(coords[1]) - 1, 4]
+          coords[3] <- coords[3] + indexes[as.integer(coords[1]) - 1, 4]
+        }
+      }
+      return(coords)
+    }))
+
+    if(mark.highlights == TRUE){
+      min.hbin.width <- 0.005 * (par("usr")[2] - par("usr")[1])
+      highlight.bins <- t(apply(highlights, 1, function(coords){
+        if(coords[3] - coords[2] < min.hbin.width){
+          mid <- mean(coords[2:3])
+          coords[2] <- mid - (0.5 * min.hbin.width)
+          coords[3] <- mid + (0.5 * min.hbin.width)
+        }
+        return(coords)
+      }))
+      rect(xleft=highlight.bins[,2], xright=highlight.bins[,3],
+           ybottom=par("usr")[3], ytop=par("usr")[4], bty="n", border=NA,
+           col=adjustcolor(highlight.color, alpha=0.1))
+      # rect(xleft=highlight.bins[,2], xright=highlight.bins[,3],
+      #      ybottom=par("usr")[4] - (0.01 * (par("usr")[4] - par("usr")[3])),
+      #      ytop=par("usr")[4], bty="n", border=NA,
+      #      col=highlight.color)
+    }
+
+    hits <- sort(unique(unlist(apply(highlights, 1, function(coords){
+      which(df.plot$chr == as.character(coords[1])
+            & df.plot$pos <= as.numeric(coords[3])
+            & df.plot$pos >= as.numeric(coords[2]))
+    }))))
+    df.plot$color[hits] <- highlight.color
+  }
+
+  abline(h=log.cutoff, col=cutoff.color, lty=2)
+
+  points(df.plot[, 2], df.plot[, 5],
+         cex=pt.cex, pch=19,
+         col=as.character(df.plot[, 4]))
+
+  if(!is.null(highlights)){
+    if(any(df.plot$color == highlight.color)){
+      points(df.plot[which(df.plot$color == highlight.color), 2],
+             df.plot[which(df.plot$color == highlight.color), 5],
+             cex=0.2, pch=19,
+             col=highlight.color)
+    }
+    legend(legend.pos, pch=19, col=highlight.color, cex=0.5,
+           legend=paste(highlight.name, " (n=",
+                        prettyNum(nrow(highlights), big.mark=","),
+                        ")", sep=""))
+  }
+
+  axis(x.ax, at=c(0, max(indexes$sum)), tck=0, labels=NA)
+  chrom.label.gates <- max(indexes$sum) * seq(chrom.label.spacing/2,
+                                              1-(chrom.label.spacing/2),
+                                              chrom.label.spacing)
+  xlab.contigs <- unique(sapply(chrom.label.gates, function(x){
+    # Find chromosome encompassing gate x
+    which(indexes$sum >= x & indexes$sum_prev <= x)
+  }))
+  midpoints <- sapply(1:length(indexes[, 2]), function(i){
+    return(mean(c(indexes[i, 4], indexes[i, 4] - indexes[i, 3])))
+  })
+  sapply(xlab.contigs, function(k){
+    axis(x.ax, at=midpoints[k], labels=indexes[k, 1],
+         tick=F, line=-1.1, cex.axis=chrom.label.cex,
+         col.axis=indexes$bg[k])
+  })
+  if(x.title == T){
+    mtext(x.ax, text="Chromosome", line=0.95, cex=label.cex)
+  }
+
+  if(reflection == T){
+    y.at <- seq(0, floor(par("usr")[3]), by=floor(par("usr")[3]/6))
+  }else{
+    y.at <- seq(0, ceiling(par("usr")[4]), by=ceiling(par("usr")[4]/6))
+  }
+  axis(2, at=y.at, labels=NA, tck=-0.02)
+  axis(2, at=y.at, tick=F, line=-0.5, labels=abs(y.at),
+       cex.axis=y.ax.cex, las=2)
+  if(!is.null(lab.prefix)){
+    mtext(2, text=bquote(-log[10](italic(P)) ~ .(lab.prefix)),
+          line=1.5, cex=label.cex)
+  }else{
+    mtext(2, text=bquote(-log[10](italic(P))),
+          line=1.5, cex=label.cex)
+  }
+}
+
+
+#' Quantile-quantile plot
+#'
+#' Generate a Q-Q plot of association stats vs. uniform null
+#'
+#' @param pvals Numeric vector of untransformed P-values
+#' @param cutoff P-value threshold for significance
+#' @param do.fdr Should points meeting `fdr.cutoff` be accented? \[default: TRUE\]
+#' @param fdr.cutoff Cutoff for highlighting FDR-significant points \[default: 0.01\]
+#' @param print.stats Should genomic inflation statistic be printed on plot? \[default: FALSE\]
+#' @param title (Optional) Plot title
+#' @param title.line Line for `title` \[default: 0\]
+#' @param xmax Maximum X-value to plot \[default: include all points\]
+#' @param ymax Maximum Y-value to plot \[default: smallest P-value\]
+#' @param label.cex Scaling factor for label text \[default: 1\]
+#' @param pt.color Color for all points \[default: "grey35"\]
+#' @param pt.cex Scaling factor for all points \[default: 0.35\]
+#' @param fdr.color Color for FDR-significant points \[default: "grey5"\]
+#' @param fdr.cex Scaling factor for FDR-significant points \[default: 0.7\]
+#' @param parmar Value of `mar` passed to `par()`
+#'
+#' @return None
+#'
+#' @export plot.qq
+#' @export
+plot.qq <- function(pvals, cutoff=NULL, do.fdr=TRUE, fdr.cutoff=0.01, print.stats=FALSE, title=NULL, title.line=0, xmax=NULL, ymax=NULL, label.cex=1, pt.color="grey35", pt.cex=0.35, fdr.color="grey5", fdr.cex=0.7, parmar=c(2.25, 2.5, 0.25, 0.25)){
+  # Format P-values
+  if (!is.numeric(pvals)){
+    stop("P values must be numeric.")
+  }
+  keep.idxs <- which(!is.na(pvals) & !is.nan(pvals) & !is.null(pvals) &
+                       is.finite(pvals) & pvals <= 1 & pvals >= 0)
+  pvals <- pvals[keep.idxs]
+  colors <- rep(pt.color, length(pvals))
+  pw.cex <- rep(pt.cex, length(pvals))
+  pvals <- pvals[order(pvals)]
+  if(do.fdr){
+    fdr.idx <- which(p.adjust(pvals, "fdr") < fdr.cutoff)
+    if(length(fdr.idx) > 0){
+      colors[fdr.idx] <- fdr.color
+      pw.cex[fdr.idx] <- fdr.cex
+    }
+  }
+
+  # Compute expected quantiles
+  expected <- ppoints(length(pvals))
+  qqconf <- function (p.expected, reflection=F){
+    n <- length(p.expected)
+    mpts <- matrix(nrow=n * 2, ncol=2)
+    for (i in seq(from=1, to=n)) {
+      mpts[i, 1] <- -log10((i - 0.5)/n)
+      mpts[i, 2] <- -log10(qbeta(0.975, i, n - i))
+      mpts[n * 2 + 1 - i, 1] <- -log10((i - 0.5)/n)
+      mpts[n * 2 + 1 - i, 2] <- -log10(qbeta(0.025, i, n - i))
+    }
+    mpts <- as.data.frame(mpts)
+    return(mpts)
+  }
+  conf.int <- qqconf(expected, reflection)
+  lambda <- dchisq(median(pvals), df=1)/dchisq(median(expected), df=1)
+
+  # Get other plot parameters
+  if(is.null(cutoff)){
+    cutoff <- 0.05/length(pvals)
+  }
+  if(is.null(ymax)){
+    maxp <- max(-log10(pvals[which(!(is.infinite(-log10(pvals))))]))
+    ymax <- max(c(maxp, -log10(cutoff) + 2))
+  }
+  expected <- -log10(expected)
+  if(is.null(xmax)){
+    xmax <- max(expected, na.rm=T)
+  }
+  pvals <- -log10(pvals)
+  log.cutoff <- -log10(cutoff)
+
+  # Prep plot area and add null confidence interval
+  prep.plot.area(c(0, 1.1 * xmax), c(0, 1.1 * ymax), parmar=parmar)
+  polygon(x=conf.int[, 1], y=conf.int[, 2], col="gray90", border=NA)
+  abline(0, 1, col="gray50")
+  if(!is.null(cutoff)){
+    abline(h=log.cutoff, lty=2)
+  }
+
+  # Annotate genomic control if optioned
+  if (print.stats == T){
+    text(par("usr")[1] - (0.025 * (par("usr")[2] - par("usr")[1])),
+         0.9 * par("usr")[4], pos=4, font=2, cex=0.8,
+         labels=bquote(lambda ~ .(paste("=", sprintf("%.2f", lambda), sep=""))))
+  }
+
+  # Add points
+  points(x=expected, y=pvals, pch=19, col=colors, cex=pw.cex)
+
+  # Add axes & title
+  clean.axis(1, title=expression(Expected ~ ~-log[10](italic(p))),
+             label.line=-0.75, title.line=0.35, infinite=TRUE)
+  clean.axis(2, title=expression(Observed ~ ~-log[10](italic(p))),
+             title.line=0.15, infinite=TRUE)
+  mtext(1, line=title.line, text=title)
+}

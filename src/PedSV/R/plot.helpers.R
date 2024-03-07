@@ -52,6 +52,7 @@ prep.plot.area <- function(xlims, ylims, parmar, xaxs="i", yaxs="i"){
 #' @param title Axis title
 #' @param tck Value passed to `axis()`. See `?axis` for details. \[default: -0.025\]
 #' @param cex.axis Value passed to `axis()`. See `?axis` for details. \[default: 5/6\]
+#' @param axis.line `line` parameter for overall axis \[default: 0\]
 #' @param label.line `line` parameter for axis labels \[default: -0.65\]
 #' @param title.line `line` parameter for axis title \[default: 0.5\]
 #' @param infinite Indicator for the axis to be extended infinitely (without ticks) \[default: FALSE\]
@@ -66,9 +67,9 @@ prep.plot.area <- function(xlims, ylims, parmar, xaxs="i", yaxs="i"){
 #' @export
 clean.axis <- function(side, at=NULL, labels=NULL, labels.at=NULL, label.units=NULL,
                        parse.labels=FALSE, max.ticks=6, title=NULL, tck=-0.025,
-                       cex.axis=5/6, label.line=-0.65, title.line=0.5,
+                       cex.axis=5/6, line=0, label.line=-0.65, title.line=0.5,
                        infinite=FALSE, infinite.positive=FALSE, infinite.negative=FALSE){
-  if(infinite){axis(side, at=c(-10e10, 10e10), tck=0, labels=NA)}
+  if(infinite){axis(side, at=c(-10e10, 10e10), tck=0, labels=NA, line=line)}
   if(is.null(at)){
     at <- axTicks(side)
     if(length(at) > max.ticks){
@@ -93,7 +94,7 @@ clean.axis <- function(side, at=NULL, labels=NULL, labels.at=NULL, label.units=N
     las <- 2
     title.at <- mean(par("usr")[3:4])
   }
-  axis(side, at=at, labels=NA, tck=tck)
+  axis(side, at=at, labels=NA, tck=tck, line=line)
   sapply(1:length(labels.at), function(i){
     if(parse.labels){
       label <- parse(text=labels[i])
@@ -103,10 +104,10 @@ clean.axis <- function(side, at=NULL, labels=NULL, labels.at=NULL, label.units=N
       label <- labels[i]
     }
     axis(side, at=labels.at[i], labels=label, tick=F, cex.axis=cex.axis,
-         las=las, line=label.line)
+         las=las, line=line+label.line)
   })
   if(!is.null(title)){
-    axis(side, at=title.at, tick=F, labels=title, line=title.line, xpd=T)
+    axis(side, at=title.at, tick=F, labels=title, line=line+title.line, xpd=T)
   }
 }
 
@@ -313,7 +314,4 @@ add.pheno.bars <- function(plot.df, bar.mids, bar.hex, control.sep, horiz=TRUE,
        ybottom=bar.y.bottom[case.idx], ytop=bar.y.top[case.idx],
        col=NA, xpd=T)
 }
-
-
-
 

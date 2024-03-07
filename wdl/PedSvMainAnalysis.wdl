@@ -22,6 +22,7 @@ workflow PedSvMainAnalysis {
 	input {
 		File sample_metadata_tsv
     File ref_fai
+    File autosomes_fai
     File gtf
     String study_prefix
 
@@ -78,6 +79,7 @@ workflow PedSvMainAnalysis {
 	}
 
   Array[Array[String]] contiglist = read_tsv(ref_fai)
+  Array[Array[String]] autosomes_list = read_tsv(autosomes_fai)
 
   call ConcatTextFiles as ConcatSampleLists {
     input:
@@ -98,28 +100,8 @@ workflow PedSvMainAnalysis {
   }
   File? sv_exclusion_list = ConcatVariantExclusionLists.outfile
 
-  call Rvas.SvGenicRvas as StudyWideRvas {
-    input:
-      gtf = gtf,
-      sites_bed = full_cohort_bed,
-      sites_bed_idx = full_cohort_bed_idx,
-      ad_matrix = full_cohort_ad_matrix,
-      ad_matrix_idx = full_cohort_ad_matrix_idx,
-      sample_metadata_tsv = sample_metadata_tsv,
-      samples_list = all_samples_list,
-      ref_fai = ref_fai,
-      prefix = study_prefix,
-      exclude_regions = locus_assoc_exclude_regions,
-      exclusion_frac_overlap = rvas_exclusion_frac_overlap,
-      pedsv_docker = pedsv_docker,
-      pedsv_r_docker = pedsv_r_docker
-  }
-
-  # TODO: plot RVAS meta-analysis
-
   scatter ( contig_info in contiglist ) {
     String contig = contig_info[0]
-    Int contig_len = contig_info[1]
 
     call GetSVsPerSample as GetFullCohortSVsPerSample {
       input:
@@ -155,12 +137,17 @@ workflow PedSvMainAnalysis {
         prefix = study_prefix + ".case_control_cohort." + contig,
         docker = pedsv_r_docker
     }
+  }
+
+  scatter ( contig_info in autosomes_list ) {
+    String autosome = contig_info[0]
+    Int contig_len = contig_info[1]
 
     call PrecomputePerSampleBurdens {
       input:
         vcf = full_cohort_w_relatives_vcf,
         vcf_idx = full_cohort_w_relatives_vcf_idx,
-        contig = contig,
+        contig = autosome,
         prefix = study_prefix + ".full_cohort_w_relatives",
         docker = pedsv_docker
     }
@@ -171,13 +158,13 @@ workflow PedSvMainAnalysis {
         sv_bed_idx = full_cohort_bed_idx,
         ad_matrix = full_cohort_ad_matrix,
         ad_matrix_idx = full_cohort_ad_matrix_idx,
-        contig = contig,
+        contig = autosome,
         contig_len = contig_len,
         exclude_regions = locus_assoc_exclude_regions,
         exclusion_frac_overlap = sliding_window_exclusion_frac_overlap,
         sample_metadata_tsv = sample_metadata_tsv,
         samples_list = all_samples_list,
-        prefix = study_prefix + ".full_cohort." + contig,
+        prefix = study_prefix + ".full_cohort." + autosome,
         docker = pedsv_r_docker
     }
 
@@ -187,13 +174,13 @@ workflow PedSvMainAnalysis {
         sv_bed_idx = trio_bed_idx,
         ad_matrix = trio_ad_matrix,
         ad_matrix_idx = trio_ad_matrix_idx,
-        contig = contig,
+        contig = autosome,
         contig_len = contig_len,
         exclude_regions = locus_assoc_exclude_regions,
         exclusion_frac_overlap = sliding_window_exclusion_frac_overlap,
         sample_metadata_tsv = sample_metadata_tsv,
         samples_list = trio_samples_list,
-        prefix = study_prefix + ".trio_cohort." + contig,
+        prefix = study_prefix + ".trio_cohort." + autosome,
         docker = pedsv_r_docker
     }
 
@@ -203,13 +190,13 @@ workflow PedSvMainAnalysis {
         sv_bed_idx = case_control_bed_idx,
         ad_matrix = case_control_ad_matrix,
         ad_matrix_idx = case_control_ad_matrix_idx,
-        contig = contig,
+        contig = autosome,
         contig_len = contig_len,
         exclude_regions = locus_assoc_exclude_regions,
         exclusion_frac_overlap = sliding_window_exclusion_frac_overlap,
         sample_metadata_tsv = sample_metadata_tsv,
         samples_list = case_control_samples_list,
-        prefix = study_prefix + ".case_control_cohort." + contig,
+        prefix = study_prefix + ".case_control_cohort." + autosome,
         docker = pedsv_r_docker
     }
   }
@@ -384,6 +371,72 @@ workflow PedSvMainAnalysis {
       docker = pedsv_r_docker
   }
 
+  call PlotSlidingWindowTests as PlotFullCohortSlidingWindows_MALE {
+    input:
+      stats = FullCohortSlidingWindowTest.male_bin_stats,
+      prefix = study_prefix + ".MALE_only",
+      docker = pedsv_r_docker
+  }
+
+  call PlotSlidingWindowTests as PlotTrioCohortSlidingWindows_MALE {
+    input:
+      stats = TrioCohortSlidingWindowTest.male_bin_stats,
+      prefix = study_prefix + ".trio_cohort.MALE_only",
+      docker = pedsv_r_docker
+  }
+
+  call PlotSlidingWindowTests as PlotCaseControlCohortSlidingWindows_MALE {
+    input:
+      stats = CaseControlCohortSlidingWindowTest.male_bin_stats,
+      prefix = study_prefix + ".case_control_cohort.MALE_only",
+      docker = pedsv_r_docker
+  }
+
+  call PlotSlidingWindowTests as PlotFullCohortSlidingWindows_FEMALE {
+    input:
+      stats = FullCohortSlidingWindowTest.female_bin_stats,
+      prefix = study_prefix + ".FEMALE_only",
+      docker = pedsv_r_docker
+  }
+
+  call PlotSlidingWindowTests as PlotTrioCohortSlidingWindows_FEMALE {
+    input:
+      stats = TrioCohortSlidingWindowTest.female_bin_stats,
+      prefix = study_prefix + ".trio_cohort.FEMALE_only",
+      docker = pedsv_r_docker
+  }
+
+  call PlotSlidingWindowTests as PlotCaseControlCohortSlidingWindows_FEMALE {
+    input:
+      stats = CaseControlCohortSlidingWindowTest.female_bin_stats,
+      prefix = study_prefix + ".case_control_cohort.FEMALE_only",
+      docker = pedsv_r_docker
+  }
+
+  call Rvas.SvGenicRvas as StudyWideRvas {
+    input:
+      gtf = gtf,
+      sites_bed = full_cohort_bed,
+      sites_bed_idx = full_cohort_bed_idx,
+      ad_matrix = full_cohort_ad_matrix,
+      ad_matrix_idx = full_cohort_ad_matrix_idx,
+      sample_metadata_tsv = sample_metadata_tsv,
+      samples_list = all_samples_list,
+      ref_fai = autosomes_fai,
+      prefix = study_prefix,
+      exclude_regions = locus_assoc_exclude_regions,
+      exclusion_frac_overlap = rvas_exclusion_frac_overlap,
+      pedsv_docker = pedsv_docker,
+      pedsv_r_docker = pedsv_r_docker
+  }
+
+  call PlotRvas as PlotStudyWideRvas {
+    input:
+      stats = StudyWideRvas.rvas_sumstats,
+      prefix = study_prefix,
+      docker = pedsv_docker
+  }
+
   call Rvas.SvGenicRvas as TrioCohortRvas {
     input:
       gtf = gtf,
@@ -393,7 +446,7 @@ workflow PedSvMainAnalysis {
       ad_matrix_idx = trio_ad_matrix_idx,
       sample_metadata_tsv = sample_metadata_tsv,
       samples_list = trio_samples_list,
-      ref_fai = ref_fai,
+      ref_fai = autosomes_fai,
       prefix = study_prefix + ".trio_cohort",
       exclude_regions = locus_assoc_exclude_regions,
       exclusion_frac_overlap = rvas_exclusion_frac_overlap,
@@ -401,7 +454,12 @@ workflow PedSvMainAnalysis {
       pedsv_r_docker = pedsv_r_docker
   }
 
-  # TODO: plot trio RVAS
+  call PlotRvas as PlotTrioCohortRvas {
+    input:
+      stats = TrioCohortRvas.rvas_sumstats,
+      prefix = study_prefix + ".trio_cohort",
+      docker = pedsv_docker
+  }
 
   call Rvas.SvGenicRvas as CaseControlCohortRvas {
     input:
@@ -412,7 +470,7 @@ workflow PedSvMainAnalysis {
       ad_matrix_idx = case_control_ad_matrix_idx,
       sample_metadata_tsv = sample_metadata_tsv,
       samples_list = case_control_samples_list,
-      ref_fai = ref_fai,
+      ref_fai = autosomes_fai,
       prefix = study_prefix + ".case_control_cohort",
       exclude_regions = locus_assoc_exclude_regions,
       exclusion_frac_overlap = rvas_exclusion_frac_overlap,
@@ -420,7 +478,12 @@ workflow PedSvMainAnalysis {
       pedsv_r_docker = pedsv_r_docker
   }
 
-  # TODO: plot case/control cohort RVAS
+  call PlotRvas as PlotCaseControlCohortRvas {
+    input:
+      stats = CaseControlCohortRvas.rvas_sumstats,
+      prefix = study_prefix + ".case_control_cohort",
+      docker = pedsv_docker
+  }
 
   call UnifyOutputs {
     input:
@@ -433,7 +496,16 @@ workflow PedSvMainAnalysis {
                   CaseControlCohortBurdenTests.plots_tarball,
                   PlotFullCohortSlidingWindows.results_tarball,
                   PlotTrioCohortSlidingWindows.results_tarball,
-                  PlotCaseControlCohortSlidingWindows.results_tarball],
+                  PlotCaseControlCohortSlidingWindows.results_tarball,
+                  PlotFullCohortSlidingWindows_MALE.results_tarball,
+                  PlotTrioCohortSlidingWindows_MALE.results_tarball,
+                  PlotCaseControlCohortSlidingWindows_MALE.results_tarball,
+                  PlotFullCohortSlidingWindows_FEMALE.results_tarball,
+                  PlotTrioCohortSlidingWindows_FEMALE.results_tarball,
+                  PlotCaseControlCohortSlidingWindows_FEMALE.results_tarball,
+                  PlotStudyWideRvas.results_tarball,
+                  PlotTrioCohortRvas.results_tarball,
+                  PlotCaseControlCohortRvas.results_tarball],
       prefix = study_prefix + "_analysis_outputs",
       docker = ubuntu_docker,
       relocate_stats = true
@@ -674,7 +746,7 @@ task SlidingWindowTest {
     if [ ~{defined(exclude_regions)} == "true" ]; then
       bedtools coverage \
         -a ~{contig}.bins.pre_mask.bed.gz \
-        -b ~{select_first(exclude_regions)} \
+        -b ~{select_first([exclude_regions])} \
       | awk -v OFS="\t" -v frac=~{exclusion_frac_overlap} \
         '{ if ($NF < frac) print $1, $2, $3 }' \
       | bgzip -c \
@@ -752,12 +824,16 @@ task SlidingWindowTest {
       --ad ~{contig}.large_rare_cnvs.ad.bed.gz \
       --metadata ~{sample_metadata_tsv} \
       --subset-samples ~{samples_list} \
-      --outfile ~{prefix}.sliding_window_stats.bed
+      --out-prefix ~{prefix}.sliding_window_stats
     bgzip -f ~{prefix}.sliding_window_stats.bed
+    bgzip -f ~{prefix}.sliding_window_stats.MALE_only.bed
+    bgzip -f ~{prefix}.sliding_window_stats.FEMALE_only.bed
   >>>
 
   output {
     File bin_stats = "~{prefix}.sliding_window_stats.bed.gz"
+    File male_bin_stats = "~{prefix}.sliding_window_stats.MALE_only.bed.gz"
+    File female_bin_stats = "~{prefix}.sliding_window_stats.FEMALE_only.bed.gz"
   }
 
   runtime {
@@ -1203,8 +1279,9 @@ task PlotSlidingWindowTests {
     | sort -Vk1,1 -k2,2n -k3,3n \
     | cat <( zcat ~{stats[0]} | head -n1 ) - \
     | bgzip -c \
-    > ~{prefix}.sliding_window_stats.bed.gz
-    tabix -p bed -f ~{prefix}.sliding_window_stats.bed.gz
+    > ~{prefix}.SlidingWindowResults/~{prefix}.sliding_window_stats.bed.gz
+    tabix -p bed -f \
+      ~{prefix}.SlidingWindowResults/~{prefix}.sliding_window_stats.bed.gz
 
     # Visualize
     # TODO: implement this
@@ -1222,6 +1299,42 @@ task PlotSlidingWindowTests {
     memory: "3.5 GB"
     cpu: 2
     disks: "local-disk " + disk_gb + " HDD"
+    preemptible: 3
+  }
+}
+
+
+# Plot RVAS results and format as tarball for unification
+task PlotRvas {
+  input {
+    File stats
+    String prefix
+    String docker
+  }
+
+  command <<<
+    set -eu -o pipefail
+
+    mkdir ~{prefix}.RvasResults
+
+    /opt/ped_germline_SV/analysis/association/plot_rvas_results.R \
+      --stats ~{stats} \
+      --out-prefix ~{prefix}.RvasResults/~{prefix}
+
+    cp ~{stats} ~{prefix}.RvasResults/
+
+    tar -czvf ~{prefix}.RvasResults.tar.gz ~{prefix}.RvasResults
+  >>>
+
+  output {
+    File results_tarball = "~{prefix}.RvasResults.tar.gz"
+  }
+
+  runtime {
+    docker: docker
+    memory: "3.5 GB"
+    cpu: 2
+    disks: "local-disk 25 HDD"
     preemptible: 3
   }
 }

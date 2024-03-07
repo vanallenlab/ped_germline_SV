@@ -15,6 +15,7 @@ clean.axis(
   title = NULL,
   tck = -0.025,
   cex.axis = 5/6,
+  line = 0,
   label.line = -0.65,
   title.line = 0.5,
   infinite = FALSE,
@@ -56,6 +57,8 @@ in the positive direction (without ticks) [default: FALSE]}
 
 \item{infinite.negative}{Indicator for the axis to be extended infinitely
 in the negative direction (without ticks) [default: FALSE]}
+
+\item{axis.line}{\code{line} parameter for overall axis [default: 0]}
 }
 \description{
 Print a clean axis using visually pleasing defaults

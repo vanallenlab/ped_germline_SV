@@ -23,7 +23,7 @@
 #' @param use.N.pcs Specify how many principal components should be adjusted in
 #' model \[default: 3\]
 #' @param extra.terms Specify if any extra terms should be added to the model.
-#' Named options include:  "batch", "coverage, "insert.size", and "wgd".
+#' Named options include:  "batch", "coverage", "insert.size", and "wgd".
 #' Custom terms can be passed using their exact column names in `meta`.
 #'
 #' @details There are several options for providing `X` and `Y` values:

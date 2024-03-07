@@ -171,8 +171,28 @@ pdf(paste(args[2], ".large_rare_unbal_auto_vs_allo.double_bars.pdf", sep=""),
     height=doublebar.height, width=doublebar.width)
 doublewide.barplot.by.phenotype(plot.df.l=stats2barplotdf(ss[which(ss$hypothesis == "large.rare.unbalanced.autosomal_only"), ], ci.mode="binomial"),
                                 plot.df.r=stats2barplotdf(ss[which(ss$hypothesis == "large.rare.unbalanced.allosomal_only"), ], ci.mode="binomial"),
-                                left.axis.units="percent", title="Samples with SV",
+                                left.axis.units="percent", title="Samples w/Unbal. SV >1Mb",
                                 label.l="Autosomal", label.r="Allosomal")
+dev.off()
+
+
+# Horizontal double-wide barplot of rare unbalanced SVs in males vs. females for supp figure
+pdf(paste(args[2], ".large_rare_unbal_male_vs_female.double_bars.pdf", sep=""),
+    height=doublebar.height, width=doublebar.width)
+doublewide.barplot.by.phenotype(plot.df.l=stats2barplotdf(ss[which(ss$hypothesis == "large.rare.unbalanced.MALE_only"), ], ci.mode="binomial"),
+                                plot.df.r=stats2barplotdf(ss[which(ss$hypothesis == "large.rare.unbalanced.FEMALE_only"), ], ci.mode="binomial"),
+                                left.axis.units="percent", title="Samples w/Unbal. SV >1Mb",
+                                label.l="Males (XY)", label.r="Females (XX)")
+dev.off()
+
+
+# Horizontal double-wide barplot of rare unbalanced autosomal SVs in males vs. females for supp figure
+pdf(paste(args[2], ".large_rare_unbal_male_vs_female.autosomes_only.double_bars.pdf", sep=""),
+    height=doublebar.height, width=doublebar.width)
+doublewide.barplot.by.phenotype(plot.df.l=stats2barplotdf(ss[which(ss$hypothesis == "large.rare.unbalanced.autosomal_only.MALE_only"), ], ci.mode="binomial"),
+                                plot.df.r=stats2barplotdf(ss[which(ss$hypothesis == "large.rare.unbalanced.autosomal_only.FEMALE_only"), ], ci.mode="binomial"),
+                                left.axis.units="percent", title="Rare Autosomal SV >1Mb",
+                                label.l="Males (XY)", label.r="Females (XX)")
 dev.off()
 
 

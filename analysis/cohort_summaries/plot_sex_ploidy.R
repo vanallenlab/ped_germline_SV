@@ -54,7 +54,7 @@ meta$inferred_sex[which(meta$inferred_sex == "TURNER" & !meta$sex_aneuploidy & m
 meta$inferred_sex[which(meta$inferred_sex == "TURNER" & !meta$sex_aneuploidy & meta$chrX_CopyNumber > 1.25)] <- "FEMALE"
 
 # Plot X & Y ploidy colored by sex assignment
-pdf.dim <- 2.25
+pdf.dim <- 2.5
 axis.title.line <- 0.45
 parmar <- c(2.45, 2.45, 0.25, 0.25)
 sex.legend.labels <- c(
@@ -74,6 +74,6 @@ pc.scatterplot(meta,
                y.title.line=axis.title.line,
                legend.vals=sex.colors[c("FEMALE", "MALE", "OTHER")],
                legend.labels=sex.legend.labels,
-               cex=0.35,
+               cex=0.4,
                parmar=parmar)
 dev.off()

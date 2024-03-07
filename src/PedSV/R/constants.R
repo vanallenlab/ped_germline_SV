@@ -78,11 +78,11 @@ load.constants <- function(subset, envir=.GlobalEnv){
                    "main" = "#54AFD1",
                    "light1" = "#76BFDA",
                    "light2" = "#98CFE3")
-  female.colors <- c("dark2" = "#692A4A",
-                     "dark1" = "#9D3F6F",
-                     "main" = "#D15494",
-                     "light1" = "#DA76A9",
-                     "light2" = "#E398BF")
+  female.colors <- c("dark2" = "#73475E",
+                     "dark1" = "#AD6B8C",
+                     "main" = "#E68EBB",
+                     "light1" = "#EBA5C9",
+                     "light2" = "#F0BBD6")
   AFR.colors <- c("dark2" = "#796B28",
                   "dark1" = "#B5A13C",
                   "main" = "#F1D650",
@@ -299,6 +299,9 @@ load.constants <- function(subset, envir=.GlobalEnv){
                          "EUR" = "European",
                          "SAS" = "South Asian",
                          "OTH" = "Other/Unknown"),
+    "sex.names" = c("MALE" = "Male",
+                    "FEMALE" = "Female",
+                    "OTHER" = "Other"),
     "stage.names" = c("0" = "",
                       "1" = "I",
                       "2" = "II",

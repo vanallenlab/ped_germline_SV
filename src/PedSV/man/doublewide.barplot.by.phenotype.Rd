@@ -18,7 +18,7 @@ doublewide.barplot.by.phenotype(
   label.l = NULL,
   label.r = NULL,
   group.label.cex = 1,
-  parmar = c(1.15, 2.25, 0.5, 0.25)
+  parmar = c(1.15, 2.25, 0.75, 0.25)
 )
 }
 \arguments{
