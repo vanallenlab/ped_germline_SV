@@ -17,12 +17,17 @@ version 1.0
 
 workflow PlotRdPanels {
   input {
-    File variant_info_tsv
+    File sample_metadata
+    File all_eligible_samples_list
     String prefix
+    File variant_info_tsv
 
     Array[File] bincov_matrixes
     Array[File] bincov_matrix_indexes
     Array[File] median_coverage_tsvs
+
+    File gtf
+    File gtf_index
 
     String gatk_sv_pipeline_docker
     String linux_docker
@@ -50,15 +55,38 @@ workflow PlotRdPanels {
         docker = gatk_sv_pipeline_docker
     }
 
-    # call PlotPanel {
-    #   chrom = variant_info[0],
-    #   sv_start = variant_info[1],
-    #   sv_end = variant_info[2],
-    #   svid = variant_info[3],
-    #   bincov = PrepBincov.matrix,
-    #   bincov_idx = PrepBincov.index,
-    #   docker = pedsv_r_docker
-    # }
+    call PlotPanel {
+      input:
+        chrom = variant_info[0],
+        sv_start = variant_info[1],
+        sv_end = variant_info[2],
+        svid = variant_info[3],
+        sv_label = variant_info[4],
+        sample_metadata = sample_metadata,
+        samples_list = all_eligible_samples_list,
+        plot_sample_ids = variant_info[5],
+        bincov = PrepBincov.matrix,
+        bincov_idx = PrepBincov.index,
+        cov_medians = PrepMedianCov.median_cov,
+        window_start = PrepBincov.window_start,
+        window_end = PrepBincov.window_end,
+        gtf = gtf,
+        gtf_index = gtf_index,
+        gene = variant_info[6],
+        prefix = prefix,
+        docker = pedsv_r_docker
+    }
+  }
+
+  call GatherPlots {
+    input:
+      plots = PlotPanel.plot,
+      prefix = prefix,
+      docker = linux_docker
+  }
+
+  output {
+    File plots_tarball = GatherPlots.tarball
   }
 }
 
@@ -127,14 +155,16 @@ task PrepBincov {
     Array[File] bincov_matrix_indexes
 
     Int min_query_pad = 10000
-    Int max_bins = 150
+    Int max_query_pad = 500000
+    Int max_bins = 75
     Int disk_gb = 275
 
     String docker
   }
 
   Int svlen = ceil(sv_end - sv_start)
-  Int interval_length = if ( svlen >= min_query_pad ) then ceil(2 * svlen / 3) else min_query_pad
+  Int interval_length_pre = if ( svlen >= min_query_pad ) then ceil(2 * svlen / 3) else min_query_pad
+  Int interval_length = if ( interval_length_pre > max_query_pad ) then max_query_pad else interval_length_pre
   Int query_start = if ( sv_start - interval_length < 0 ) then 0 else sv_start - interval_length
   Int query_end = sv_end + interval_length
   String query = chrom + ":" + floor(query_start) + "-" + ceil(query_end)
@@ -195,12 +225,130 @@ task PrepBincov {
   output {
     File matrix = "~{svid}.~{chrom}_~{query_start}_~{query_end}.rd.bed.gz"
     File index = "~{svid}.~{chrom}_~{query_start}_~{query_end}.rd.bed.gz.tbi"
+    Int window_start = query_start
+    Int window_end = query_end
   }
 
   runtime {
     docker: docker
     memory: "7.5 GB"
     cpu: 4
+    disks: "local-disk " + disk_gb + " HDD"
+    preemptible: 3
+  }
+}
+
+
+# Plot a single panel
+task PlotPanel {
+  input {
+    String chrom
+    Int sv_start
+    Int sv_end
+    String svid
+    String? sv_label
+
+    File sample_metadata
+    File samples_list
+    String plot_sample_ids      # note: pipe-delimited
+    
+    File bincov
+    File bincov_idx
+    File cov_medians
+    Int window_start
+    Int window_end
+
+    File gtf
+    File gtf_index
+    String? gene
+
+    String prefix
+    String docker
+  }
+
+  String window_coords = chrom + ":" + window_start + "-" + window_end
+  String sv_coords = chrom + ":" + sv_start + "-" + sv_end
+  String outfile = prefix + "." + svid + "." + plot_sample_ids + ".rd_viz.pdf"
+  Int disk_gb = ceil(3 * size([bincov], "GB")) + 20
+
+  command <<<
+    set -eu -o pipefail
+
+    # Prep gene features
+    tabix ~{gtf} ~{window_coords} | bgzip -c > gfeats.gtf.gz
+    if [ ~{defined(gene)} == "true" ]; then
+      zcat gfeats.gtf.gz | fgrep -w ~{select_first([gene])} | bgzip -c > gfeats.gtf.gz2
+      mv gfeats.gtf.gz2 gfeats.gtf.gz
+    fi
+    zcat gfeats.gtf.gz | awk -v OFS="\t" '{ print $1, $4, $5, $3 }' | bgzip -c > gfeats.bed.gz
+
+    # Run plot command
+    cmd="/opt/ped_germline_SV/analysis/utilities/plot_rd_single_locus.R"
+    cmd="$cmd --bincov ~{bincov} --cov-medians ~{cov_medians}"
+    cmd="$cmd --metadata ~{sample_metadata} --subset-samples ~{samples_list}"
+    n_samps=0
+    while read sid; do
+      n_samps=$(( n_samps + 1 ))
+      cmd="$cmd --sample-id \"$sid\""
+    done < <( echo "~{plot_sample_ids}" | sed 's/|/\n/g' )
+    if [ $n_samps -gt 1 ]; then
+      cmd="$cmd --no-parents"
+    fi
+    cmd="$cmd --sv-interval ~{sv_coords}"
+    if [ ~{defined(sv_label)} == "true" ]; then
+      cmd="$cmd --sv-label '~{select_first([sv_label])}'"
+    fi
+    cmd="$cmd --highlight-gene-features gfeats.bed.gz"
+    if [ ~{defined(gene)} == "true" ]; then
+      cmd="$cmd --highlight-gene-label '~{select_first([gene])}'"
+    fi
+    cmd="$cmd --outfile \"~{outfile}\""
+    echo -e "Now plotting with the following command:\n$cmd"
+    eval $cmd
+  >>>
+
+  output {
+    File plot = outfile
+  }
+
+  runtime {
+    docker: docker
+    memory: "7.5 GB"
+    cpu: 4
+    disks: "local-disk " + disk_gb + " HDD"
+    preemptible: 3
+  }
+}
+
+
+task GatherPlots {
+  input {
+    Array[File] plots
+    String prefix
+    String docker
+  }
+
+  String out_prefix = prefix + ".polished_rd_viz"
+  Int disk_gb = ceil(3 * size(plots, "GB")) + 20
+
+  command <<<
+    set -eu -o pipefail
+
+    mkdir ~{out_prefix}
+
+    mv ~{sep=" " plots} ~{out_prefix}/
+
+    tar -czvf ~{out_prefix}.tar.gz ~{out_prefix}
+  >>>
+
+  output {
+    File tarball = out_prefix + ".tar.gz"
+  }
+
+  runtime {
+    docker: docker
+    memory: "1.75 GB"
+    cpu: 1
     disks: "local-disk " + disk_gb + " HDD"
     preemptible: 3
   }

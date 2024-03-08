@@ -76,6 +76,19 @@ shade.middle.quantile <- function(cov, lower, upper, color){
   polygon(plot.vals, border=NA, col=color)
 }
 
+# Add gene features at a prespecified location
+add.gene.features <- function(gdf, y.mid, y.lims, gene.color, alpha=1){
+  tx.or.gene <- gdf[which(gdf$feature %in% c("transcript", "gene")), ]
+  segments(x0=tx.or.gene$start, x1=tx.or.gene$end,
+           y0=y.mid, y1=y.mid, lwd=2, lend="butt",
+           col=adjustcolor(gene.color, alpha=alpha))
+  exons <- gdf[which(gdf$feature %in% c("exon", "UTR", "CDS")), ]
+  rect(xleft=exons$start, xright=exons$end,
+       ybottom=min(y.lims), ytop=max(y.lims),
+       border=adjustcolor(gene.color, alpha=alpha),
+       col=adjustcolor(gene.color, alpha=alpha))
+}
+
 
 ###########
 # RScript #
@@ -89,6 +102,7 @@ parser$add_argument("--cov-medians", metavar=".tsv", type="character",
 parser$add_argument("--metadata", metavar=".tsv", type="character",
                     help="Sample metadata .tsv", required=TRUE)
 parser$add_argument("--sample-id", metavar="string", type="character",
+                    action="append",
                     help="IDs for samples to highlight on panel.")
 parser$add_argument("--subset-samples", metavar=".tsv", type="character",
                     help="List of samples to subset [default: use all samples]")
@@ -96,10 +110,12 @@ parser$add_argument("--sv-interval", metavar="chrom:start-end", type="character"
                     help="SV coordinates to highlight")
 parser$add_argument("--sv-label", metavar="string", type="character", default="SV",
                     help="Label for --sv-interval [default: 'SV']")
-parser$add_argument("--gene-features", metavar=".bed", type="character",
-                    help="BED file of gene features to plot.")
-parser$add_argument("--gene-label", metavar="string", type="character",
-                    help="Label for gene track [default: 'Gene']")
+parser$add_argument("--highlight-gene-features", metavar=".bed", type="character",
+                    help="BED file of gene features to plot prominently.")
+parser$add_argument("--highlight-gene-label", metavar="string", type="character",
+                    help="Label for --highlight-gene-features [default: 'Gene']")
+parser$add_argument("--background-gene-features", metavar=".bed", type="character",
+                    help="BED file of gene features to plot subtly.")
 parser$add_argument("--no-parents", action="store_true",
                     help="Disable plotting of parents for complete trios")
 parser$add_argument("--outfile", metavar="path", type="character", required=TRUE,
@@ -114,10 +130,36 @@ args <- parser$parse_args()
 #              "subset_samples" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_v2_callset_generation/v2.5.3/PedSV.v2.5.3.full_cohort_w_relatives_1000G.samples.list",
 #              "sv_interval" = "chr2:15546644-16339295",
 #              "sv_label" = "793kb Duplication",
-#              "gene_features" = "~/scratch/MYCN.features.bed",
-#              "gene_label" = "MYCN",
+#              "highlight_gene_features" = "~/scratch/MYCN.features.bed",
+#              "highlight_gene_label" = "MYCN",
+#              "background_gene_features" = NULL,
 #              "no_parents" = FALSE,
 #              "outfile" = "~/scratch/MYCN.DUP.rdviz.test.pdf")
+# args <- list("bincov" = "~/scratch/All_20_Batches.chr16.final_cleanup_DEL_chr16_9400.chr16_89679839_89877838.rd.bed.gz",
+#              "cov_medians" = "~/scratch/PedSV.v2.5.3.median_coverage.tsv.gz",
+#              "metadata" = "~/scratch/PedSV.v2.5.3.cohort_metadata.w_control_assignments.tsv.gz",
+#              "sample_id" = "PT_X4801S39",
+#              "subset_samples" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_v2_callset_generation/v2.5.3/PedSV.v2.5.3.full_cohort_w_relatives_1000G.samples.list",
+#              "sv_interval" = "chr16:89736410-89821267",
+#              "sv_label" = "85kb Duplication",
+#              "highlight_gene_features" = "~/scratch/FANCA.features.bed",
+#              "highlight_gene_label" = "FANCA",
+#              "background_gene_features" = NULL,
+#              "no_parents" = FALSE,
+#              "outfile" = "~/scratch/FANCA.DUP.rdviz.test.pdf")
+# args <- list("bincov" = "~/scratch/All_20_Batches.chr3.final_cleanup_DUP_chr3_397.chr3_12470403_12885616.rd.bed.gz",
+#              "cov_medians" = "~/scratch/PedSV.v2.5.3.median_coverage.tsv.gz",
+#              "metadata" = "~/scratch/PedSV.v2.5.3.cohort_metadata.w_control_assignments.tsv.gz",
+#              "sample_id" = c("PT_5CZHK9CR", "PT_ZT2NW6WA", "SJ071781"),
+#              "subset_samples" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_v2_callset_generation/v2.5.3/PedSV.v2.5.3.full_cohort_w_relatives_1000G.samples.list",
+#              "sv_interval" = "chr3:12589035-12766984",
+#              "sv_label" = "178kb Duplication",
+#              "highlight_gene_features" = "~/scratch/RAF1.features.bed",
+#              "highlight_gene_label" = "RAF1",
+#              "background_gene_features" = NULL,
+#              "no_parents" = TRUE,
+#              "outfile" = "~/scratch/RAF1.DUP.rdviz.test.pdf")
+
 
 # Load sample metadata
 meta <- load.sample.metadata(args$metadata)
@@ -127,8 +169,8 @@ cov <- load.coverage(args$bincov, args$cov_medians)
 
 # Check if both parents are present; if so, prepend these to args$sample_id
 samples.to.plot <- args$sample_id
-sample.lwds <- rep(3, times=length(samples.to.plot))
-sample.colors <- cancer.colors[metadata.cancer.label.map[meta[samples.to.plot, "disease"]]]
+sample.colors <- sapply(cancer.palettes[metadata.cancer.label.map[meta[samples.to.plot, "disease"]]],
+                        function(p){p["dark1"]})
 if(!args$no_parents){
   for(sid in args$sample_id){
     fam.id <- meta[sid, "family_id"]
@@ -138,9 +180,9 @@ if(!args$no_parents){
     parents <- rownames(meta)[which(meta$family_id == fam.id & rownames(meta) != sid)]
     n.parents <- length(parents)
     if(n.parents == 2 & all(parents %in% colnames(cov))){
+      child.pheno <- metadata.cancer.label.map[meta[sid, "disease"]]
       samples.to.plot <- c(parents, samples.to.plot)
-      sample.lwds <- c(2, 2, sample.lwds)
-      sample.colors <- c(sex.colors[meta[parents, "inferred_sex"]])
+      sample.colors <- c(rep(cancer.palettes[[child.pheno]]["light2"], 2), sample.colors)
     }
   }
 }
@@ -155,32 +197,43 @@ if(!is.null(args$subset_samples)){
                  union(keep.samples, samples.to.plot))]
 }
 
+# Get coverage median for each sample over the SV interval
+if(!is.null(args$sv_interval)){
+  sv.coords <- as.numeric(unlist(strsplit(unlist(strsplit(args$sv_interval, split=":"))[2], split="-")))
+  sample.pch <- c("MALE"=15, "FEMALE"=19)[meta[samples.to.plot, "inferred_sex"]]
+  sv.cov.meds <- sapply(samples.to.plot, function(sid){
+    median(cov[which(cov$start <= sv.coords[2] & cov$end >= sv.coords[1]), sid], na.rm=T)
+  })
+}
 
 # Set hard-coded plot parameters
-track.hex <- 0.075
+track.hex <- 0.1
 gene.color <- EAS.colors["dark2"]
+background.gene.color <- EAS.colors["light2"]
+sample.lwds <- rep(1.75, times=length(samples.to.plot))
 
 # Prepare plot area
 pdf(args$out, height=2.75, width=3.5)
 xlims <- range(cov[, c("start", "end")])
-ylims.rd <- c(min(c(1, cov[, samples.to.plot], na.rm=T)),
-              max(c(3, cov[, samples.to.plot], na.rm=T)) + 0.1)
-n.extra.tracks <- length(unlist(args[c("sv_interval", "gene_features")]))
-track.breaks <- ylims.rd[2] + (0:n.extra.tracks * track.hex * diff(ylims))
+ylims.rd <- c(min(c(1, unlist(cov[, samples.to.plot]), na.rm=T)),
+              max(c(3, unlist(cov[, samples.to.plot]), na.rm=T)) + 0.1)
+n.extra.tracks <- length(unlist(args[c("sv_interval", "highlight_gene_features")]))
+track.breaks <- ylims.rd[2] + (0:n.extra.tracks * track.hex * diff(ylims.rd))
 ylims <- c(ylims.rd[1], max(track.breaks))
-prep.plot.area(xlims=xlims, ylims=ylims, yaxs="r", parmar=c(0.1, 2.4, 2.75, 0.5))
+prep.plot.area(xlims=xlims, ylims=ylims, yaxs="r", parmar=c(0.1, 2.6, 2.75, 1.25))
+
+# Add background shading corresponding to population averages
+shade.middle.quantile(cov, 0.025, 0.975, "gray90")
+# shade.middle.quantile(cov, 0.25, 0.75, "gray85")
 
 # Add horizontal lines at integer copy states
 abline(h=0:10, lty=5, col="gray75")
 
-# Add background shading corresponding to population averages
-shade.middle.quantile(cov, 0.025, 0.975, "gray92")
-shade.middle.quantile(cov, 0.25, 0.75, "gray85")
-
 # Add lines for each highlight sample colored by cancer type
-sapply(samples.to.plot, function(sid){
-  points(step.function(cov$start, cov[, sid]), type="l", lwd=2,
-         col=cancer.colors[metadata.cancer.label.map[meta[sid, "disease"]]])
+sapply(1:length(samples.to.plot), function(i){
+  sid <- samples.to.plot[i]
+  points(step.function(cov$start, cov[, sid]), type="l",
+         lwd=sample.lwds[i], col=sample.colors[i])
 })
 
 # Prep top tracks
@@ -193,65 +246,81 @@ track.content.buffer <- 0.01 * diff(par("usr")[3:4])
 track.count <- 0
 if(!is.null(args$sv_interval)){
   track.count <- track.count + 1
-  sv.coords <- as.numeric(unlist(strsplit(unlist(strsplit(args$sv_interval, split=":"))[2], split="-")))
-  rect(xleft=sv.coords[1], xright=sv.coords[2],
-       ybottom=track.breaks[track.count]+track.content.buffer,
-       ytop=track.breaks[track.count+1]-track.content.buffer,
-       col="black")
+  # rect(xleft=sv.coords[1], xright=sv.coords[2],
+  #      ybottom=track.breaks[track.count]+track.content.buffer,
+  #      ytop=track.breaks[track.count+1]-track.content.buffer,
+  #      col="black")
+  segments(x0=sv.coords[1], x1=sv.coords[2],
+           y0=track.breaks[track.count], y1=track.breaks[track.count],
+           lwd=2)
   text(x=mean(sv.coords), y=mean(track.breaks[track.count + 0:1]),
-       labels=args$sv_label, cex=4/6, col="white")
+       labels=args$sv_label, cex=4.5/6)
 }
 
 # Add gene body track
-if(!is.null(args$gene_features)){
+if(!is.null(args$highlight_gene_features)){
   track.count <- track.count + 1
 
-  # Load gene features
-  gdf <- read.table(args$gene_features, sep="\t", header=F)
-  colnames(gdf) <- c("chrom", "start", "end", "feature")
+  # Load & plot background gene features
+  if(!is.null(args$background_gene_features)){
+    b.gdf <- read.table(args$background_gene_features, sep="\t", header=F)
+    colnames(b.gdf) <- c("chrom", "start", "end", "feature")
+    add.gene.features(b.gdf, y.mid=mean(track.breaks[track.count + 0:1]),
+                      y.lims=c(track.breaks[track.count + 1] - track.content.buffer,
+                               track.breaks[track.count] + track.content.buffer),
+                      background.gene.color, alpha=0.5)
+  }
 
-  # Plot gene features
-  tx.or.gene <- gdf[which(gdf$feature %in% c("transcript", "gene")), ]
-  segments(x0=tx.or.gene$start, x1=tx.or.gene$end,
-           y0=mean(track.breaks[track.count + 0:1]),
-           y1=mean(track.breaks[track.count + 0:1]),
-           lwd=2, col=gene.color, lend="butt")
-  exons <- gdf[which(gdf$feature %in% c("exon", "UTR", "CDS")), ]
-  rect(xleft=exons$start, xright=exons$end,
-       ybottom=track.breaks[track.count + 1] - track.content.buffer,
-       ytop=track.breaks[track.count] + track.content.buffer,
-       border=gene.color, col=gene.color)
+  # Load & plot highlight gene features
+  gdf <- read.table(args$highlight_gene_features, sep="\t", header=F)
+  colnames(gdf) <- c("chrom", "start", "end", "feature")
+  add.gene.features(gdf, y.mid=mean(track.breaks[track.count + 0:1]),
+                    y.lims=c(track.breaks[track.count + 1] - track.content.buffer,
+                             track.breaks[track.count] + track.content.buffer),
+                    gene.color, alpha=1)
 
   # Add gene track label
-  if(is.null(args$gene_label)){
+  if(is.null(args$highlight_gene_label)){
     gene.label.font <- 1
     gene.label <- "Genes"
   }else{
     gene.label.font <- 3
-    gene.label <- args$gene_label
+    gene.label <- args$highlight_gene_label
   }
-  if(any(gdf$start < xlims[1]) | is.null(args$gene_label)){
+  if(any(gdf$start < xlims[1]) | is.null(args$highlight_gene_label)){
     axis(2, at=mean(track.breaks[track.count + 0:1]), labels=gene.label, tick=F,
-         line=-1, cex=5/6, font=gene.label.font, col.axis=gene.color, las=2)
+         line=-0.9, cex=5.5/6, font=gene.label.font, col.axis=gene.color, las=2)
   }else{
-    text(x=min(gdf$start), y=mean(track.breaks[track.count + 0:1]), pos=2,
-         labels=gene.label, font=gene.label.font, col=gene.color, xpd=T)
+    text(x=min(gdf$start), y=mean(track.breaks[track.count + 0:1]), pos=2, xpd=T,
+         labels=gene.label, font=gene.label.font, col=gene.color, cex=5.5/6)
   }
 }
 
 # Add X axis
-if(diff(xlims) <= 100000){
-  x.labels <- paste(round(axTicks(3) / 1000, 2), "kb", sep="")
+if(diff(xlims) <= 50000 & xlims[1] < 100000000){
+  x.units <- "kb"
+  x.labels <- round(axTicks(3) / 1000, 3)
 }else{
-  x.labels <- paste(round(axTicks(3) / 1000000, 2), "Mb", sep="")
+  x.units <- "Mb"
+  x.labels <- round(axTicks(3) / 1000000, 3)
 }
+# x.labels[1] <- paste(x.labels[1], x.units, sep="")
 clean.axis(3, at=axTicks(3), infinite=TRUE, labels=x.labels, title.line=0.25)
+axis(3, at=par("usr")[2]+(0.01*diff(par("usr")[1:2])), tick=F, line=-1,
+     cex.axis=5/6, labels=x.units, hadj=0, xpd=T)
+
+# Add left margin swarmplot of median coverages per sample
+if(!is.null(args$sv_interval)){
+  points(beeswarm(sv.cov.meds, add=T, method="center",
+                  at=par("usr")[1]-(0.08*diff(par("usr")[1:2]))),
+         xpd=T, pch=sample.pch, xpd=T, col=sample.colors)
+}
 
 # Add Y axis
 y.ax.at <- 0:floor(ylims.rd[2])
 clean.axis(2, at=c(0, ylims.rd[2]), tck=0, labels=NA)
 clean.axis(2, at=y.ax.at)
-mtext("Copy Number", side=2, at=mean(ylims.rd), line=1.25)
+mtext("Copy Number", side=2, at=mean(ylims.rd), line=1.6)
 
 # Add idiogram
 clean.axis(3, at=xlims[1] + (diff(par("usr")[1:2]) * xlims/contig.lengths[cov$chrom[1]]),
