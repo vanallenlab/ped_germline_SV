@@ -57,8 +57,8 @@ workflow PedSvMainAnalysis {
     # String full_cohort_gwas_bcftools_query_options = ""
 
     # Note: the below inputs should contain ALL individuals in study, including relatives
-    File full_cohort_w_relatives_vcf
-    File full_cohort_w_relatives_vcf_idx
+    File full_cohort_w_relatives_dense_vcf
+    File full_cohort_w_relatives_dense_vcf_idx
     File full_cohort_w_relatives_bed
     File full_cohort_w_relatives_bed_idx
     File full_cohort_w_relatives_ad_matrix
@@ -145,8 +145,8 @@ workflow PedSvMainAnalysis {
 
     call PrecomputePerSampleBurdens {
       input:
-        vcf = full_cohort_w_relatives_vcf,
-        vcf_idx = full_cohort_w_relatives_vcf_idx,
+        vcf = full_cohort_w_relatives_dense_vcf,
+        vcf_idx = full_cohort_w_relatives_dense_vcf_idx,
         contig = autosome,
         prefix = study_prefix + ".full_cohort_w_relatives",
         docker = pedsv_docker

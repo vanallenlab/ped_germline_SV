@@ -76,6 +76,7 @@ workflow PlotRdPanels {
         gtf = gtf,
         gtf_index = gtf_index,
         gene = variant_info[6],
+        plot_genes = plot_genes,
         add_idiogram = add_idiogram,
         prefix = prefix,
         docker = pedsv_r_docker

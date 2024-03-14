@@ -61,7 +61,7 @@ plot.af.comparison <- function(bed, pop, cohort, pt.cex=0.1, bandwidth=2, alpha=
              labels=ax.labels)
   clean.axis(2, at=log10(logscale.major), title="Allele freq. (gnomAD)",
              labels=ax.labels, title.line=1.3)
-  mtext(3, text=pop.names.long[pop], font=2, line=0)
+  mtext(3, text=pop.names.long[pop], line=0)
 
   # Add points colored by SV type to make common insertion
   plot.df <- color.points.by.density(x, y, bandwidth=bandwidth,

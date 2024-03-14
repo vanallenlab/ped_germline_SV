@@ -93,6 +93,8 @@ task PreprocessGtf {
 
     if [ ~{defined(exclude_regions)} == "true" ]; then
       exclude_option="--exclusion-bed ~{exclude_regions} --exclusion-frac ~{exclusion_frac_overlap}"
+    else
+      exclude_option=""
     fi
 
     /opt/ped_germline_SV/analysis/utilities/preprocess_gtf_for_rvas.py \
