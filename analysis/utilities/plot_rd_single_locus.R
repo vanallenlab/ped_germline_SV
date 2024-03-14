@@ -19,6 +19,7 @@
 options(scipen=1000, stringsAsFactors=F)
 require(argparse, quietly=TRUE)
 require(PedSV, quietly=TRUE)
+require(beeswarm, quietly=TRUE)
 PedSV::load.constants("all")
 
 
@@ -69,10 +70,16 @@ step.function <- function(x, y){
 }
 
 # Add shaded stepwise normal population variability in coverage
-shade.middle.quantile <- function(cov, lower, upper, color){
-  plot.vals <- step.function(c(cov$start, rev(cov$start)),
-                             c(apply(cov[, -c(1:3)], 1, quantile, prob=lower, na.rm=T),
-                               apply(cov[, -c(1:3)], 1, quantile, prob=upper, na.rm=T)))
+shade.middle.quantile <- function(cov, lower, upper, color, method="quantile"){
+  if(method == "quantile"){
+    plot.vals <- step.function(c(cov$start, rev(cov$start)),
+                               c(apply(cov[, -c(1:3)], 1, quantile, prob=lower, na.rm=T),
+                                 apply(cov[, -c(1:3)], 1, quantile, prob=upper, na.rm=T)))
+  }else if(method == "zscore"){
+    plot.vals <- step.function(c(cov$start, rev(cov$start)),
+                               c(apply(cov[, -c(1:3)], 1, function(v){mean(v) + (lower * sd(v))}),
+                               rev(apply(cov[, -c(1:3)], 1, function(v){mean(v) + (upper * sd(v))}))))
+  }
   polygon(plot.vals, border=NA, col=color)
 }
 
@@ -118,47 +125,39 @@ parser$add_argument("--background-gene-features", metavar=".bed", type="characte
                     help="BED file of gene features to plot subtly.")
 parser$add_argument("--no-parents", action="store_true",
                     help="Disable plotting of parents for complete trios")
+parser$add_argument("--no-idiogram", action="store_true",
+                    help="Disable plotting of idiogram skeleton on top X axis")
 parser$add_argument("--outfile", metavar="path", type="character", required=TRUE,
                     help="Path to output .pdf")
 args <- parser$parse_args()
 
 # # DEV
-# args <- list("bincov" = "~/scratch/All_20_Batches.chr2.final_cleanup_DUP_chr2_812.chr2_14753993_17131946.rd.bed.gz",
+# args <- list("bincov" = "/Users/ryan/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_MS/PedSV_figures/other_data/All_20_Batches.chr2.final_cleanup_DUP_chr2_812.chr2_15046644_16839295.rd.w_PT_EJW8WH3G.bed.gz",
 #              "cov_medians" = "~/scratch/PedSV.v2.5.3.median_coverage.tsv.gz",
 #              "metadata" = "~/scratch/PedSV.v2.5.3.cohort_metadata.w_control_assignments.tsv.gz",
 #              "sample_id" = "PT_V1Q9W1NW",
 #              "subset_samples" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_v2_callset_generation/v2.5.3/PedSV.v2.5.3.full_cohort_w_relatives_1000G.samples.list",
 #              "sv_interval" = "chr2:15546644-16339295",
-#              "sv_label" = "793kb Duplication",
+#              "sv_label" = "793kb duplication",
 #              "highlight_gene_features" = "~/scratch/MYCN.features.bed",
 #              "highlight_gene_label" = "MYCN",
 #              "background_gene_features" = NULL,
 #              "no_parents" = FALSE,
-#              "outfile" = "~/scratch/MYCN.DUP.rdviz.test.pdf")
-# args <- list("bincov" = "~/scratch/All_20_Batches.chr16.final_cleanup_DEL_chr16_9400.chr16_89679839_89877838.rd.bed.gz",
-#              "cov_medians" = "~/scratch/PedSV.v2.5.3.median_coverage.tsv.gz",
-#              "metadata" = "~/scratch/PedSV.v2.5.3.cohort_metadata.w_control_assignments.tsv.gz",
-#              "sample_id" = "PT_X4801S39",
-#              "subset_samples" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_v2_callset_generation/v2.5.3/PedSV.v2.5.3.full_cohort_w_relatives_1000G.samples.list",
-#              "sv_interval" = "chr16:89736410-89821267",
-#              "sv_label" = "85kb Duplication",
-#              "highlight_gene_features" = "~/scratch/FANCA.features.bed",
-#              "highlight_gene_label" = "FANCA",
-#              "background_gene_features" = NULL,
-#              "no_parents" = FALSE,
-#              "outfile" = "~/scratch/FANCA.DUP.rdviz.test.pdf")
+#              "no_idiogram" = FALSE,
+#              "outfile" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_MS/PedSV_figures/other_data/MYCN.de_novo.DUP.rdviz.pdf")
 # args <- list("bincov" = "~/scratch/All_20_Batches.chr3.final_cleanup_DUP_chr3_397.chr3_12470403_12885616.rd.bed.gz",
 #              "cov_medians" = "~/scratch/PedSV.v2.5.3.median_coverage.tsv.gz",
 #              "metadata" = "~/scratch/PedSV.v2.5.3.cohort_metadata.w_control_assignments.tsv.gz",
 #              "sample_id" = c("PT_5CZHK9CR", "PT_ZT2NW6WA", "SJ071781"),
 #              "subset_samples" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_v2_callset_generation/v2.5.3/PedSV.v2.5.3.full_cohort_w_relatives_1000G.samples.list",
 #              "sv_interval" = "chr3:12589035-12766984",
-#              "sv_label" = "178kb Duplication",
-#              "highlight_gene_features" = "~/scratch/RAF1.features.bed",
+#              "sv_label" = "178kb duplication",
+#              "highlight_gene_features" = "~/scratch/RAF1_TMEM40.features.bed.gz",
 #              "highlight_gene_label" = "RAF1",
 #              "background_gene_features" = NULL,
 #              "no_parents" = TRUE,
-#              "outfile" = "~/scratch/RAF1.DUP.rdviz.test.pdf")
+#              "no_idiogram" = FALSE,
+#              "outfile" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_MS/PedSV_figures/other_data/RAF1_TMEM40.DUP.rdviz.pdf")
 
 
 # Load sample metadata
@@ -197,7 +196,7 @@ if(!is.null(args$subset_samples)){
                  union(keep.samples, samples.to.plot))]
 }
 
-# Get coverage median for each sample over the SV interval
+# Get coverage median for each sample over the SV interval (used for margin swarmplot)
 if(!is.null(args$sv_interval)){
   sv.coords <- as.numeric(unlist(strsplit(unlist(strsplit(args$sv_interval, split=":"))[2], split="-")))
   sample.pch <- c("MALE"=15, "FEMALE"=19)[meta[samples.to.plot, "inferred_sex"]]
@@ -207,27 +206,43 @@ if(!is.null(args$sv_interval)){
 }
 
 # Set hard-coded plot parameters
-track.hex <- 0.1
+track.hex <- 0.11
+track.content.buffer <- 0.08 * diff(par("usr")[3:4])
 gene.color <- EAS.colors["dark2"]
 background.gene.color <- EAS.colors["light2"]
-sample.lwds <- rep(1.75, times=length(samples.to.plot))
+sample.lwds <- rep(1 + (0.8 / (length(samples.to.plot) ^ (1/3))),
+                   times=length(samples.to.plot))
 
 # Prepare plot area
-pdf(args$out, height=2.75, width=3.5)
+pdf(args$out,
+    height=2.75-(0.25*as.numeric(args$no_idiogram)),
+    width=3.5-(0.25*as.numeric(args$no_idiogram)))
 xlims <- range(cov[, c("start", "end")])
-ylims.rd <- c(min(c(1, unlist(cov[, samples.to.plot]), na.rm=T)),
+ylims.rd <- c(min(c(1, unlist(cov[, samples.to.plot]), na.rm=T)) - 0.1,
               max(c(3, unlist(cov[, samples.to.plot]), na.rm=T)) + 0.1)
-n.extra.tracks <- length(unlist(args[c("sv_interval", "highlight_gene_features")]))
+n.extra.tracks <- length(args$sv_interval) + min(c(1, length(unlist(args[c("highlight_gene_features", "background_gene_features")]))))
 track.breaks <- ylims.rd[2] + (0:n.extra.tracks * track.hex * diff(ylims.rd))
-ylims <- c(ylims.rd[1], max(track.breaks))
-prep.plot.area(xlims=xlims, ylims=ylims, yaxs="r", parmar=c(0.1, 2.6, 2.75, 1.25))
+ylims <- c(ylims.rd[1], max(track.breaks) + (0.015*diff(ylims.rd)))
+prep.plot.area(xlims=xlims, ylims=ylims,
+               parmar=if(args$no_idiogram){c(0.35, 3.3, 2.25, 0.25)}else{c(0.35, 3.3, 2.75, 1.2)})
 
 # Add background shading corresponding to population averages
 shade.middle.quantile(cov, 0.025, 0.975, "gray90")
 # shade.middle.quantile(cov, 0.25, 0.75, "gray85")
+# cov.z <- seq(qnorm(0.995), 0, length.out=20)
+# for(i in 1:length(cov.z)){
+#   shade.middle.quantile(cov, -cov.z[i], cov.z[i],
+#                         color=paste("gray", 98-i, sep=""), method="zscore")
+# }
+# cov.q <- seq(0.5-0.025, 0, length.out=20)
+# for(i in 1:length(cov.q)){
+#   shade.middle.quantile(cov, 0.5-cov.q[i], 0.5+cov.q[i],
+#                         color=paste("gray", 96-i, sep=""))
+# }
 
 # Add horizontal lines at integer copy states
-abline(h=0:10, lty=5, col="gray75")
+segments(x0=xlims[1], x1=xlims[2], y0=0:max(ylims.rd), y1=0:max(ylims.rd),
+         lty=5, col="gray75", xpd=T)
 
 # Add lines for each highlight sample colored by cancer type
 sapply(1:length(samples.to.plot), function(i){
@@ -240,7 +255,6 @@ sapply(1:length(samples.to.plot), function(i){
 rect(xleft=-10e10, xright=10e10, ybottom=ylims.rd[2], ytop=par("usr")[4],
      border=NA, col="white", xpd=T)
 # abline(h=ylims.rd[2], col="gray90")
-track.content.buffer <- 0.01 * diff(par("usr")[3:4])
 
 # Add SV call track
 track.count <- 0
@@ -283,51 +297,57 @@ if(!is.null(args$highlight_gene_features)){
   if(is.null(args$highlight_gene_label)){
     gene.label.font <- 1
     gene.label <- "Genes"
+    gene.label.color <- background.gene.color
   }else{
     gene.label.font <- 3
     gene.label <- args$highlight_gene_label
+    gene.label.color <- gene.color
   }
   if(any(gdf$start < xlims[1]) | is.null(args$highlight_gene_label)){
     axis(2, at=mean(track.breaks[track.count + 0:1]), labels=gene.label, tick=F,
-         line=-0.9, cex=5.5/6, font=gene.label.font, col.axis=gene.color, las=2)
+         line=-0.9, cex=5/6, font=gene.label.font, col.axis=gene.label.color, las=2)
   }else{
-    text(x=min(gdf$start), y=mean(track.breaks[track.count + 0:1]), pos=2, xpd=T,
-         labels=gene.label, font=gene.label.font, col=gene.color, cex=5.5/6)
+    text(labels=gene.label, x=min(gdf$start),
+         y=mean(track.breaks[track.count + 0:1])-(0.005*diff(par("usr")[3:4])),
+         pos=2, xpd=T, font=gene.label.font, col=gene.label.color, cex=5/6)
   }
 }
 
 # Add X axis
-if(diff(xlims) <= 50000 & xlims[1] < 100000000){
-  x.units <- "kb"
-  x.labels <- round(axTicks(3) / 1000, 3)
+x.labels <- unique(sort(round(axTicks(3) / 1000000, 2)))
+x.ax.at <- 1000000 * x.labels
+if(args$no_idiogram){
+  x.title <- paste(cov[1, 1], "coordinate (Mb)")
 }else{
-  x.units <- "Mb"
-  x.labels <- round(axTicks(3) / 1000000, 3)
+  x.title <- NULL
+  axis(3, at=par("usr")[2]+(0.01*diff(par("usr")[1:2])), tick=F, line=-1.4,
+       cex.axis=5/6, labels="Mb", hadj=0, xpd=T)
 }
-# x.labels[1] <- paste(x.labels[1], x.units, sep="")
-clean.axis(3, at=axTicks(3), infinite=TRUE, labels=x.labels, title.line=0.25)
-axis(3, at=par("usr")[2]+(0.01*diff(par("usr")[1:2])), tick=F, line=-1,
-     cex.axis=5/6, labels=x.units, hadj=0, xpd=T)
+clean.axis(3, at=x.ax.at, infinite=TRUE, labels=x.labels, title=x.title, title.line=0.25)
 
 # Add left margin swarmplot of median coverages per sample
 if(!is.null(args$sv_interval)){
-  points(beeswarm(sv.cov.meds, add=T, method="center",
-                  at=par("usr")[1]-(0.08*diff(par("usr")[1:2]))),
-         xpd=T, pch=sample.pch, xpd=T, col=sample.colors)
+  points(beeswarm(sv.cov.meds, add=T, method="compactswarm", corral="random",
+                  at=par("usr")[1]-(0.11*diff(par("usr")[1:2])),
+                  corralWidth=diff(c(0.07, 0.15)*diff(par("usr")[1:2]))),
+         xpd=T, pch=sample.pch, xpd=T, col=sample.colors,
+         cex=1.1/(length(samples.to.plot)^(1/3)))
 }
 
 # Add Y axis
 y.ax.at <- 0:floor(ylims.rd[2])
 clean.axis(2, at=c(0, ylims.rd[2]), tck=0, labels=NA)
 clean.axis(2, at=y.ax.at)
-mtext("Copy Number", side=2, at=mean(ylims.rd), line=1.6)
+mtext("Copy number", side=2, at=mean(ylims.rd), line=1.9)
 
 # Add idiogram
-clean.axis(3, at=xlims[1] + (diff(par("usr")[1:2]) * xlims/contig.lengths[cov$chrom[1]]),
-           line=2, tck=-0.01, labels=NA, infinite=T)
-clean.axis(3, infinite=T, labels=NA, line=0)
-axis(3, line=0.6, at=par("usr")[1]-(0.025*diff(par("usr")[1:2])),
-     labels=cov$chrom[1], xpd=T, tick=F, hadj=1, cex.axis=5/6)
+if(!args$no_idiogram){
+  clean.axis(3, at=xlims[1] + (diff(par("usr")[1:2]) * xlims/contig.lengths[cov$chrom[1]]),
+             line=2, tck=-0.01, labels=NA, infinite=T)
+  clean.axis(3, infinite=T, labels=NA, line=0)
+  axis(3, line=0.6, at=par("usr")[1]-(0.025*diff(par("usr")[1:2])),
+       labels=cov$chrom[1], xpd=T, tick=F, hadj=1, cex.axis=5/6)
+}
 
 # Close pdf
 dev.off()

@@ -66,9 +66,9 @@ plot.or.by.freq <- function(plot.stats, title=NULL, connect.cancers=c(),
   prep.plot.area(xlims=c(0.25, 2.75), ylims=c(ymin, ymax), parmar=c(2.1, 2.6, 1.1, 0.1), yaxs="r")
   axis(1, at=0.5:2.5, tick=F, line=-0.9, labels=c("AF<1%", "AF<0.1%", "AC=1"),
        cex.axis=5/6)
-  mtext("SV Frequency", 1, 1)
+  mtext("SV frequency", 1, 1)
   y.ax.len <- diff(par("usr")[3:4])
-  clean.axis(2, title="Odds Ratio", infinite=T)
+  clean.axis(2, title="Odds ratio", infinite=T)
   mtext(title, 3, 0)
 
   # Infer location of points when swarmed
@@ -150,7 +150,7 @@ sapply(c("", "DEL", "DUP", "INV", "CPX", "unbalanced"), function(suffix){
   pdf(paste(args[2], ".large_", svtype, ".or_by_freq.pdf", sep=""),
       height=lineplot.height, width=lineplot.width)
   plot.or.by.freq(plot.stats,
-                  title=if(suffix == "unbalanced"){"Unbalanced SVs >1Mb"}else{paste("Large (>1Mb)", sv.name)},
+                  title=if(suffix == "unbalanced"){"Unbalanced SVs >1Mb"}else{paste("Large (>1Mb)", tolower(sv.name))},
                   shaded.pancan.ci=T, connect.cancers="pancan")
   dev.off()
 })
@@ -161,7 +161,7 @@ pdf(paste(args[2], ".large_rare_unbal_vs_bal.double_bars.pdf", sep=""),
     height=doublebar.height, width=doublebar.width)
 doublewide.barplot.by.phenotype(plot.df.l=stats2barplotdf(ss[which(ss$hypothesis == "large.rare.unbalanced"), ], ci.mode="binomial"),
                                 plot.df.r=stats2barplotdf(ss[which(ss$hypothesis == "large.rare.balanced"), ], ci.mode="binomial"),
-                                left.axis.units="percent", title="Samples w/Rare SV >1Mb",
+                                left.axis.units="percent", title="Samples w/rare SV >1Mb",
                                 label.l="Unbalanced SVs", label.r="Balanced SVs")
 dev.off()
 
@@ -171,7 +171,7 @@ pdf(paste(args[2], ".large_rare_unbal_auto_vs_allo.double_bars.pdf", sep=""),
     height=doublebar.height, width=doublebar.width)
 doublewide.barplot.by.phenotype(plot.df.l=stats2barplotdf(ss[which(ss$hypothesis == "large.rare.unbalanced.autosomal_only"), ], ci.mode="binomial"),
                                 plot.df.r=stats2barplotdf(ss[which(ss$hypothesis == "large.rare.unbalanced.allosomal_only"), ], ci.mode="binomial"),
-                                left.axis.units="percent", title="Samples w/Unbal. SV >1Mb",
+                                left.axis.units="percent", title="Samples w/unbal. SV >1Mb",
                                 label.l="Autosomal", label.r="Allosomal")
 dev.off()
 
@@ -181,7 +181,7 @@ pdf(paste(args[2], ".large_rare_unbal_male_vs_female.double_bars.pdf", sep=""),
     height=doublebar.height, width=doublebar.width)
 doublewide.barplot.by.phenotype(plot.df.l=stats2barplotdf(ss[which(ss$hypothesis == "large.rare.unbalanced.MALE_only"), ], ci.mode="binomial"),
                                 plot.df.r=stats2barplotdf(ss[which(ss$hypothesis == "large.rare.unbalanced.FEMALE_only"), ], ci.mode="binomial"),
-                                left.axis.units="percent", title="Samples w/Unbal. SV >1Mb",
+                                left.axis.units="percent", title="Samples w/unbal. SV >1Mb",
                                 label.l="Males (XY)", label.r="Females (XX)")
 dev.off()
 
@@ -191,7 +191,7 @@ pdf(paste(args[2], ".large_rare_unbal_male_vs_female.autosomes_only.double_bars.
     height=doublebar.height, width=doublebar.width)
 doublewide.barplot.by.phenotype(plot.df.l=stats2barplotdf(ss[which(ss$hypothesis == "large.rare.unbalanced.autosomal_only.MALE_only"), ], ci.mode="binomial"),
                                 plot.df.r=stats2barplotdf(ss[which(ss$hypothesis == "large.rare.unbalanced.autosomal_only.FEMALE_only"), ], ci.mode="binomial"),
-                                left.axis.units="percent", title="Rare Autosomal SV >1Mb",
+                                left.axis.units="percent", title="Rare autosomal SV >1Mb",
                                 label.l="Males (XY)", label.r="Females (XX)")
 dev.off()
 
@@ -207,7 +207,7 @@ sapply(c("", "LoF", "CG", "IED", "nonLoF_disruptive"), function(suffix){
     clean.sumstats.singleHyp(ss, hyp, freq)
   }))
   out.tag <- if(suffix == ""){"all"}else{suffix}
-  title <- if(suffix == ""){"Gene-disruptive SVs"}else if(suffix == "nonLoF_disruptive"){"Non-LoF Genic SVs"}else{paste(suffix, "SVs")}
+  title <- if(suffix == ""){"Gene-disruptive SVs"}else if(suffix == "nonLoF_disruptive"){"Non-LoF genic SVs"}else{paste(suffix, "SVs")}
   pdf(paste(args[2], ".gene_disruptive_", out.tag, ".or_by_freq.pdf", sep=""),
       height=lineplot.height, width=lineplot.width)
   plot.or.by.freq(plot.stats, title=title, shaded.pancan.ci=T, connect.cancers="pancan")
@@ -220,8 +220,8 @@ pdf(paste(args[2], ".singleton_lof_vs_cg.double_bars.pdf", sep=""),
     height=doublebar.height, width=doublebar.width)
 doublewide.barplot.by.phenotype(plot.df.l=stats2barplotdf(ss[which(ss$hypothesis == "singleton.gene_disruptive.singleton_LoF_SVs"), ]),
                                 plot.df.r=stats2barplotdf(ss[which(ss$hypothesis == "singleton.gene_disruptive.singleton_CG_SVs"), ]),
-                                title="Singleton SVs per Sample",
-                                label.l="Loss-of-Function (LoF)", label.r="Gene Copy Gain (CG)",
+                                title="Singleton SVs per sample",
+                                label.l="Loss-of-function (LoF)", label.r="Gene copy gain (CG)",
                                 group.label.cex=5/6)
 dev.off()
 
@@ -231,6 +231,19 @@ pdf(paste(args[2], ".single_gene_disruptive.rare_and_singleton.double_bars.pdf",
     height=doublebar.height, width=doublebar.width)
 doublewide.barplot.by.phenotype(plot.df.l=stats2barplotdf(ss[which(ss$hypothesis == "rare.single_gene_disruptive"), ]),
                                 plot.df.r=stats2barplotdf(ss[which(ss$hypothesis == "singleton.single_gene_disruptive"), ]),
-                                title="Single Gene-Disruptive SVs",
+                                title="Single gene-disruptive SVs",
                                 label.l="Rare (AF<1%)", label.r="Singleton (AC=1)")
 dev.off()
+
+
+# Horizontal double-wide barplot of COSMIC & CPG gene-disruptive SVs for main figure
+# Note: custom height to fit with rest of this specific figure
+pdf(paste(args[2], ".rare_cosmic_and_cpg_disruptive.double_bars.pdf", sep=""),
+    height=2.75, width=3.75)
+doublewide.barplot.by.phenotype(plot.df.l=stats2barplotdf(ss[which(ss$hypothesis == "rare.cosmic.gene_disruptive"), ]),
+                                plot.df.r=stats2barplotdf(ss[which(ss$hypothesis == "rare.cpg.gene_disruptive"), ]),
+                                title="Samples with rare\ngene-disruptive SV", label.l="COSMIC Tier 1",
+                                label.r="Germline CPGs", left.axis.units="percent",
+                                group.label.cex=5/6, parmar=c(1.15, 3.25, 0.75, 0.25))
+dev.off()
+

@@ -57,9 +57,9 @@ plot.af.comparison <- function(bed, pop, cohort, pt.cex=0.1, bandwidth=2, alpha=
        srt=(180 / pi) * atan(diff(par("usr")[3:4])/(x.min-par("usr")[1])))
   label.denoms <- gsub("000$", "k", gsub("000000$", "M", as.character(ceiling(1/logscale.major))))
   ax.labels <- gsub("^1:1$", "1", paste("1", label.denoms, sep=":"))
-  clean.axis(1, at=log10(logscale.major), title="Allele Freq. (This Study)",
+  clean.axis(1, at=log10(logscale.major), title="Allele freq. (this study)",
              labels=ax.labels)
-  clean.axis(2, at=log10(logscale.major), title="Allele Freq. (gnomAD)",
+  clean.axis(2, at=log10(logscale.major), title="Allele freq. (gnomAD)",
              labels=ax.labels, title.line=1.3)
   mtext(3, text=pop.names.long[pop], font=2, line=0)
 
@@ -82,7 +82,7 @@ plot.af.comparison <- function(bed, pop, cohort, pt.cex=0.1, bandwidth=2, alpha=
 # RScript #
 ###########
 # Parse command line arguments and options
-parser <- ArgumentParser(description="Plot SV counts and sizes")
+parser <- ArgumentParser(description="Compare SV AFs to gnomAD")
 parser$add_argument("bed", metavar=".tsv", type="character",
                     help="SV sites .bed")
 parser$add_argument("--cohort-prefix", default="", metavar="string", type="character",

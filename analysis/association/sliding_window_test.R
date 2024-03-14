@@ -82,9 +82,9 @@ meta <- load.sample.metadata(args$metadata, keep.samples=keepers, reassign.paren
 ad <- query.ad.matrix(args$ad, keep.samples=keepers)
 
 # Perform analysis once for all samples and once for each binary sex
-for(sex in c(NULL, "MALE", "FEMALE")){
+for(sex in c(NA, "MALE", "FEMALE")){
   # Set sex-specific parameters
-  if(is.null(sex)){
+  if(is.na(sex)){
     test.meta <- meta
     outfile <- paste(args$out_prefix, "bed", sep=".")
   }else{

@@ -29,6 +29,9 @@ workflow PlotRdPanels {
     File gtf
     File gtf_index
 
+    Boolean plot_genes = true
+    Boolean add_idiogram = true
+
     String gatk_sv_pipeline_docker
     String linux_docker
     String pedsv_r_docker
@@ -73,6 +76,7 @@ workflow PlotRdPanels {
         gtf = gtf,
         gtf_index = gtf_index,
         gene = variant_info[6],
+        add_idiogram = add_idiogram,
         prefix = prefix,
         docker = pedsv_r_docker
     }
@@ -154,9 +158,10 @@ task PrepBincov {
     Array[String] bincov_matrixes
     Array[File] bincov_matrix_indexes
 
-    Int min_query_pad = 10000
-    Int max_query_pad = 500000
-    Int max_bins = 75
+    Int min_query_pad = 5000
+    Int max_query_pad = 1000000
+    Int min_notsmall_compression = 8
+    Int max_bins = 70
     Int disk_gb = 275
 
     String docker
@@ -169,6 +174,7 @@ task PrepBincov {
   Int query_end = sv_end + interval_length
   String query = chrom + ":" + floor(query_start) + "-" + ceil(query_end)
   Int n_bincovs = length(bincov_matrixes)
+  Int min_ratio = if ( svlen < 5000 ) then 1 else min_notsmall_compression
 
   command <<<
     # Relocate all indexes to working directory for tabix read access
@@ -209,6 +215,9 @@ task PrepBincov {
     n_bins=$( sed '1d' bincov_parent.tsv | wc -l )
     if [ $n_bins -gt ~{max_bins} ]; then
       (( ratio=(n_bins+~{max_bins}-1)/~{max_bins} ))
+      if [ $ratio -lt ~{min_ratio} ]; then
+        ratio=~{min_ratio}
+      fi
       echo -e "Compressing merged bincov matrix using ratio $ratio"
       bash /opt/WGD/bin/compressCov.sh \
         -z -o "~{svid}.~{chrom}_~{query_start}_~{query_end}.rd.bed.gz" \
@@ -260,7 +269,10 @@ task PlotPanel {
 
     File gtf
     File gtf_index
-    String? gene
+    String gene                  # set to "NA" if no gene highlight desired
+
+    Boolean plot_genes = true
+    Boolean add_idiogram = true
 
     String prefix
     String docker
@@ -275,12 +287,14 @@ task PlotPanel {
     set -eu -o pipefail
 
     # Prep gene features
-    tabix ~{gtf} ~{window_coords} | bgzip -c > gfeats.gtf.gz
-    if [ ~{defined(gene)} == "true" ]; then
-      zcat gfeats.gtf.gz | fgrep -w ~{select_first([gene])} | bgzip -c > gfeats.gtf.gz2
-      mv gfeats.gtf.gz2 gfeats.gtf.gz
+    if [ ~{plot_genes} == "true" ]; then
+      tabix ~{gtf} ~{window_coords} | bgzip -c > gfeats.gtf.gz
+      if [ ~{gene} != "NA" ]; then
+        zcat gfeats.gtf.gz | fgrep -w ~{select_first([gene])} | bgzip -c > gfeats.gtf.gz2
+        mv gfeats.gtf.gz2 gfeats.gtf.gz
+      fi
+      zcat gfeats.gtf.gz | awk -v OFS="\t" '{ print $1, $4, $5, $3 }' | bgzip -c > gfeats.bed.gz
     fi
-    zcat gfeats.gtf.gz | awk -v OFS="\t" '{ print $1, $4, $5, $3 }' | bgzip -c > gfeats.bed.gz
 
     # Run plot command
     cmd="/opt/ped_germline_SV/analysis/utilities/plot_rd_single_locus.R"
@@ -298,9 +312,16 @@ task PlotPanel {
     if [ ~{defined(sv_label)} == "true" ]; then
       cmd="$cmd --sv-label '~{select_first([sv_label])}'"
     fi
-    cmd="$cmd --highlight-gene-features gfeats.bed.gz"
-    if [ ~{defined(gene)} == "true" ]; then
-      cmd="$cmd --highlight-gene-label '~{select_first([gene])}'"
+    if [ ~{plot_genes} == "true" ]; then
+      if [ ~{gene} != "NA" ]; then
+        cmd="$cmd --highlight-gene-label '~{select_first([gene])}'"
+        cmd="$cmd --highlight-gene-features gfeats.bed.gz"
+      else
+        cmd="$cmd --background-gene-features gfeats.bed.gz"
+      fi
+    fi
+    if [ ~{add_idiogram} == "false" ]; then
+      cmd="$cmd --no-idiogram"
     fi
     cmd="$cmd --outfile \"~{outfile}\""
     echo -e "Now plotting with the following command:\n$cmd"
@@ -336,7 +357,9 @@ task GatherPlots {
 
     mkdir ~{out_prefix}
 
-    mv ~{sep=" " plots} ~{out_prefix}/
+    while read file; do
+      mv "$file" ~{out_prefix}/
+    done < ~{write_lines(plots)}
 
     tar -czvf ~{out_prefix}.tar.gz ~{out_prefix}
   >>>

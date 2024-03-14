@@ -18,14 +18,21 @@ swarmplot.by.phenotype(
   y.tick.labels = NULL,
   parse.labels = TRUE,
   cancer.name.xadj = 0.1,
+  shorten.cancer.names = FALSE,
+  add.sample.size = FALSE,
+  sample.size.mirror.buffer = 0.2,
   scale.swarms = TRUE,
   median.labels = FALSE,
   gutter.width = 0.1,
   pt.cex = NULL,
+  shade = "main",
+  return.swarm.df = FALSE,
   parmar = c(3, 2.5, 0.3, 0.3)
 )
 }
 \arguments{
+\item{plot.vals}{Values to plot. See \code{Details} for formatting.}
+
 \item{meta}{Sample metadata loaded using \code{\link[=load.sample.metadata]{load.sample.metadata()}}}
 
 \item{title}{Custom title for top axis}
@@ -51,6 +58,12 @@ of these limits will be Winsorized. [default: use full range of all values]}
 
 \item{cancer.name.xadj}{Horizontal adjustment factor for cancer labels on X axis [default: 0.1]}
 
+\item{shorten.cancer.names}{Should cancer names be shortened as much as possible? [default: FALSE]}
+
+\item{add.sample.size}{Should sample size be added to cancer names? [default: FALSE]}
+
+\item{sample.size.mirror.buffer}{Space in user units that cancer label and sample size should be separated [default: 0.2]}
+
 \item{scale.swarms}{Should the width of each swarm be scaled proportional
 to the square root of its sample size? [default: TRUE]}
 
@@ -60,15 +73,17 @@ to the square root of its sample size? [default: TRUE]}
 
 \item{pt.cex}{Value of \code{cex} passed to \code{\link[beeswarm:beeswarm]{beeswarm::beeswarm()}}}
 
-\item{parmar}{Value of \code{mar} passed to \code{par()}}
+\item{shade}{Shade of phenotype color to use [default: 'main']}
 
-\item{plot.values}{Values to plot. See \code{Details} for formatting.}
+\item{return.swarm.df}{Should swarm coordinates be returned? [default: FALSE]}
+
+\item{parmar}{Value of \code{mar} passed to \code{par()}}
 }
 \description{
 Generate a series of beeswarm plots for values per sample separated by cancer type
 }
 \details{
-\code{plot.values} can be provided in one of two formats:
+\code{plot.vals} can be provided in one of two formats:
 \enumerate{
 \item As a named numeric vector with vector names set to sample IDs
 \item As a data.frame with row names set to sample IDs. If provided as a data.frame,

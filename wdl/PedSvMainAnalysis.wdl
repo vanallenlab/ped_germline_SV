@@ -244,6 +244,8 @@ workflow PedSvMainAnalysis {
     input:
       bed = full_cohort_w_relatives_bed,
       bed_idx = full_cohort_w_relatives_bed_idx,
+      ad_matrix = full_cohort_w_relatives_ad_matrix,
+      ad_matrix_idx = full_cohort_w_relatives_ad_matrix_idx,
       prefix = study_prefix + ".full_cohort_w_relatives",
       sample_metadata_tsv = sample_metadata_tsv,
       sample_list = full_cohort_w_relatives_samples_list,
@@ -257,6 +259,8 @@ workflow PedSvMainAnalysis {
     input:
       bed = full_cohort_bed,
       bed_idx = full_cohort_bed_idx,
+      ad_matrix = full_cohort_ad_matrix,
+      ad_matrix_idx = full_cohort_ad_matrix_idx,
       prefix = study_prefix + ".full_cohort",
       sample_metadata_tsv = sample_metadata_tsv,
       sample_list = full_cohort_samples_list,
@@ -270,6 +274,8 @@ workflow PedSvMainAnalysis {
     input:
       bed = trio_bed,
       bed_idx = trio_bed_idx,
+      ad_matrix = trio_ad_matrix,
+      ad_matrix_idx = trio_ad_matrix_idx,
       prefix = study_prefix + ".trio_cohort",
       sample_metadata_tsv = sample_metadata_tsv,
       sample_list = trio_samples_list,
@@ -283,6 +289,8 @@ workflow PedSvMainAnalysis {
     input:
       bed = case_control_bed,
       bed_idx = case_control_bed_idx,
+      ad_matrix = case_control_ad_matrix,
+      ad_matrix_idx = case_control_ad_matrix_idx,
       sample_metadata_tsv = sample_metadata_tsv,
       sample_list = case_control_samples_list,
       per_sample_tarball = MergeCaseControlSVsPerSample.per_sample_tarball,
@@ -434,7 +442,7 @@ workflow PedSvMainAnalysis {
     input:
       stats = StudyWideRvas.rvas_sumstats,
       prefix = study_prefix,
-      docker = pedsv_docker
+      docker = pedsv_r_docker
   }
 
   call Rvas.SvGenicRvas as TrioCohortRvas {
@@ -458,7 +466,7 @@ workflow PedSvMainAnalysis {
     input:
       stats = TrioCohortRvas.rvas_sumstats,
       prefix = study_prefix + ".trio_cohort",
-      docker = pedsv_docker
+      docker = pedsv_r_docker
   }
 
   call Rvas.SvGenicRvas as CaseControlCohortRvas {
@@ -482,7 +490,7 @@ workflow PedSvMainAnalysis {
     input:
       stats = CaseControlCohortRvas.rvas_sumstats,
       prefix = study_prefix + ".case_control_cohort",
-      docker = pedsv_docker
+      docker = pedsv_r_docker
   }
 
   call UnifyOutputs {
@@ -1174,6 +1182,8 @@ task CohortSummaryPlots {
   input {
     File bed
     File bed_idx
+    File ad_matrix
+    File ad_matrix_idx
     File sample_metadata_tsv
     File sample_list
     File? per_sample_tarball
@@ -1207,10 +1217,13 @@ task CohortSummaryPlots {
 
     # Plot SV counts and sizes
     /opt/ped_germline_SV/analysis/landscape/plot_sv_site_summary.R \
+      --bed ~{bed} \
+      --ad-matrix ~{ad_matrix} \
+      --metadata ~{sample_metadata_tsv} \
+      --subset-samples ~{sample_list} \
       --af-field ~{af_field} \
       --ac-field ~{ac_field} \
       --out-prefix ~{prefix}.SummaryPlots/~{prefix} \
-      ~{bed}
 
     # Plot AF correlations vs. gnomAD v4 SVs
     /opt/ped_germline_SV/analysis/landscape/gnomad_af_comparison.R \

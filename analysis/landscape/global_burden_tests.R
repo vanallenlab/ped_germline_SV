@@ -382,14 +382,14 @@ sv.subsets <- lapply(c("DEL", "DUP", "INV", "CPX"), function(svtype){
        as.character(unlist(sapply(data, function(info){
          rownames(info$bed)[which(info$bed$SVTYPE == svtype)]
        }))),
-       paste("Samples with", sv.abbreviations[svtype], ">1Mb"))
+       paste("Samples with", tolower(sv.abbreviations[svtype]), ">1Mb"))
 })
 sv.subsets <- c(sv.subsets,
                 list(list("CTX",
                           as.character(unlist(sapply(data, function(info){
                             rownames(info$bed)[which(info$bed$SVTYPE == "CTX")]
                           }))),
-                          "Samples with Reciprocal Translocations")))
+                          "Samples with reciprocal translocations")))
 all.stats <- main.burden.wrapper(data, query="large", meta, action="any",
                                  af.fields, ac.fields, sv.subsets=sv.subsets, all.stats,
                                  paste(args$out_prefix, "large_sv_per_genome.by_cancer", sep="."),
@@ -406,13 +406,13 @@ for(freq in c("rare", "vrare", "singleton")){
            as.character(unlist(sapply(data, function(info){
              rownames(info$bed)[which(info$bed$SVTYPE == svtype)]
            }))),
-           paste("Samples with", freq.names[freq], sv.abbreviations[svtype],
+           paste("Samples with", tolower(freq.names[freq]), tolower(sv.abbreviations[svtype]),
                  if(svtype != "CTX"){if(size == "large"){">1Mb"}else{">100kb"}}))
     })
     all.stats <- main.burden.wrapper(data, query=paste(size, freq, sep="."), meta, action="any",
                                      af.fields, ac.fields, sv.subsets=sv.subsets, all.stats,
                                      paste(args$out_prefix, paste(freq, size, "sv_per_genome.by_cancer", sep="_"), sep="."),
-                                     main.title=paste("Samples with", freq.names[freq], "SV",
+                                     main.title=paste("Samples with", tolower(freq.names[freq]), "SV",
                                                       if(size == "large"){">1Mb"}else{">100kb"}),
                                      barplot.height=barplot.height, barplot.width=barplot.width,
                                      barplot.units="percent", autosomal=FALSE)
@@ -421,8 +421,8 @@ for(freq in c("rare", "vrare", "singleton")){
     all.stats <- main.burden.wrapper(data, query=paste(size, freq, "unbalanced", sep="."), meta, action="any",
                                      af.fields, ac.fields, sv.subsets=NULL, all.stats,
                                      paste(args$out_prefix, paste(freq, size, "unbalanced_sv_per_genome.by_cancer", sep="_"), sep="."),
-                                     main.title=paste("Pct. w/", freq.names[freq],
-                                                      "Unbalanced SV",
+                                     main.title=paste("Pct. w/", tolower(freq.names[freq]),
+                                                      "unbalanced SV",
                                                       if(size == "large"){">1Mb"}else{">100kb"}),
                                      barplot.height=barplot.height, barplot.width=barplot.width,
                                      barplot.units="percent", autosomal=FALSE)
@@ -435,8 +435,8 @@ for(freq in c("rare", "vrare", "singleton")){
                                        af.fields, ac.fields, sv.subsets=NULL, all.stats,
                                        paste(args$out_prefix, paste(freq, size, "unbalanced_sv_per_genome.by_cancer", sep="_"),
                                              paste(sex, "only", sep="_"), sep="."),
-                                       main.title=paste("Pct. w/", freq.names[freq],
-                                                        "Unbalanced SV",
+                                       main.title=paste("Pct. w/", tolower(freq.names[freq]),
+                                                        "unbalanced SV",
                                                         if(size == "large"){">1Mb"}else{">100kb"}),
                                        barplot.height=barplot.height, barplot.width=barplot.width,
                                        barplot.units="percent", autosomal=FALSE)
@@ -446,8 +446,8 @@ for(freq in c("rare", "vrare", "singleton")){
     all.stats <- main.burden.wrapper(data, query=paste(size, freq, "unbalanced", sep="."), meta, action="any",
                                      af.fields, ac.fields, sv.subsets=NULL, all.stats,
                                      paste(args$out_prefix, paste(freq, size, "unbalanced_sv_per_genome.by_cancer.autosomal_only", sep="_"), sep="."),
-                                     main.title=paste("Pct. w/", freq.names[freq],
-                                                      "Unbalanced SV",
+                                     main.title=paste("Pct. w/", tolower(freq.names[freq]),
+                                                      "unbalanced SV",
                                                       if(size == "large"){">1Mb"}else{">100kb"}),
                                      barplot.height=barplot.height, barplot.width=barplot.width,
                                      barplot.units="percent", autosomal=TRUE,
@@ -461,8 +461,8 @@ for(freq in c("rare", "vrare", "singleton")){
                                        af.fields, ac.fields, sv.subsets=NULL, all.stats,
                                        paste(args$out_prefix, paste(freq, size, "unbalanced_sv_per_genome.by_cancer.autosomal_only", sep="_"),
                                              paste(sex, "only", sep="_"), sep="."),
-                                       main.title=paste("Pct. w/", freq.names[freq],
-                                                        "Unbalanced SV",
+                                       main.title=paste("Pct. w/", tolower(freq.names[freq]),
+                                                        "unbalanced SV",
                                                         if(size == "large"){">1Mb"}else{">100kb"}),
                                        barplot.height=barplot.height, barplot.width=barplot.width,
                                        barplot.units="percent", autosomal=TRUE,
@@ -475,8 +475,8 @@ for(freq in c("rare", "vrare", "singleton")){
                                      af.fields, ac.fields, sv.subsets=NULL, all.stats,
                                      keep.idx.list=lapply(data, function(d){which(d$bed$chrom %in% c("chrX", "chrY"))}),
                                      paste(args$out_prefix, paste(freq, size, "unbalanced_sv_per_genome.by_cancer.allosomal_only", sep="_"), sep="."),
-                                     main.title=paste("Pct. w/", freq.names[freq],
-                                                      "Unbalanced SV",
+                                     main.title=paste("Pct. w/", tolower(freq.names[freq]),
+                                                      "unbalanced SV",
                                                       if(size == "large"){">1Mb"}else{">100kb"}),
                                      barplot.height=barplot.height, barplot.width=barplot.width,
                                      barplot.units="percent", autosomal=FALSE,
@@ -486,8 +486,8 @@ for(freq in c("rare", "vrare", "singleton")){
     all.stats <- main.burden.wrapper(data, query=paste(size, freq, "balanced", sep="."), meta, action="any",
                                      af.fields, ac.fields, sv.subsets=NULL, all.stats,
                                      paste(args$out_prefix, paste(freq, size, "balanced_sv_per_genome.by_cancer", sep="_"), sep="."),
-                                     main.title=paste("Pct. w/", freq.names[freq],
-                                                      "Balanced SV",
+                                     main.title=paste("Pct. w/", tolower(freq.names[freq]),
+                                                      "balanced SV",
                                                       if(size == "large"){">1Mb"}else{">100kb"}),
                                      barplot.height=barplot.height, barplot.width=barplot.width,
                                      barplot.units="percent", autosomal=FALSE)
@@ -497,8 +497,8 @@ for(freq in c("rare", "vrare", "singleton")){
   all.stats <- main.burden.wrapper(data, query=paste("karyotypic", freq, "unbalanced", sep="."), meta, action="any",
                                    af.fields, ac.fields, sv.subsets=NULL, all.stats,
                                    paste(args$out_prefix, paste(freq, "karyotypic_unbalanced_sv_per_genome.by_cancer", sep="_"), sep="."),
-                                   main.title=paste("Pct. w/", freq.names[freq],
-                                                    "Unbalanced SV >5Mb"),
+                                   main.title=paste("Pct. w/", tolower(freq.names[freq]),
+                                                    "unbalanced SV >5Mb"),
                                    barplot.height=barplot.height, barplot.width=barplot.width,
                                    barplot.units="percent", autosomal=FALSE)
 }
@@ -517,7 +517,7 @@ for(freq in c("rare", "vrare", "singleton")){
     }else{
       sex.meta <- meta[which(meta$inferred_sex == sex), ]
       sex.title <- paste(sex, "only", sep="_")
-      km.y.title <- paste(sex.names[sex], "Samples (%)")
+      km.y.title <- paste(sex.names[sex], "samples (%)")
     }
 
     # Collect all SV data
@@ -546,7 +546,7 @@ for(freq in c("rare", "vrare", "singleton")){
                     ci.lower=lapply(surv.models, function(sm){sm$lower}),
                     ci.upper=lapply(surv.models, function(sm){sm$upper}),
                     colors=cancer.colors[cancers.km.layer.ordered], ci.alpha=c(0, 0),
-                    xlab=paste("Largest Unbalanced\n", freq.names[freq], "SV"),
+                    xlab=paste("Largest unbalanced\n", tolower(freq.names[freq]), "SV"),
                     xlab.line=1, ylab=km.y.title, xlim=log10(c(50000, 5000000)),
                     lwds=c(3, 3), x.axis.labels=c("50kb", "500kb", "5Mb"),
                     ylims=ylims, y.axis.units="percent",
@@ -574,72 +574,82 @@ for(freq in c("rare", "vrare", "singleton")){
     dev.off()
 
     # Burden test series every log-step
-    ad.df <- get.ad.values(data, query=paste(freq, "notsmall", "unbalanced", sex.title, sep="."),
-                           action="verbose", af.fields=af.fields, ac.fields=ac.fields,
-                           autosomal=FALSE)
-    unbal.sv.size <- unlist(lapply(data, function(l){v <- calc.genomic.imbalance(l$bed); names(v) <- rownames(l$bed); return(v)}))
-    size.burden.stats <- empty.stats.df
-    size.or.x <- 10^seq(4, log10(5000000), 0.05)
-    for(size in size.or.x){
-      qual.sv.ids <- names(unbal.sv.size)[which(unbal.sv.size >= size)]
-      ad.vals <- unlist(lapply(ad.df, compress.ad.matrix, action="any", keep.vids=qual.sv.ids))
-      ad.vals[intersect(rownames(sex.meta)[which(sex.meta$any_aneuploidy)], names(ad.vals))] <- 1
-      new.burden.stats <- burden.test(data, query=paste(freq, ".", size/1000, "kb", sep=""),
-                                      meta=sex.meta, ad.vals=ad.vals, family=binomial(),
-                                      af.fields=af.fields, ac.field=ac.fields)
-      size.burden.stats <- rbind(size.burden.stats, new.burden.stats)
-    }
-    size.burden.y.ln <- as.numeric(size.burden.stats[which(size.burden.stats$disease == "pancan"), "coefficient"])
-    size.burden.y.ln.se <- as.numeric(size.burden.stats[which(size.burden.stats$disease == "pancan"), "std.err"])
-    size.burden.y <- exp(size.burden.y.ln)
-    size.burden.y.smooth <- predict(smooth.spline(size.or.x, size.burden.y, spar=2), newdata=size.or.x)$y
-    size.burden.ci.lower <- exp(size.burden.y.ln + (qnorm(0.025) * size.burden.y.ln.se))
-    size.burden.ci.lower.smooth <- predict(smooth.spline(size.or.x, size.burden.ci.lower, spar=2), newdata=size.or.x)$y
-    size.burden.ci.upper <- exp(size.burden.y.ln + (qnorm(0.975) * size.burden.y.ln.se))
-    size.burden.ci.upper.smooth <- predict(smooth.spline(size.or.x, size.burden.ci.upper, spar=2), newdata=size.or.x)$y
-    pdf(paste(args$out_prefix, freq, "genomic_imbalance_effect_size", sex.title, "pdf", sep="."),
-        height=2.15, width=2)
-    svlen.line.plot(x.svlen=list(log10(size.or.x)),
-                    y.value=list(size.burden.y.smooth),
-                    ci.lower=list(size.burden.ci.lower.smooth),
-                    ci.upper=list(size.burden.ci.upper.smooth),
-                    step=FALSE, colors=cancer.colors["pancan"], ci.alpha=0.25,
-                    xlab=paste("Largest Unbalanced\n", freq.names[freq], "SV"),
-                    xlab.line=1, ylab="Odds Ratio", y.title.line=0.1,
-                    xlim=log10(c(50000, 5000000)),
-                    lwds=c(3, 3), x.axis.labels=c("50kb", "500kb", "5Mb"),
-                    ylims=c(min(c(0.8, min(size.burden.y.smooth))),
-                            max(c(1.2, 1.1*size.burden.y.smooth))),
-                    x.axis.labels.at=log10(c(50000, 500000, 5000000)),
-                    parmar=c(3, 2, 0.25, 1))
-    dev.off()
+    tryCatch(
+      {
+        ad.df <- get.ad.values(data, query=paste(freq, "notsmall", "unbalanced", sex.title, sep="."),
+                               action="verbose", af.fields=af.fields, ac.fields=ac.fields,
+                               autosomal=FALSE)
+        unbal.sv.size <- unlist(lapply(data, function(l){v <- calc.genomic.imbalance(l$bed); names(v) <- rownames(l$bed); return(v)}))
+        size.burden.stats <- empty.stats.df
+        size.or.x <- 10^seq(4, log10(5000000), 0.05)
+        for(size in size.or.x){
+          qual.sv.ids <- names(unbal.sv.size)[which(unbal.sv.size >= size)]
+          ad.vals <- unlist(lapply(ad.df, compress.ad.matrix, action="any", keep.vids=qual.sv.ids))
+          ad.vals[intersect(rownames(sex.meta)[which(sex.meta$any_aneuploidy)], names(ad.vals))] <- 1
+          new.burden.stats <- burden.test(data, query=paste(freq, ".", size/1000, "kb", sep=""),
+                                          meta=sex.meta, ad.vals=ad.vals, family=binomial(),
+                                          af.fields=af.fields, ac.field=ac.fields)
+          size.burden.stats <- rbind(size.burden.stats, new.burden.stats)
+        }
+        size.burden.y.ln <- as.numeric(size.burden.stats[which(size.burden.stats$disease == "pancan"), "coefficient"])
+        size.burden.y.ln.se <- as.numeric(size.burden.stats[which(size.burden.stats$disease == "pancan"), "std.err"])
+        size.burden.y <- exp(size.burden.y.ln)
+        size.burden.y.smooth <- predict(smooth.spline(size.or.x, size.burden.y, spar=2), newdata=size.or.x)$y
+        size.burden.ci.lower <- exp(size.burden.y.ln + (qnorm(0.025) * size.burden.y.ln.se))
+        size.burden.ci.lower.smooth <- predict(smooth.spline(size.or.x, size.burden.ci.lower, spar=2), newdata=size.or.x)$y
+        size.burden.ci.upper <- exp(size.burden.y.ln + (qnorm(0.975) * size.burden.y.ln.se))
+        size.burden.ci.upper.smooth <- predict(smooth.spline(size.or.x, size.burden.ci.upper, spar=2), newdata=size.or.x)$y
+        pdf(paste(args$out_prefix, freq, "genomic_imbalance_effect_size", sex.title, "pdf", sep="."),
+            height=2.15, width=2)
+        svlen.line.plot(x.svlen=list(log10(size.or.x)),
+                        y.value=list(size.burden.y.smooth),
+                        ci.lower=list(size.burden.ci.lower.smooth),
+                        ci.upper=list(size.burden.ci.upper.smooth),
+                        step=FALSE, colors=cancer.colors["pancan"], ci.alpha=0.25,
+                        xlab=paste("Largest unbalanced\n", tolower(freq.names[freq]), "SV"),
+                        xlab.line=1, ylab="Odds ratio", y.title.line=0.1,
+                        xlim=log10(c(50000, 5000000)),
+                        lwds=c(3, 3), x.axis.labels=c("50kb", "500kb", "5Mb"),
+                        ylims=c(min(c(0.8, min(size.burden.y.smooth))),
+                                max(c(1.2, 1.1*size.burden.y.smooth))),
+                        x.axis.labels.at=log10(c(50000, 500000, 5000000)),
+                        parmar=c(3, 2, 0.25, 1))
+        dev.off()
 
-    # Add smoothed effect sizes to collector
-    smooth.or.collection[["x"]][[sex]] <- log10(size.or.x)
-    smooth.or.collection[["or"]][[sex]] <- size.burden.y.smooth
-    smooth.or.collection[["or.lower"]][[sex]] <- size.burden.ci.lower.smooth
-    smooth.or.collection[["or.upper"]][[sex]] <- size.burden.ci.upper.smooth
+        # Add smoothed effect sizes to collector
+        smooth.or.collection[["x"]][[sex]] <- log10(size.or.x)
+        smooth.or.collection[["or"]][[sex]] <- size.burden.y.smooth
+        smooth.or.collection[["or.lower"]][[sex]] <- size.burden.ci.lower.smooth
+        smooth.or.collection[["or.upper"]][[sex]] <- size.burden.ci.upper.smooth
+      },
+      error=function(e){}
+    )
   }
 
   # Plot effect size visualization with male/female split overlaid
-  pdf(paste(args$out_prefix, freq, "genomic_imbalance_effect_size",
-            "sex_overlay", "pdf", sep="."),
-      height=2.15, width=2)
-  svlen.line.plot(x.svlen=rev(smooth.or.collection$x),
-                  y.value=rev(smooth.or.collection$or),
-                  ci.lower=rev(smooth.or.collection$or.lower),
-                  ci.upper=rev(smooth.or.collection$or.upper),
-                  step=FALSE, ci.alpha=rev(c(0.1, 0, 0)),
-                  colors=rev(c(cancer.colors["pancan"], sex.colors["MALE"], sex.colors["FEMALE"])),
-                  xlab=paste("Largest Unbalanced\n", freq.names[freq], "SV"),
-                  xlab.line=1, ylab="Odds Ratio", y.title.line=0.1,
-                  xlim=log10(c(50000, 5000000)),
-                  lwds=c(3, 3, 3), x.axis.labels=c("50kb", "500kb", "5Mb"),
-                  ylims=c(min(c(0.8, unlist(smooth.or.collection$or))),
-                          max(c(1.2, 1.1*unlist(smooth.or.collection$or)))),
-                  x.axis.labels.at=log10(c(50000, 500000, 5000000)),
-                  parmar=c(3, 2, 0.25, 1))
-  dev.off()
+  tryCatch(
+    {
+      pdf(paste(args$out_prefix, freq, "genomic_imbalance_effect_size",
+                "sex_overlay", "pdf", sep="."),
+          height=2.15, width=2)
+      svlen.line.plot(x.svlen=rev(smooth.or.collection$x),
+                      y.value=rev(smooth.or.collection$or),
+                      ci.lower=rev(smooth.or.collection$or.lower),
+                      ci.upper=rev(smooth.or.collection$or.upper),
+                      step=FALSE, ci.alpha=rev(c(0.1, 0, 0)),
+                      colors=rev(c(cancer.colors["pancan"], sex.colors["MALE"], sex.colors["FEMALE"])),
+                      xlab=paste("Largest unbalanced\n", tolower(freq.names[freq]), "SV"),
+                      xlab.line=1, ylab="Odds ratio", y.title.line=0.1,
+                      xlim=log10(c(50000, 5000000)),
+                      lwds=c(3, 3, 3), x.axis.labels=c("50kb", "500kb", "5Mb"),
+                      ylims=c(min(c(0.8, unlist(smooth.or.collection$or))),
+                              max(c(1.2, 1.1*unlist(smooth.or.collection$or)))),
+                      x.axis.labels.at=log10(c(50000, 500000, 5000000)),
+                      parmar=c(3, 2, 0.25, 1))
+      dev.off()
+    },
+    error=function(e){}
+  )
 }
 
 
@@ -697,8 +707,9 @@ if(!is.null(precomp.stats)){
               height=swarmplot.height, width=swarmplot.width)
           swarmplot.by.phenotype(ad.vals, sex.meta, ylims=ylims,
                                  title=format.pval(as.numeric(new.stats$P.value)[1]),
-                                 y.axis.title=paste("Nucleotides Altered\nby",
-                                                    freq.names[freq], sv.label),
+                                 y.axis.title=paste("Nucleotides altered\nby",
+                                                    tolower(freq.names[freq]),
+                                                    tolower(sv.label)),
                                  title.line=0.5, y.title.line=1.3,
                                  y.ticks=log10(logscale.major.bp),
                                  y.tick.labels=logscale.major.bp.labels,
@@ -724,14 +735,16 @@ if(!is.null(args$genomic_disorder_hits)){
                intersect(rownames(info$bed)[which(info$bed$SVTYPE == svtype)],
                          gd.ids)
              }))),
-             paste("Samples w/", freq.names[freq], " GD ", sv.abbreviations[svtype]), sep="")
+             paste("Samples w/", tolower(freq.names[freq]), " GD ",
+                   tolower(sv.abbreviations[svtype])), sep="")
       })
       keep.idx.list <- lapply(data, function(d){which(rownames(d$bed) %in% gd.ids)})
       all.stats <- main.burden.wrapper(data, query=freq, meta, action="any",
                                        af.fields, ac.fields, sv.subsets=sv.subsets, all.stats,
                                        out.prefix=paste(args$out_prefix, paste(freq, "genomic_disorders.by_cancer", sep="_"), sep="."),
                                        keep.idx.list=keep.idx.list,
-                                       main.title=paste("Samples with", freq.names[freq], "Genomic Disorder"),
+                                       main.title=paste("Samples with", tolower(freq.names[freq]),
+                                                        "Genomic Disorder"),
                                        barplot.height=barplot.height, barplot.width=barplot.width,
                                        barplot.units="percent",
                                        custom.hypothesis=paste("genomic_disorders", freq, sep="."))
@@ -779,34 +792,34 @@ for(freq in c("rare", "vrare", "singleton")){
          as.character(unlist(sapply(data, function(info){
            rownames(info$bed)[which(sapply(info$bed$PREDICTED_LOF, length) > 0)]
          }))),
-         paste(freq.names[freq], "LoF SVs per Sample")),
+         paste(freq.names[freq], "LoF SVs per sample")),
     list(paste(freq, "LoF_DELs", sep="_"),
          as.character(unlist(sapply(data, function(info){
            rownames(info$bed)[which(sapply(info$bed$PREDICTED_LOF, length) > 0
                                     & info$bed$SVTYPE == "DEL")]
          }))),
-         paste(freq.names[freq], "LoF Dels. per Sample")),
+         paste(freq.names[freq], "LoF dels. per sample")),
     list(paste(freq, "LoF_nonDELs", sep="_"),
          as.character(unlist(sapply(data, function(info){
            rownames(info$bed)[which(sapply(info$bed$PREDICTED_LOF, length) > 0
                                     & info$bed$SVTYPE != "DEL")]
          }))),
-         paste(freq.names[freq], "Non-Del. LoF SVs")),
+         paste(freq.names[freq], "non-del. LoF SVs")),
     list(paste(freq, "CG_SVs", sep="_"),
          as.character(unlist(sapply(data, function(info){
            rownames(info$bed)[which(sapply(info$bed$PREDICTED_COPY_GAIN, length) > 0)]
          }))),
-         paste(freq.names[freq], "CG SVs per Sample")),
+         paste(freq.names[freq], "CG SVs per sample")),
     list(paste(freq, "IED_SVs", sep="_"),
          as.character(unlist(sapply(data, function(info){
            rownames(info$bed)[which(sapply(info$bed$PREDICTED_INTRAGENIC_EXON_DUP, length) > 0)]
          }))),
-         paste(freq.names[freq], "IED SVs per Sample")),
+         paste(freq.names[freq], "IED SVs per sample")),
     list(paste(freq, "nonLoF_disruptive_SVs", sep="_"),
          as.character(unlist(sapply(data, function(info){
            rownames(info$bed)[which(sapply(info$bed$PREDICTED_LOF, length) == 0)]
          }))),
-         paste(freq.names[freq], "Non-LoF Gene-Disruptive SVs"))
+         paste(freq.names[freq], "non-LoF gene-disruptive SVs"))
   )
   for(sv.size.limit in c("", "no_large_unbalanced")){
     if(sv.size.limit == "no_large_unbalanced"){
@@ -821,7 +834,7 @@ for(freq in c("rare", "vrare", "singleton")){
     all.stats <- main.burden.wrapper(test.data, query=query, meta, action="count",
                                      af.fields, ac.fields, sv.subsets=sv.subsets, all.stats,
                                      paste(args$out_prefix, query, "by_cancer", sep="."),
-                                     main.title=paste(freq.names[freq], "Gene-Disruptive SVs / Sample"),
+                                     main.title=paste(freq.names[freq], "gene-disruptive SVs / sample"),
                                      barplot.height=barplot.height, barplot.width=barplot.width)
     # One for each stratified by sex, restricting to *autosomal* only
     for(sex in c("MALE", "FEMALE")){
@@ -830,7 +843,7 @@ for(freq in c("rare", "vrare", "singleton")){
                                        af.fields, ac.fields, sv.subsets=sv.subsets, all.stats,
                                        paste(args$out_prefix, paste(freq, "gene_disruptive_sv_per_genome.by_cancer", sep="_"),
                                              paste(sex, "only", sep="_"), sep="."),
-                                       main.title=paste(freq.names[freq], "Gene-Disruptive SVs / Sample"),
+                                       main.title=paste(freq.names[freq], "gene-disruptive SVs / sample"),
                                        barplot.height=barplot.height, barplot.width=barplot.width,
                                        autosomal=TRUE)
     }
@@ -845,35 +858,35 @@ for(freq in c("rare", "vrare", "singleton")){
          as.character(unlist(sapply(data, function(info){
            rownames(info$bed)[which(sapply(info$bed$PREDICTED_LOF, length) == 1)]
          }))),
-         paste(freq.names[freq], "Single-Gene LoF SVs")),
+         paste(freq.names[freq], "single-gene LoF SVs")),
     list(paste(freq, "single_gene_LoF_DELs", sep="_"),
          as.character(unlist(sapply(data, function(info){
            rownames(info$bed)[which(sapply(info$bed$PREDICTED_LOF, length) == 1
                                     & info$bed$SVTYPE == "DEL")]
          }))),
-         paste(freq.names[freq], "Single-Gene LoF Dels.")),
+         paste(freq.names[freq], "single-gene LoF dels.")),
     list(paste(freq, "single_gene_LoF_nonDELs", sep="_"),
          as.character(unlist(sapply(data, function(info){
            rownames(info$bed)[which(sapply(info$bed$PREDICTED_LOF, length) == 1
                                     & info$bed$SVTYPE != "DEL")]
          }))),
-         paste(freq.names[freq], "Single-Gene Non-Del. LoF SVs")),
+         paste(freq.names[freq], "single-gene non-del. LoF SVs")),
     list(paste(freq, "single_gene_CG_SVs", sep="_"),
          as.character(unlist(sapply(data, function(info){
            rownames(info$bed)[which(sapply(info$bed$PREDICTED_COPY_GAIN, length) == 1)]
          }))),
-         paste(freq.names[freq], "Single-Gene CG SVs")),
+         paste(freq.names[freq], "single-gene CG SVs")),
     list(paste(freq, "single_gene_IED_SVs", sep="_"),
          as.character(unlist(sapply(data, function(info){
            rownames(info$bed)[which(sapply(info$bed$PREDICTED_INTRAGENIC_EXON_DUP, length) == 1)]
          }))),
-         paste(freq.names[freq], "Single-Gene IED SVs"))
+         paste(freq.names[freq], "single-gene IED SVs"))
   )
   all.stats <- main.burden.wrapper(data, query=paste(freq, "single_gene_disruptive", sep="."),
                                    meta, action="count",
                                    af.fields, ac.fields, sv.subsets=sv.subsets, all.stats,
                                    paste(args$out_prefix, paste(freq, "single_gene_disruptive_sv_per_genome.by_cancer", sep="_"), sep="."),
-                                   main.title=paste(freq.names[freq], "Single-Gene-Disruptive SVs"),
+                                   main.title=paste(freq.names[freq], "single-gene-disruptive SVs"),
                                    barplot.height=barplot.height, barplot.width=barplot.width)
   for(sex in c("MALE", "FEMALE")){
     all.stats <- main.burden.wrapper(data, query=paste(freq, "single_gene_disruptive",
@@ -882,7 +895,7 @@ for(freq in c("rare", "vrare", "singleton")){
                                      af.fields, ac.fields, sv.subsets=sv.subsets, all.stats,
                                      paste(args$out_prefix, paste(freq, "single_gene_disruptive_sv_per_genome.by_cancer",
                                                                   paste(sex, "only", sep="_"), sep="_"), sep="."),
-                                     main.title=paste(freq.names[freq], "Single-Gene-Disruptive SVs"),
+                                     main.title=paste(freq.names[freq], "single-gene-disruptive SVs"),
                                      barplot.height=barplot.height, barplot.width=barplot.width,
                                      autosomal=TRUE)
   }
@@ -899,7 +912,8 @@ for(freq in c("rare", "vrare", "singleton")){
   pdf(paste(args$out_prefix, freq, "n_genes_disrupted_per_genome.by_cancer.pdf", sep="."),
       height=barplot.height, width=barplot.width)
   barplot.by.phenotype(stats2barplotdf(new.stats, ci.mode="normal"),
-                       title=paste("# Genes with", freq.names[freq], "LoF SV per Sample"))
+                       title=paste("# Genes with", tolower(freq.names[freq]),
+                                   "LoF SV per sample"))
   dev.off()
 }
 
@@ -907,7 +921,7 @@ for(freq in c("rare", "vrare", "singleton")){
 # Carrier rates of rare/vrare/singleton LoF/CG/IED in gene lists
 if(!is.null(args$gene_lists)){
   gene.lists <- load.gene.lists(args$gene_lists)
-  for(freq in c("rare", "vrare")){
+  for(freq in c("rare", "vrare", "singleton")){
     for(i in 1:length(gene.lists)){
 
       set.name <- names(gene.lists)[i]
@@ -946,7 +960,7 @@ if(!is.null(args$gene_lists)){
                                        keep.idx.list=all.idx.list,
                                        paste(args$out_prefix, paste(freq, "disruptive_sv_carrier_rate", sep="_"),
                                              set.lower, "by_cancer", sep="."),
-                                       main.title=paste(freq.names[freq], set.name, "Disruption"),
+                                       main.title=paste(freq.names[freq], set.name, "disruption"),
                                        barplot.height=barplot.height, barplot.width=barplot.width,
                                        barplot.units="percent")
     }

@@ -85,7 +85,7 @@ plot.waterfall <- function(counts, meta, pop.spacer=0.04, median.bar=FALSE){
   # Prep plot area
   prep.plot.area(xlims, ylims, parmar=c(2, 2.5, 0.35, 0.15), xaxs="r", yaxs="i")
   clean.axis(2, at=axTicks(2), labels=paste(axTicks(2) / 1000, "k", sep=""),
-             title="SVs per Genome", infinite=TRUE)
+             title="SVs per genome", infinite=TRUE)
 
   # Plot ancestries in alphabetical order
   pops <- sort(unique(meta$inferred_ancestry))

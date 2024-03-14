@@ -53,6 +53,10 @@ meta$inferred_sex[which(!meta$inferred_sex %in% c("MALE", "FEMALE") & meta$sex_a
 meta$inferred_sex[which(meta$inferred_sex == "TURNER" & !meta$sex_aneuploidy & meta$chrX_CopyNumber < 1.25)] <- "MALE"
 meta$inferred_sex[which(meta$inferred_sex == "TURNER" & !meta$sex_aneuploidy & meta$chrX_CopyNumber > 1.25)] <- "FEMALE"
 
+# Restrict to samples used for formal association testing
+elig.samples <- unlist(get.eligible.samples(meta, "pancan"))
+meta <- meta[intersect(rownames(meta), elig.samples), ]
+
 # Plot X & Y ploidy colored by sex assignment
 pdf.dim <- 2.5
 axis.title.line <- 0.45
@@ -68,12 +72,64 @@ pc.scatterplot(meta,
                "chrX_CopyNumber",
                "chrY_CopyNumber",
                colors=sex.colors[meta$inferred_sex],
-               x.title="chrX Ploidy",
+               x.title="chrX ploidy",
                x.title.line=axis.title.line,
-               y.title="chrY Ploidy",
+               y.title="chrY ploidy",
                y.title.line=axis.title.line,
                legend.vals=sex.colors[c("FEMALE", "MALE", "OTHER")],
                legend.labels=sex.legend.labels,
                cex=0.4,
                parmar=parmar)
+dev.off()
+
+# Plot once separately for cases
+meta.sub <- meta[which(meta$disease != "control"), ]
+sex.legend.labels <- c(
+  paste("XX (", round(100 * length(which(meta.sub$inferred_sex == "FEMALE")) / nrow(meta.sub), 1), "%)", sep=""),
+  paste("XY (", round(100 * length(which(meta.sub$inferred_sex == "MALE")) / nrow(meta.sub), 1), "%)", sep=""),
+  paste("Other (", round(100 * length(which(meta.sub$inferred_sex == "OTHER")) / nrow(meta.sub), 1), "%)", sep="")
+)
+pdf(paste(args$out_prefix, ".ploidy_sex_assignment.cases_only.pdf", sep=""),
+    height=pdf.dim, width=pdf.dim)
+pc.scatterplot(meta.sub,
+               "chrX_CopyNumber",
+               "chrY_CopyNumber",
+               colors=sex.colors[meta.sub$inferred_sex],
+               title=paste("Cases (N=",
+                           prettyNum(nrow(meta.sub), big.mark=","),
+                           ")", sep=""),
+               x.title="chrX ploidy",
+               x.title.line=axis.title.line,
+               y.title="chrY ploidy",
+               y.title.line=axis.title.line,
+               legend.vals=sex.colors[c("FEMALE", "MALE", "OTHER")],
+               legend.labels=sex.legend.labels,
+               cex=0.4,
+               parmar=parmar + c(0, 0, 1, 1))
+dev.off()
+
+# Plot once separately for TOPMed controls
+meta.sub <- meta[which(meta$disease == "control" & meta$study %in% c("Topmed_BIOME", "Topmed_MESA")), ]
+sex.legend.labels <- c(
+  paste("XX (", round(100 * length(which(meta.sub$inferred_sex == "FEMALE")) / nrow(meta.sub), 1), "%)", sep=""),
+  paste("XY (", round(100 * length(which(meta.sub$inferred_sex == "MALE")) / nrow(meta.sub), 1), "%)", sep=""),
+  paste("Other (", round(100 * length(which(meta.sub$inferred_sex == "OTHER")) / nrow(meta.sub), 1), "%)", sep="")
+)
+pdf(paste(args$out_prefix, ".ploidy_sex_assignment.topmed_controls_only.pdf", sep=""),
+    height=pdf.dim, width=pdf.dim)
+pc.scatterplot(meta.sub,
+               "chrX_CopyNumber",
+               "chrY_CopyNumber",
+               colors=sex.colors[meta.sub$inferred_sex],
+               title=paste("Adult controls (N=",
+                           prettyNum(nrow(meta.sub), big.mark=","),
+                           ")", sep=""),
+               x.title="chrX ploidy",
+               x.title.line=axis.title.line,
+               y.title="chrY ploidy",
+               y.title.line=axis.title.line,
+               legend.vals=sex.colors[c("FEMALE", "MALE", "OTHER")],
+               legend.labels=sex.legend.labels,
+               cex=0.4,
+               parmar=parmar + c(0, 0, 1, 1))
 dev.off()
