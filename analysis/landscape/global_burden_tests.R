@@ -134,7 +134,7 @@ burden.test <- function(data, query, meta, ad.vals, family,
 supercategory.burden.test <- function(data, query, meta, action, family,
                                       af.fields, ac.fields, keep.idx.list=NULL,
                                       extra.terms=NULL, autosomal=TRUE,
-                                      precomp.ad.vals=NULL){
+                                      precomp.ad.vals=NULL, aneuploidies=TRUE){
   if(is.null(precomp.ad.vals)){
     ad.df <- get.ad.values(data, query=query, action="verbose", af.fields, ac.fields,
                            keep.idx.list=keep.idx.list, autosomal=autosomal)
@@ -147,7 +147,8 @@ supercategory.burden.test <- function(data, query, meta, action, family,
   query.parts <- unlist(strsplit(query, split=".", fixed=T))
   if(length(intersect(query.parts, c("notsmall", "large", "karyotypic"))) > 0
      & length(intersect(names(sv.colors), query.parts)) == 0
-     & !("balanced" %in% query.parts)){
+     & !("balanced" %in% query.parts)
+     & aneuploidies){
     if(autosomal | "MALE_only" %in% query.parts | "FEMALE_only" %in% query.parts){
       has.aneu <- intersect(rownames(meta)[which(meta$autosomal_aneuploidy)], names(ad.vals))
     }else{
@@ -179,7 +180,8 @@ main.burden.wrapper <- function(data, query, meta, action, af.fields, ac.fields,
                                 sv.subsets, all.stats, out.prefix, keep.idx.list=NULL,
                                 extra.terms=NULL, main.title="Values", barplot.height=2.5,
                                 barplot.width=3, barplot.units=NULL,
-                                custom.hypothesis=NULL, autosomal=TRUE){
+                                custom.hypothesis=NULL, autosomal=TRUE,
+                                aneuploidies=TRUE){
   # Get other parameters dictated by value of action
   family <- binomial()
   if(action == "any"){
@@ -194,7 +196,8 @@ main.burden.wrapper <- function(data, query, meta, action, af.fields, ac.fields,
                                                  af.fields=af.fields, ac.fields=ac.fields,
                                                  keep.idx.list=keep.idx.list,
                                                  extra.terms=extra.terms,
-                                                 autosomal=autosomal)
+                                                 autosomal=autosomal,
+                                                 aneuploidies=aneuploidies)
   new.stats <- supercategory.res[["new.stats"]]
   if(!is.null(custom.hypothesis)){
     new.stats$hypothesis <- custom.hypothesis
@@ -360,6 +363,11 @@ if(is.null(args$ac_field)){
   ac.fields <- args$ac_field
 }
 
+# Read gene lists, if optioned
+if(!is.null(args$gene_lists)){
+  gene.lists <- load.gene.lists(args$gene_lists)
+}
+
 # Prepare data.frame for collecting test statistics
 empty.stats.df <- data.frame("hypothesis"=character(0), "disease"=character(0),
                              "model"=character(0), "n.case"=numeric(0),
@@ -501,6 +509,60 @@ for(freq in c("rare", "vrare", "singleton")){
                                                     "unbalanced SV >5Mb"),
                                    barplot.height=barplot.height, barplot.width=barplot.width,
                                    barplot.units="percent", autosomal=FALSE)
+}
+
+
+# Rerun selected tests of large unbalanced SVs after excluding COSMIC/CPG
+if(!is.null(args$gene_lists)){
+  if(length(intersect(names(gene.lists), c("COSMIC", "CPG"))) == 2){
+
+    # Exclude all SVs with a predicted coding consequence on any COSMIC gene or CPG
+    x.genes <- sort(unique(unlist(gene.lists[c("COSMIC", "CPG")])))
+    x.csqs <- c("PREDICTED_COPY_GAIN", "PREDICTED_DUP_PARTIAL", "PREDICTED_INTRAGENIC_EXON_DUP",
+                "PREDICTED_LOF", "PREDICTED_PARTIAL_EXON_DUP")
+    no.xgenes <- lapply(data, function(l){
+      which(apply(l$bed[, x.csqs], 1, function(gl){
+        length(intersect(unlist(gl), x.genes)) == 0
+      }))
+    })
+
+    # Set test parameters
+    size <- "large"
+    freq <- "rare"
+
+    # All large *unbalanced* *autosomal* SVs
+    # (DEL + DUP + qualifying CPX; *no* aneuploidy)
+    all.stats <- main.burden.wrapper(data, query=paste(size, freq, "unbalanced", sep="."),
+                                     meta, action="any",
+                                     af.fields, ac.fields, sv.subsets=NULL, all.stats,
+                                     keep.idx.list=no.xgenes,
+                                     paste(args$out_prefix, paste(freq, size, "unbalanced_sv_per_genome.by_cancer.autosomal_only.no_COSMIC_no_CPG", sep="_"), sep="."),
+                                     main.title=paste("Pct. w/", tolower(freq.names[freq]),
+                                                      "unbalanced SV",
+                                                      if(size == "large"){">1Mb"}else{">100kb"}),
+                                     barplot.height=barplot.height, barplot.width=barplot.width,
+                                     barplot.units="percent", autosomal=TRUE, aneuploidies=FALSE,
+                                     custom.hypothesis=paste(size, freq, "unbalanced", "autosomal_only", "no_COSMIC_no_CPG", sep="."))
+
+    # Add one separate test for all large *unbalanced* *autosomal* SVs for each sex
+    # (DEL + DUP + qualifying CPX; *no* aneuploidy)
+    for(sex in c("MALE", "FEMALE")){
+      all.stats <- main.burden.wrapper(data, query=paste(size, freq, "unbalanced",
+                                                         paste(sex, "only", sep="_"), sep="."),
+                                       meta[which(meta$inferred_sex == sex), ], action="any",
+                                       af.fields, ac.fields, sv.subsets=NULL, all.stats,
+                                       keep.idx.list=no.xgenes,
+                                       paste(args$out_prefix, paste(freq, size, "unbalanced_sv_per_genome.by_cancer.autosomal_only.no_COSMIC_no_CPG", sep="_"),
+                                             paste(sex, "only", sep="_"), sep="."),
+                                       main.title=paste("Pct. w/", tolower(freq.names[freq]),
+                                                        "unbalanced SV",
+                                                        if(size == "large"){">1Mb"}else{">100kb"}),
+                                       barplot.height=barplot.height, barplot.width=barplot.width,
+                                       barplot.units="percent", autosomal=TRUE, aneuploidies=FALSE,
+                                       custom.hypothesis=paste(size, freq, "unbalanced", "autosomal_only", "no_COSMIC_no_CPG",
+                                                               paste(sex, "only", sep="_"), sep="."))
+    }
+  }
 }
 
 
@@ -776,13 +838,33 @@ if(!is.null(precomp.stats)){
         all.stats <- rbind(all.stats, new.stats)
         pdf(paste(args$out_prefix, paste("all", freq, "per_genome", pop, "only", sep="_"), "pdf", sep="."),
             height=swarmplot.height, width=swarmplot.width)
-        swarmplot.by.phenotype(pop.ad.vals, pop.meta, ylims=ylims,
-                               y.axis.title=paste(freq.names[freq], "SVs"))
+        swarmplot.by.phenotype(pop.ad.vals, pop.meta, ylims=ylims, title.line=0.5,
+                               title=format.pval(as.numeric(new.stats$P.value)[1]),
+                               y.axis.title=paste(freq.names[freq], "SVs"),
+                               parmar=c(3, 4.5, 1.5, 0.25))
         dev.off()
       })
     }
   }
 }
+
+
+# Total number of all autosomal gene-disruptive SVs per genome, rendered as swarmplot
+ad.vals <- get.ad.values(data, query="genes_disrupted", action="sum",
+                         af.fields, ac.fields, autosomal=TRUE)
+new.stats <- burden.test(data, "all_genes_disrupted",
+                         meta, ad.vals, binomial(), af.fields, ac.fields)
+all.stats <- rbind(all.stats, new.stats)
+pdf(paste(args$out_prefix, "all_genes_disrupted_per_genome.by_cancer.pdf", sep="."),
+    height=swarmplot.height+0.1, width=3)
+swarmplot.by.phenotype(ad.vals, meta, ylims=quantile(ad.vals, probs=c(0, 0.999), na.rm=T), title.line=0.5,
+                       title=format.pval(as.numeric(new.stats$P.value)[1]),
+                       y.axis.title="Genes disrupted by all SVs", y.title.line=0.75,
+                       y.ticks=c(0, 10e10),
+                       parmar=c(3, 2.75, 1.6, 0.25))
+clean.axis(2)
+dev.off()
+
 
 
 # Number of rare/vrare/singleton LoF, CG, IEDs per genome
@@ -920,7 +1002,6 @@ for(freq in c("rare", "vrare", "singleton")){
 
 # Carrier rates of rare/vrare/singleton LoF/CG/IED in gene lists
 if(!is.null(args$gene_lists)){
-  gene.lists <- load.gene.lists(args$gene_lists)
   for(freq in c("rare", "vrare", "singleton")){
     for(i in 1:length(gene.lists)){
 

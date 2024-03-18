@@ -632,7 +632,8 @@ swarmplot.by.phenotype <- function(plot.vals, meta, title=NULL, title.line=0,
     if(median.labels){
       text(x=swarm.at[i] + tick.widths[i] + (0.01*diff(par("usr")[1:2])),
            y=cancer.meds[i], adj=c(0, 0.45),
-           labels=round(cancer.meds[i], 1), xpd=T, cex=5/6)
+           labels=round(cancer.meds[i], 1), xpd=T, cex=5/6,
+           col=cancer.palettes[[plot.cancers[i]]]["dark2"])
     }
   })
 
@@ -941,9 +942,9 @@ plot.qq <- function(pvals, cutoff=NULL, do.fdr=TRUE, fdr.cutoff=0.01, print.stat
   points(x=expected, y=pvals, pch=19, col=colors, cex=pw.cex)
 
   # Add axes & title
-  clean.axis(1, title=expression(Expected ~ ~-log[10](italic(p))),
+  clean.axis(1, title=expression(Expected ~ ~-log[10] ~ italic(P)),
              label.line=-0.75, title.line=0.35, infinite=TRUE)
-  clean.axis(2, title=expression(Observed ~ ~-log[10](italic(p))),
+  clean.axis(2, title=expression(Observed ~ ~-log[10] ~ italic(P)),
              title.line=0.15, infinite=TRUE)
   mtext(1, line=title.line, text=title)
 }

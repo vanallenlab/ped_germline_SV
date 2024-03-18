@@ -37,11 +37,6 @@ query.tpms <- function(tpm.list, gene){
 }
 
 
-######################
-# Plotting functions #
-######################
-
-
 ###########
 # RScript #
 ###########
@@ -59,11 +54,11 @@ parser$add_argument("--outfile", metavar="path", type="character", required=TRUE
                     help="Path to output .pdf")
 args <- parser$parse_args()
 
-# DEV
-args <- list("nbl_tpm" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/data/matched_tumor_rnaseq/GMKF.NBL.all_samples.tpm_plus1_log2.tsv",
-             "os_tpm" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/data/matched_tumor_rnaseq/StJude.OS.dx_samples.tpm_plus1_log2.tsv",
-             "metadata" = "~/scratch/PedSV.v2.5.3.cohort_metadata.w_control_assignments.tsv.gz",
-             "outfile" = "~/scratch/RAF1.expression.pdf")
+# # DEV
+# args <- list("nbl_tpm" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/data/matched_tumor_rnaseq/GMKF.NBL.all_samples.tpm_plus1_log2.tsv",
+#              "os_tpm" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/data/matched_tumor_rnaseq/StJude.OS.dx_samples.tpm_plus1_log2.tsv",
+#              "metadata" = "~/scratch/PedSV.v2.5.3.cohort_metadata.w_control_assignments.tsv.gz",
+#              "outfile" = "~/scratch/RAF1.expression.pdf")
 
 
 # Load TPMs
@@ -90,13 +85,13 @@ highlight.cex <- 1
 highlight.shade <- "main"
 
 # Plot
-pdf(args$outfile, height=2.6, width=2.8)
+pdf(args$outfile, height=2.5, width=2.8)
 par(mfrow=c(1, 2))
 sdf <- swarmplot.by.phenotype(raf1, meta, title=bquote(italic(RAF1)),
                               y.axis.title=NULL, add.sample.size=TRUE,
                               shorten.cancer.names=TRUE, pt.cex=pt.cex,
                               shade=shade, return.swarm.df=TRUE,
-                              parmar=c(3, 1, 1.5, 0.6))
+                              parmar=c(2.5, 1, 1.5, 0.6))
 points(sdf[dup.carriers, ], pch=23, cex=highlight.cex,
        bg=sapply(dup.carriers, function(sid){cancer.palettes[[metadata.cancer.label.map[meta[sid, "disease"]]]][highlight.shade]}))
 sdf <- swarmplot.by.phenotype(tmem40, meta, title=bquote(italic(TMEM40)),

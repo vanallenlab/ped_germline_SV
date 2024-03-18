@@ -207,7 +207,6 @@ if(!is.null(args$sv_interval)){
 
 # Set hard-coded plot parameters
 track.hex <- 0.11
-track.content.buffer <- 0.08 * diff(par("usr")[3:4])
 gene.color <- EAS.colors["dark2"]
 background.gene.color <- EAS.colors["light2"]
 sample.lwds <- rep(1 + (0.8 / (length(samples.to.plot) ^ (1/3))),
@@ -224,7 +223,8 @@ n.extra.tracks <- length(args$sv_interval) + min(c(1, length(unlist(args[c("high
 track.breaks <- ylims.rd[2] + (0:n.extra.tracks * track.hex * diff(ylims.rd))
 ylims <- c(ylims.rd[1], max(track.breaks) + (0.015*diff(ylims.rd)))
 prep.plot.area(xlims=xlims, ylims=ylims,
-               parmar=if(args$no_idiogram){c(0.35, 3.3, 2.25, 0.25)}else{c(0.35, 3.3, 2.75, 1.2)})
+               parmar=if(args$no_idiogram){c(0.35, 3.3, 2.25, 0.5)}else{c(0.35, 3.3, 2.75, 1.2)})
+track.content.buffer <- 0.07 * diff(par("usr")[3:4])
 
 # Add background shading corresponding to population averages
 shade.middle.quantile(cov, 0.025, 0.975, "gray90")

@@ -67,8 +67,14 @@ workflow PedSvMainAnalysis {
 
     Array[File]? gene_lists
     Array[String]? gene_list_names
+
     File? genomic_disorder_bed
     Float genomic_disorder_recip_frac = 0.5
+
+    Int? sliding_window_bin_size
+    Int? sliding_window_step_size
+    Int? sliding_window_min_sv_size
+    
     File? locus_assoc_exclude_regions
     Float? rvas_exclusion_frac_overlap
     Float? sliding_window_exclusion_frac_overlap
@@ -164,6 +170,9 @@ workflow PedSvMainAnalysis {
         exclusion_frac_overlap = sliding_window_exclusion_frac_overlap,
         sample_metadata_tsv = sample_metadata_tsv,
         samples_list = all_samples_list,
+        bin_size = sliding_window_bin_size,
+        step_size = sliding_window_step_size,
+        min_sv_size = sliding_window_min_sv_size,
         prefix = study_prefix + ".full_cohort." + autosome,
         docker = pedsv_r_docker
     }
@@ -180,6 +189,9 @@ workflow PedSvMainAnalysis {
         exclusion_frac_overlap = sliding_window_exclusion_frac_overlap,
         sample_metadata_tsv = sample_metadata_tsv,
         samples_list = trio_samples_list,
+        bin_size = sliding_window_bin_size,
+        step_size = sliding_window_step_size,
+        min_sv_size = sliding_window_min_sv_size,
         prefix = study_prefix + ".trio_cohort." + autosome,
         docker = pedsv_r_docker
     }
@@ -196,6 +208,9 @@ workflow PedSvMainAnalysis {
         exclusion_frac_overlap = sliding_window_exclusion_frac_overlap,
         sample_metadata_tsv = sample_metadata_tsv,
         samples_list = case_control_samples_list,
+        bin_size = sliding_window_bin_size,
+        step_size = sliding_window_step_size,
+        min_sv_size = sliding_window_min_sv_size,
         prefix = study_prefix + ".case_control_cohort." + autosome,
         docker = pedsv_r_docker
     }
@@ -386,19 +401,19 @@ workflow PedSvMainAnalysis {
       docker = pedsv_r_docker
   }
 
-  call PlotSlidingWindowTests as PlotTrioCohortSlidingWindows_MALE {
-    input:
-      stats = TrioCohortSlidingWindowTest.male_bin_stats,
-      prefix = study_prefix + ".trio_cohort.MALE_only",
-      docker = pedsv_r_docker
-  }
+  # call PlotSlidingWindowTests as PlotTrioCohortSlidingWindows_MALE {
+  #   input:
+  #     stats = TrioCohortSlidingWindowTest.male_bin_stats,
+  #     prefix = study_prefix + ".trio_cohort.MALE_only",
+  #     docker = pedsv_r_docker
+  # }
 
-  call PlotSlidingWindowTests as PlotCaseControlCohortSlidingWindows_MALE {
-    input:
-      stats = CaseControlCohortSlidingWindowTest.male_bin_stats,
-      prefix = study_prefix + ".case_control_cohort.MALE_only",
-      docker = pedsv_r_docker
-  }
+  # call PlotSlidingWindowTests as PlotCaseControlCohortSlidingWindows_MALE {
+  #   input:
+  #     stats = CaseControlCohortSlidingWindowTest.male_bin_stats,
+  #     prefix = study_prefix + ".case_control_cohort.MALE_only",
+  #     docker = pedsv_r_docker
+  # }
 
   call PlotSlidingWindowTests as PlotFullCohortSlidingWindows_FEMALE {
     input:
@@ -407,19 +422,19 @@ workflow PedSvMainAnalysis {
       docker = pedsv_r_docker
   }
 
-  call PlotSlidingWindowTests as PlotTrioCohortSlidingWindows_FEMALE {
-    input:
-      stats = TrioCohortSlidingWindowTest.female_bin_stats,
-      prefix = study_prefix + ".trio_cohort.FEMALE_only",
-      docker = pedsv_r_docker
-  }
+  # call PlotSlidingWindowTests as PlotTrioCohortSlidingWindows_FEMALE {
+  #   input:
+  #     stats = TrioCohortSlidingWindowTest.female_bin_stats,
+  #     prefix = study_prefix + ".trio_cohort.FEMALE_only",
+  #     docker = pedsv_r_docker
+  # }
 
-  call PlotSlidingWindowTests as PlotCaseControlCohortSlidingWindows_FEMALE {
-    input:
-      stats = CaseControlCohortSlidingWindowTest.female_bin_stats,
-      prefix = study_prefix + ".case_control_cohort.FEMALE_only",
-      docker = pedsv_r_docker
-  }
+  # call PlotSlidingWindowTests as PlotCaseControlCohortSlidingWindows_FEMALE {
+  #   input:
+  #     stats = CaseControlCohortSlidingWindowTest.female_bin_stats,
+  #     prefix = study_prefix + ".case_control_cohort.FEMALE_only",
+  #     docker = pedsv_r_docker
+  # }
 
   call Rvas.SvGenicRvas as StudyWideRvas {
     input:
@@ -462,12 +477,12 @@ workflow PedSvMainAnalysis {
       pedsv_r_docker = pedsv_r_docker
   }
 
-  call PlotRvas as PlotTrioCohortRvas {
-    input:
-      stats = TrioCohortRvas.rvas_sumstats,
-      prefix = study_prefix + ".trio_cohort",
-      docker = pedsv_r_docker
-  }
+  # call PlotRvas as PlotTrioCohortRvas {
+  #   input:
+  #     stats = TrioCohortRvas.rvas_sumstats,
+  #     prefix = study_prefix + ".trio_cohort",
+  #     docker = pedsv_r_docker
+  # }
 
   call Rvas.SvGenicRvas as CaseControlCohortRvas {
     input:
@@ -486,12 +501,12 @@ workflow PedSvMainAnalysis {
       pedsv_r_docker = pedsv_r_docker
   }
 
-  call PlotRvas as PlotCaseControlCohortRvas {
-    input:
-      stats = CaseControlCohortRvas.rvas_sumstats,
-      prefix = study_prefix + ".case_control_cohort",
-      docker = pedsv_r_docker
-  }
+  # call PlotRvas as PlotCaseControlCohortRvas {
+  #   input:
+  #     stats = CaseControlCohortRvas.rvas_sumstats,
+  #     prefix = study_prefix + ".case_control_cohort",
+  #     docker = pedsv_r_docker
+  # }
 
   call UnifyOutputs {
     input:
@@ -506,14 +521,8 @@ workflow PedSvMainAnalysis {
                   PlotTrioCohortSlidingWindows.results_tarball,
                   PlotCaseControlCohortSlidingWindows.results_tarball,
                   PlotFullCohortSlidingWindows_MALE.results_tarball,
-                  PlotTrioCohortSlidingWindows_MALE.results_tarball,
-                  PlotCaseControlCohortSlidingWindows_MALE.results_tarball,
                   PlotFullCohortSlidingWindows_FEMALE.results_tarball,
-                  PlotTrioCohortSlidingWindows_FEMALE.results_tarball,
-                  PlotCaseControlCohortSlidingWindows_FEMALE.results_tarball,
-                  PlotStudyWideRvas.results_tarball,
-                  PlotTrioCohortRvas.results_tarball,
-                  PlotCaseControlCohortRvas.results_tarball],
+                  PlotStudyWideRvas.results_tarball],
       prefix = study_prefix + "_analysis_outputs",
       docker = ubuntu_docker,
       relocate_stats = true
@@ -1215,6 +1224,12 @@ task CohortSummaryPlots {
       --out-prefix ~{prefix}.SummaryPlots/~{prefix} \
       ~{sample_metadata_tsv}
 
+    # Plot selected sample metrics
+    /opt/ped_germline_SV/analysis/cohort_summaries/plot_sample_metrics.R \
+      --subset-samples ~{sample_list} \
+      --out-prefix ~{prefix}.SummaryPlots/~{prefix} \
+      ~{sample_metadata_tsv}
+
     # Plot SV counts and sizes
     /opt/ped_germline_SV/analysis/landscape/plot_sv_site_summary.R \
       --bed ~{bed} \
@@ -1296,8 +1311,18 @@ task PlotSlidingWindowTests {
     tabix -p bed -f \
       ~{prefix}.SlidingWindowResults/~{prefix}.sliding_window_stats.bed.gz
 
+    # Compute multiple test correction
+    bin_size=$( zcat ~{prefix}.SlidingWindowResults/~{prefix}.sliding_window_stats.bed.gz \
+                | sed '1d' | head -n1 | awk '{ print $3-$2 }' )
+    gw_sig=$( zcat ~{prefix}.SlidingWindowResults/~{prefix}.sliding_window_stats.bed.gz \
+              | sed '1d' | cut -f1-3 | sort -Vk1,1 -k2,2n -k3,3n | bedtools merge -i - \
+              | awk -v bin_size="$bin_size" '{ SUM+=$3-$2 }END{ print (bin_size*0.05)/SUM }' )
+
     # Visualize
-    # TODO: implement this
+    /opt/ped_germline_SV/analysis/association/plot_sliding_window_results.R \
+      --stats ~{prefix}.SlidingWindowResults/~{prefix}.sliding_window_stats.bed.gz \
+      --gw-sig "$gw_sig" \
+      --out-prefix ~{prefix}.SlidingWindowResults/~{prefix}
 
     # Compress output
     tar -czvf ~{prefix}.SlidingWindowResults.tar.gz ~{prefix}.SlidingWindowResults

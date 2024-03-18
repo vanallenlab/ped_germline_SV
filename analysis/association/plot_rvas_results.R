@@ -58,7 +58,7 @@ sapply(names(cancer.colors), function(cancer){
         height=2.25*400, width=2.25*400, res=400)
     plot.qq(pvals=10^-stats[which(stats$consequence == csq), p.colname],
             pt.color=cancer.colors[cancer], fdr.color=cancer.palettes[[cancer]]["dark2"],
-            cutoff=p.cutoff, fdr.cutoff=0.01)
+            cutoff=p.cutoff, do.fdr=FALSE)
     dev.off()
   })
 })
