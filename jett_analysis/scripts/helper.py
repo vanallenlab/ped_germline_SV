@@ -72,9 +72,15 @@ def clean_and_subset_gtf(gtf, gene_ref):
 
     duplicated = duplicated.drop_duplicates(subset="gene_name", keep="last")
 
-    cleaned_gtf = pd.concat([nonduplicated, level1_genes, duplicated]).set_index("gene_name")
+    cleaned_gtf = pd.concat([nonduplicated, level1_genes, duplicated])
     
-    return cleaned_gtf
+    # get the index of these genes and indicate that they are kept
+    kept_rows = sorted(cleaned_gtf.index)
+    
+    gtf['kept_for_subset'] = False
+    gtf.loc[kept_rows, 'kept_for_subset'] = True
+    
+    return gtf
 
 
 def determine_parabola(x, y):

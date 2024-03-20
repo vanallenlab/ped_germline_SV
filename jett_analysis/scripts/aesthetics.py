@@ -11,7 +11,7 @@ import sys
 
 
 custom_rcParams = {
-    "figure.figsize": (8, 3),
+    "figure.figsize": (4, 4),
     "font.family": "Arial",
     "font.size": 12,
     "font.weight": "regular",
@@ -22,7 +22,7 @@ custom_rcParams = {
     "axes.grid": False,
     "legend.edgecolor": "none",
     "legend.fancybox": False,
-    "legend.fontsize": 13,
+    "legend.fontsize": 12,
     "legend.frameon": False,
     "legend.framealpha": 0,
     "legend.facecolor": "none",
@@ -32,32 +32,55 @@ custom_rcParams = {
     "savefig.facecolor" : "white",
     "savefig.edgecolor": "white",
     "savefig.dpi": 300,
-    "savefig.bbox": "tight"
-}
-
-rcParams.update(custom_rcParams)
-sns.set_context("paper", rc=custom_rcParams)
-
-# set legend to be outside of plot area by default
-plt.legend = functools.partial(plt.legend, bbox_to_anchor=(1, 0.5))
-
-ASPECT_RATIO = 4 / 3
-
-paper_rcParams = {
-    **custom_rcParams,
+    "savefig.bbox": "tight",
+    "pdf.fonttype": 42,
+    "ps.fonttype": 42,
     "axes.prop_cycle": cycler(
         color=palettable.cartocolors.qualitative.Bold_10.mpl_colors
     ),
-    "figure.figsize": (4, 4),
-    "figure.dpi": 96,
-    "font.family": "Arial",
-    "legend.fontsize": 12,
-    "savefig.dpi": 300,
 }
 
-def activate_paper_rcParams():
-    rcParams.update(paper_rcParams)
-    sns.set_context("paper", rc=paper_rcParams)
+illustrator_rcParams = {
+    "figure.figsize": (8, 3),
+    "font.family": "Arial",
+    "font.size": 6,
+    "font.weight": "regular",
+    "axes.labelsize": 6,
+    "axes.formatter.useoffset": False,
+    "axes.formatter.limits": (-4, 4),
+    "axes.titlesize": 6,
+    "axes.grid": False,
+    "legend.edgecolor": "none",
+    "legend.fancybox": False,
+    "legend.fontsize": 6,
+    "legend.frameon": False,
+    "legend.framealpha": 0,
+    "legend.facecolor": "none",
+    "legend.loc": "center left",
+    "xtick.labelsize": 6,
+    "ytick.labelsize": 6,
+    "savefig.facecolor" : "white",
+    "savefig.edgecolor": "white",
+    "savefig.dpi": 300,
+    "savefig.bbox": "tight",
+    "pdf.fonttype": 42,
+    "ps.fonttype": 42,
+    "axes.linewidth": 0.5,
+    "xtick.major.width": 0.5,
+    "ytick.major.width": 0.5,
+    "axes.prop_cycle": cycler(
+        color=palettable.cartocolors.qualitative.Bold_10.mpl_colors
+    )
+}
+
+def activate_paper_rcParams(activate='default'):
+    
+    if activate == 'default':
+        rcParams.update(custom_rcParams)
+        sns.set_context("paper", rc=custom_rcParams)
+    elif activate == 'illustrator':
+        rcParams.update(illustrator_rcParams)
+        sns.set_context("paper", rc=illustrator_rcParams)
 
 
 def strip_axis(ax, x="strip", y="strip", despine=True):
@@ -90,3 +113,4 @@ def strip_axis(ax, x="strip", y="strip", despine=True):
         ax.get_yaxis().set_visible(False)
 
     return ax
+
