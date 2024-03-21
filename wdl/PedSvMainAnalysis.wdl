@@ -508,6 +508,16 @@ workflow PedSvMainAnalysis {
   #     docker = pedsv_r_docker
   # }
 
+  call Pseudoreplication as Pseudorep {
+    input:
+      case_control_cohort_burden_stats = CaseControlCohortBurdenTests.burden_stats,
+      trio_cohort_burden_stats = TrioCohortBurdenTests.burden_stats,
+      sample_metadata_tsv = sample_metadata_tsv,
+      samples_list = all_samples_list,
+      prefix = study_prefix,
+      docker = pedsv_r_docker
+  }
+
   call UnifyOutputs {
     input:
       tarballs = [FullCohortSummaryPlots.plots_tarball,
@@ -522,7 +532,8 @@ workflow PedSvMainAnalysis {
                   PlotCaseControlCohortSlidingWindows.results_tarball,
                   PlotFullCohortSlidingWindows_MALE.results_tarball,
                   PlotFullCohortSlidingWindows_FEMALE.results_tarball,
-                  PlotStudyWideRvas.results_tarball],
+                  PlotStudyWideRvas.results_tarball,
+                  Pseudorep.results_tarball],
       prefix = study_prefix + "_analysis_outputs",
       docker = ubuntu_docker,
       relocate_stats = true
@@ -655,11 +666,13 @@ task BurdenTests {
       "~{prefix}.BurdenTests/~{prefix}"
 
     # Compress output
+    cp ~{prefix}.BurdenTests/~{prefix}.global_burden_tests.tsv.gz ./
     tar -czvf ~{prefix}.BurdenTests.tar.gz ~{prefix}.BurdenTests
   >>>
 
   output {
     File plots_tarball = "~{prefix}.BurdenTests.tar.gz"
+    File burden_stats = "~{prefix}.global_burden_tests.tsv.gz"
   }
 
   runtime {
@@ -1305,7 +1318,7 @@ task PlotSlidingWindowTests {
     # Merge stats
     zcat ~{sep=" " stats} | grep -ve '^#' \
     | sort -Vk1,1 -k2,2n -k3,3n \
-    | cat <( zcat ~{stats[0]} | head -n1 ) - \
+    | cat <( zcat ~{stats[0]} | sed -n '1p' ) - \
     | bgzip -c \
     > ~{prefix}.SlidingWindowResults/~{prefix}.sliding_window_stats.bed.gz
     tabix -p bed -f \
@@ -1313,10 +1326,13 @@ task PlotSlidingWindowTests {
 
     # Compute multiple test correction
     bin_size=$( zcat ~{prefix}.SlidingWindowResults/~{prefix}.sliding_window_stats.bed.gz \
-                | sed '1d' | head -n1 | awk '{ print $3-$2 }' )
+                | sed '1d' | awk '{ print $3-$2 }' | sed -n '1p' )
+    echo -e "\nDetected $bin_size bp bins\n"
     gw_sig=$( zcat ~{prefix}.SlidingWindowResults/~{prefix}.sliding_window_stats.bed.gz \
               | sed '1d' | cut -f1-3 | sort -Vk1,1 -k2,2n -k3,3n | bedtools merge -i - \
               | awk -v bin_size="$bin_size" '{ SUM+=$3-$2 }END{ print (bin_size*0.05)/SUM }' )
+    echo -e "\nGenome-wide significance threshold: $gw_sig\n"
+    echo "$gw_sig" > gw_sig.txt
 
     # Visualize
     /opt/ped_germline_SV/analysis/association/plot_sliding_window_results.R \
@@ -1330,6 +1346,7 @@ task PlotSlidingWindowTests {
 
   output {
     File results_tarball = "~{prefix}.SlidingWindowResults.tar.gz"
+    Float gw_sig_cutoff = read_float("gw_sig.txt")
   }
 
   runtime {
@@ -1366,6 +1383,46 @@ task PlotRvas {
 
   output {
     File results_tarball = "~{prefix}.RvasResults.tar.gz"
+  }
+
+  runtime {
+    docker: docker
+    memory: "3.5 GB"
+    cpu: 2
+    disks: "local-disk 25 HDD"
+    preemptible: 3
+  }
+}
+
+
+# Plot pseudoreplication of trio & case-control cohorts
+task Pseudoreplication {
+  input {
+    File case_control_cohort_burden_stats
+    File trio_cohort_burden_stats
+    File sample_metadata_tsv
+    File samples_list
+    String prefix
+    String docker
+  }
+
+  command <<<
+    set -eu -o pipefail
+
+    mkdir ~{prefix}.Pseudoreplication
+
+    /opt/ped_germline_SV/analysis/landscape/plot_pseudoreplication.R \
+      --case-control-stats ~{case_control_cohort_burden_stats} \
+      --trio-stats ~{trio_cohort_burden_stats} \
+      --metadata ~{sample_metadata_tsv} \
+      --subset-samples ~{samples_list} \
+      --out-prefix ~{prefix}.Pseudoreplication/~{prefix}
+
+    tar -czvf ~{prefix}.Pseudoreplication.tar.gz ~{prefix}.Pseudoreplication
+  >>>
+
+  output {
+    File results_tarball = "~{prefix}.Pseudoreplication.tar.gz"
   }
 
   runtime {

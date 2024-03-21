@@ -512,6 +512,43 @@ for(freq in c("rare", "vrare", "singleton")){
 }
 
 
+# Rerun selected tests of large unbalanced SVs after restricting to Europeans only
+for(size in c("large")){
+  for(freq in c("rare")){
+    # All large *unbalanced* *autosomal* SVs
+    # (DEL + DUP + aneuploidy + qualifying CPX)
+    all.stats <- main.burden.wrapper(data, query=paste(size, freq, "unbalanced", sep="."),
+                                     meta[which(meta$inferred_ancestry == "EUR"), ], action="any",
+                                     af.fields, ac.fields, sv.subsets=NULL, all.stats,
+                                     paste(args$out_prefix, paste(freq, size, "unbalanced_sv_per_genome.by_cancer.autosomal_only.EUR_only", sep="_"), sep="."),
+                                     main.title=paste("Pct. w/", tolower(freq.names[freq]),
+                                                      "unbalanced SV",
+                                                      if(size == "large"){">1Mb"}else{">100kb"}),
+                                     barplot.height=barplot.height, barplot.width=barplot.width,
+                                     barplot.units="percent", autosomal=TRUE,
+                                     custom.hypothesis=paste(size, freq, "unbalanced", "autosomal_only", "EUR_only", sep="."))
+
+    # Add one separate test for all large *unbalanced* *autosomal* SVs for each sex
+    # (DEL + DUP + qualifying CPX; *no* aneuploidy)
+    for(sex in c("MALE", "FEMALE")){
+      all.stats <- main.burden.wrapper(data, query=paste(size, freq, "unbalanced",
+                                                         paste(sex, "only", sep="_"), sep="."),
+                                       meta[which(meta$inferred_sex == sex & meta$inferred_ancestry == "EUR"), ], action="any",
+                                       af.fields, ac.fields, sv.subsets=NULL, all.stats,
+                                       paste(args$out_prefix, paste(freq, size, "unbalanced_sv_per_genome.by_cancer.autosomal_only.EUR_only", sep="_"),
+                                             paste(sex, "only", sep="_"), sep="."),
+                                       main.title=paste("Pct. w/", tolower(freq.names[freq]),
+                                                        "unbalanced SV",
+                                                        if(size == "large"){">1Mb"}else{">100kb"}),
+                                       barplot.height=barplot.height, barplot.width=barplot.width,
+                                       barplot.units="percent", autosomal=TRUE,
+                                       custom.hypothesis=paste(size, freq, "unbalanced", "autosomal_only", "EUR_only",
+                                                               paste(sex, "only", sep="_"), sep="."))
+    }
+  }
+}
+
+
 # Rerun selected tests of large unbalanced SVs after excluding COSMIC/CPG
 if(!is.null(args$gene_lists)){
   if(length(intersect(names(gene.lists), c("COSMIC", "CPG"))) == 2){
@@ -762,7 +799,7 @@ if(!is.null(precomp.stats)){
 
           # Plot swarms
           ylims <- c(min(ad.vals[which(!is.infinite(ad.vals))]), log10(5000000))
-          sv.label <- if(cnv == "CNV"){"CNVs"}else{sv.abbreviations[cnv]}
+          sv.label <- if(cnv == "CNV"){"CNVs"}else{tolower(sv.abbreviations[cnv])}
           pdf(paste(args$out_prefix,
                     paste("total", freq, cnv, "imbalance_per_genome", sep="_"),
                     sex.title, "pdf", sep="."),
@@ -771,7 +808,7 @@ if(!is.null(precomp.stats)){
                                  title=format.pval(as.numeric(new.stats$P.value)[1]),
                                  y.axis.title=paste("Nucleotides altered\nby",
                                                     tolower(freq.names[freq]),
-                                                    tolower(sv.label)),
+                                                    sv.label),
                                  title.line=0.5, y.title.line=1.3,
                                  y.ticks=log10(logscale.major.bp),
                                  y.tick.labels=logscale.major.bp.labels,

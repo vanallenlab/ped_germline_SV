@@ -38,11 +38,12 @@ load.sumstats <- function(tsv.in){
 ######################
 # Plotting functions #
 ######################
-manhattan <- function(stats, p.column, chrom.colors, gw.sig, pt.cex=0.3, title=NULL){
+manhattan <- function(stats, p.column, chrom.colors, gw.sig, pt.cex=0.3,
+                      title=NULL, parmar=c(2, 2.25, 0.25, 0.3)){
   # Prep plot area
   xlims <- range(stats$pos)
   ylims <- c(0, max(c(stats[, p.column], gw.sig), na.rm=T) + 0.1)
-  prep.plot.area(xlims, ylims, parmar=c(2, 2.25, 1, 0.3))
+  prep.plot.area(xlims, ylims, parmar=parmar)
   abline(h=gw.sig, lty=5)
 
   # Add points
@@ -59,7 +60,7 @@ manhattan <- function(stats, p.column, chrom.colors, gw.sig, pt.cex=0.3, title=N
          col.axis=chrom.colors[x],
          line=c(-0.8, -1.3)[as.integer((x %% 2) == 1) + 1])
   })
-  clean.axis(2, title=bquote(-log[10](italic(P))), infinite.positive=T, title.line=0.2)
+  clean.axis(2, title=bquote(-log[10] ~ italic(P)), infinite.positive=T, title.line=0.2)
   mtext(3, text=title, line=0)
 }
 
@@ -94,11 +95,12 @@ sapply(names(cancer.colors), function(cancer){
 
   # Iterate over CNV types
   sapply(c("CNV", "DEL", "DUP"), function(cnv){
-    if(cnv == "CNV"){
-      title <- paste(cancer.names.long[cancer], "CNVs")
-    }else{
-      title <- paste(cancer.names.long[cancer], " ", tolower(sv.names[cnv]), "s", sep="")
-    }
+    # if(cnv == "CNV"){
+    #   title <- paste(cancer.names.long[cancer], "CNVs")
+    # }else{
+    #   title <- paste(cancer.names.long[cancer], " ", tolower(sv.names[cnv]), "s", sep="")
+    # }
+    title <- NULL
 
     # Only plot cancers present in header of --stats
     p.colname <- paste(cancer, cnv, "neglog10_p", sep=".")
@@ -108,7 +110,7 @@ sapply(names(cancer.colors), function(cancer){
 
     # Plot Manhattan
     png(paste(args$out_prefix, cancer, cnv, "sliding_window", "manhattan", "png", sep="."),
-        height=2.25*400, width=3.75*400, res=400)
+        height=2.25*400, width=4*400, res=400)
     manhattan(stats, p.colname, chrom.colors, -log10(args$gw_sig), title=title)
     dev.off()
   })

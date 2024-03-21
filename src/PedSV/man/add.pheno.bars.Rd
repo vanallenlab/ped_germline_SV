@@ -7,11 +7,13 @@
 add.pheno.bars(
   plot.df,
   bar.mids,
-  bar.hex,
-  control.sep,
+  bar.hex = 0.5,
+  control.sep = 0.1875,
   horiz = TRUE,
   color.by.sig = TRUE,
-  legend.on.bars = FALSE
+  legend.on.bars = FALSE,
+  add.pvals = FALSE,
+  cancer.types.override = NULL
 )
 }
 \arguments{
@@ -19,15 +21,21 @@ add.pheno.bars(
 
 \item{bar.mids}{Midpoints for all bars (controls first)}
 
-\item{bar.hex}{Bar width}
+\item{bar.hex}{Bar width [default: 0.5]}
 
-\item{control.sep}{Separation constant between cases & controls}
+\item{control.sep}{Separation constant between cases & controls [default: 0.1875]}
 
 \item{horiz}{Should the bars be plotted horizontally? [default: TRUE]}
 
 \item{color.by.sig}{Should the case bars be shaded by significance? [default: TRUE]}
 
 \item{legend.on.bars}{Should a legend be written on the bars? [default: FALSE]}
+
+\item{add.pvals}{Should P values be annotated on the opposite margin?
+[default: TRUE]}
+
+\item{cancer.types.override}{Specify order of cancer types in \code{plot.df}
+[default: infer from \code{rownames(plot.df)} ]}
 }
 \description{
 Add stacked barplots by phenotype to an existing plot

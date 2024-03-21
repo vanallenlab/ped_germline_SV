@@ -4,12 +4,14 @@
 \alias{stats2barplotdf}
 \title{Convert landscape test stats to barplot-compliant data.frame}
 \usage{
-stats2barplotdf(stats, ci.mode = "normal")
+stats2barplotdf(stats, ci.mode = "normal", order.by.cancer = TRUE)
 }
 \arguments{
 \item{stats}{data.frame with test statistics as output by \code{\link[=pedsv.glm]{pedsv.glm()}}}
 
 \item{ci.mode}{mode for confidence interval calculation [choices: \code{binomial}, \code{normal}; default: \code{normal}]}
+
+\item{order.by.cancer}{order the results by study-wide convention [default: TRUE]}
 }
 \value{
 data.frame

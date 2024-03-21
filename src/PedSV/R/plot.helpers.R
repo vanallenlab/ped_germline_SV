@@ -212,18 +212,23 @@ color.points.by.density <- function(x, y, palette=NULL, bandwidth=1){
 #'
 #' @param plot.df Plotting dataframe. See [barplot.by.phenotype()].
 #' @param bar.mids Midpoints for all bars (controls first)
-#' @param bar.hex Bar width
-#' @param control.sep Separation constant between cases & controls
+#' @param bar.hex Bar width \[default: 0.5\]
+#' @param control.sep Separation constant between cases & controls \[default: 0.1875\]
 #' @param horiz Should the bars be plotted horizontally? \[default: TRUE\]
 #' @param color.by.sig Should the case bars be shaded by significance? \[default: TRUE\]
 #' @param legend.on.bars Should a legend be written on the bars? \[default: FALSE\]
+#' @param add.pvals Should P values be annotated on the opposite margin?
+#' \[default: TRUE\]
+#' @param cancer.types.override Specify order of cancer types in `plot.df`
+#' \[default: infer from `rownames(plot.df)` \]
 #'
 #' @seealso [barplot.by.phenotype()]
 #'
 #' @export add.pheno.bars
 #' @export
-add.pheno.bars <- function(plot.df, bar.mids, bar.hex, control.sep, horiz=TRUE,
-                           color.by.sig=TRUE, legend.on.bars=FALSE){
+add.pheno.bars <- function(plot.df, bar.mids, bar.hex=0.5, control.sep=0.1875,
+                           horiz=TRUE, color.by.sig=TRUE, legend.on.bars=FALSE,
+                           add.pvals=FALSE, cancer.types.override=NULL){
   # Infer positional parameters
   n.pheno <- nrow(plot.df)
   # if(!horiz){plot.df <- plot.df[n.pheno:1, ]}
@@ -252,6 +257,7 @@ add.pheno.bars <- function(plot.df, bar.mids, bar.hex, control.sep, horiz=TRUE,
     legend.text.x <- rep(0-(0.05*diff(par("usr")[1:2])), 2)
     legend.text.y <- c(staggered.bar.mids[longest.control]+(bar.hex/5)+control.sep,
                        staggered.bar.mids[longest.case]+(bar.hex/10)-control.sep)
+    pval.axis <- 4
   }else{
     bar.x.left <- bar.width.min
     bar.x.right <- bar.width.max
@@ -264,11 +270,13 @@ add.pheno.bars <- function(plot.df, bar.mids, bar.hex, control.sep, horiz=TRUE,
     legend.text.x <- c(staggered.bar.mids[longest.control]+(bar.hex/5)+control.sep,
                        staggered.bar.mids[longest.case]+(bar.hex/10)-control.sep)
     legend.text.y <- rep(0-(0.05*diff(par("usr")[3:4])), 2)
+    pval.axis <- 3
   }
 
   # Set coloring for case bars based on cancer type and value of color.by.sig
   sig.idx <- which(plot.df[, 7] < 0.05)
-  bar.pals <- lapply(rownames(plot.df), function(pheno){
+  ctypes <- if(!is.null(cancer.types.override)){cancer.types.override}else{rownames(plot.df)}
+  bar.pals <- lapply(ctypes, function(pheno){
     if(pheno %in% names(cancer.palettes)){
       cancer.palettes[[pheno]]
     }else{
@@ -313,5 +321,20 @@ add.pheno.bars <- function(plot.df, bar.mids, bar.hex, control.sep, horiz=TRUE,
   rect(xleft=bar.x.left[case.idx], xright=bar.x.right[case.idx],
        ybottom=bar.y.bottom[case.idx], ytop=bar.y.top[case.idx],
        col=NA, xpd=T)
+
+  # Add P values, if optioned
+  if(add.pvals){
+    sapply(1:nrow(plot.df), function(i){
+      pval <- as.numeric(plot.df[i, 7])
+      if(color.by.sig){
+        p.col <- if(!is.na(pval) & pval < 0.05){"black"}else{control.colors[["main"]]}
+      }else{
+        p.col <- "black"
+      }
+      p.label <- if(is.na(pval)){"NA"}else{PedSV::format.pval(pval, nsmall=0)}
+      axis(pval.axis, at=bar.mids[i], tick=F, line=-0.9, las=2, cex.axis=5/6,
+           labels=p.label, col.axis=p.col)
+    })
+  }
 }
 

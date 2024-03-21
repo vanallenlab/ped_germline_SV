@@ -20,6 +20,7 @@
 #'
 #' @param stats data.frame with test statistics as output by [pedsv.glm()]
 #' @param ci.mode mode for confidence interval calculation \[choices: `binomial`, `normal`; default: `normal`\]
+#' @param order.by.cancer order the results by study-wide convention \[default: TRUE\]
 #'
 #' @seealso [barplot.by.phenotype()], [pedsv.glm()]
 #'
@@ -27,7 +28,7 @@
 #'
 #' @export stats2barplotdf
 #' @export
-stats2barplotdf <- function(stats, ci.mode="normal"){
+stats2barplotdf <- function(stats, ci.mode="normal", order.by.cancer=TRUE){
   n.phenos <- nrow(stats)
   values <- as.numeric(c(stats$case.mean, stats$control.mean))
   ns <- as.numeric(c(stats$n.case, stats$n.control))
@@ -49,7 +50,11 @@ stats2barplotdf <- function(stats, ci.mode="normal"){
                         "control.value" = values[(1:n.phenos) + n.phenos],
                         "control.ci.lower" = ci.lowers[(1:n.phenos) + n.phenos],
                         "control.ci.upper" = ci.uppers[(1:n.phenos) + n.phenos],
-                        "p" = pvals, row.names=stats$disease)
-  plot.df[intersect(names(cancer.colors[1:4]), rownames(plot.df)), ]
+                        "p" = pvals)
+  if(order.by.cancer){
+    rownames(plot.df) <- stats$disease
+    plot.df <- plot.df[intersect(names(cancer.colors[1:4]), rownames(plot.df)), ]
+  }
+  return(plot.df)
 }
 

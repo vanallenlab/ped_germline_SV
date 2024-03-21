@@ -334,7 +334,12 @@ load.constants <- function(subset, envir=.GlobalEnv){
                    "OTH" = "Other SV"),
     "freq.names" = c("rare" = "Rare",
                      "vrare" = "V. rare",
-                     "singleton" = "Singleton")
+                     "singleton" = "Singleton"),
+    "cohort.names" = c("GMKF" = "GMKF",
+                       "ICGC" = "ICGC",
+                       "StJude" = "St. Jude",
+                       "Topmed_BIOME" = "BioMe",
+                       "Topmed_MESA" = "MESA")
   )
 
   # Assign constants to global environment

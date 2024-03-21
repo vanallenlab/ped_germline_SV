@@ -179,6 +179,8 @@ ridgeplot <- function(data, names=NULL, hill.overlap=0.35, xlims=NULL, x.axis=TR
 #' \[default: "Case"\]
 #' @param control.label Label for "control" bars if `legend.on.bars` is
 #' `TRUE` \[default: "Control"\]
+#' @param add.pvals Should P values be annotated on the opposite margin?
+#' \[default: TRUE\]
 #' @param parmar Value of `mar` passed to `par()`
 #'
 #' @details `plot.df` is expected to adhere to the following specifications:
@@ -195,7 +197,7 @@ barplot.by.phenotype <- function(plot.df, bar.hex=0.5, case.control.sep=0.375,
                                  title="Value", orient.cases="top",
                                  custom.pheno.labels=NULL, legend.on.bars=FALSE,
                                  case.label="Case", control.label="Control",
-                                 parmar=c(0.2, 4.1, 2.1, 4)){
+                                 add.pvals=TRUE, parmar=c(0.2, 4.1, 2.1, 4)){
   # Get plot dimensions
   xlims <- c(0, min(c(2*max(plot.df[, c(1, 4)], na.rm=T),
                       max(plot.df[, 1:6], na.rm=T)),
@@ -228,20 +230,8 @@ barplot.by.phenotype <- function(plot.df, bar.hex=0.5, case.control.sep=0.375,
 
   # Add bars
   add.pheno.bars(plot.df, bar.mids=y.mids, bar.hex=bar.hex, control.sep=control.sep,
-                 horiz=TRUE, color.by.sig=color.by.sig, legend.on.bars=legend.on.bars)
-
-  # Add P values
-  sapply(1:nrow(plot.df), function(i){
-    if(color.by.sig){
-      pval <- plot.df[i, 7]
-      p.col <- if(!is.na(pval) & pval < 0.05){"black"}else{control.colors[["main"]]}
-    }else{
-      p.col <- "black"
-    }
-    p.label <- if(is.na(pval)){"NA"}else{PedSV::format.pval(plot.df[i, 7], nsmall=0)}
-    axis(4, at=y.mids[i], tick=F, line=-0.9, las=2, cex.axis=5/6,
-         labels=p.label, col.axis=p.col)
-  })
+                 horiz=TRUE, color.by.sig=color.by.sig, legend.on.bars=legend.on.bars,
+                 add.pvals=add.pvals)
 }
 
 

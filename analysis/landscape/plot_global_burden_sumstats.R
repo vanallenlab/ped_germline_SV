@@ -127,9 +127,9 @@ args <- commandArgs(trailingOnly=T)
 # args <- c("/Users/ryan/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_MS/PedSV_figures/PedSV.v2.5.3_analysis_outputs/stats/PedSV.v2.5.3.global_burden_tests.tsv.gz",
 #           "~/scratch/PedSV.v.2.5.3.full_cohort.dev")
 
+
 # Load sumstats
-ss <- read.table(args[1], header=T, sep="\t", comment.char="", check.names=F)
-colnames(ss)[1] <- gsub("^#", "", colnames(ss)[1])
+ss <- load.burden.sumstats(args[1])
 
 
 # Set standard plot parameters
@@ -196,6 +196,16 @@ doublewide.barplot.by.phenotype(plot.df.l=stats2barplotdf(ss[which(ss$hypothesis
 dev.off()
 
 
+# Horizontal double-wide barplot of rare unbalanced autosomal SVs after excluding COSMIC + CPGs in males vs. females for supp figure
+pdf(paste(args[2], ".large_rare_unbal_male_vs_female.autosomes_only.no_COSMIC_no_CPG.double_bars.pdf", sep=""),
+    height=doublebar.height, width=doublebar.width)
+doublewide.barplot.by.phenotype(plot.df.l=stats2barplotdf(ss[which(ss$hypothesis == "large.rare.unbalanced.autosomal_only.no_COSMIC_no_CPG.MALE_only"), ], ci.mode="binomial"),
+                                plot.df.r=stats2barplotdf(ss[which(ss$hypothesis == "large.rare.unbalanced.autosomal_only.no_COSMIC_no_CPG.FEMALE_only"), ], ci.mode="binomial"),
+                                left.axis.units="percent", title="Rare autosomal SV >1Mb",
+                                label.l="Males (XY)", label.r="Females (XX)")
+dev.off()
+
+
 # Plot effect sizes of gene-disruptive SVs
 sapply(c("", "LoF", "CG", "IED", "nonLoF_disruptive"), function(suffix){
   plot.stats <- merge.by.freq(lapply(names(freq.names), function(freq){
@@ -237,12 +247,20 @@ dev.off()
 
 
 # Horizontal double-wide barplot of COSMIC & CPG gene-disruptive SVs for main figure
-# Note: custom height to fit with rest of this specific figure
+# Note: custom height for rare only to fit with rest of this specific figure
 pdf(paste(args[2], ".rare_cosmic_and_cpg_disruptive.double_bars.pdf", sep=""),
     height=2.75, width=3.75)
 doublewide.barplot.by.phenotype(plot.df.l=stats2barplotdf(ss[which(ss$hypothesis == "rare.cosmic.gene_disruptive"), ]),
                                 plot.df.r=stats2barplotdf(ss[which(ss$hypothesis == "rare.cpg.gene_disruptive"), ]),
                                 title="Samples with rare\ngene-disruptive SV", label.l="COSMIC Tier 1",
+                                label.r="Germline CPGs", left.axis.units="percent",
+                                group.label.cex=5/6, parmar=c(1.15, 3.25, 0.75, 0.25))
+dev.off()
+pdf(paste(args[2], ".singleton_cosmic_and_cpg_disruptive.double_bars.pdf", sep=""),
+    height=doublebar.height, width=doublebar.width)
+doublewide.barplot.by.phenotype(plot.df.l=stats2barplotdf(ss[which(ss$hypothesis == "singleton.cosmic.gene_disruptive"), ]),
+                                plot.df.r=stats2barplotdf(ss[which(ss$hypothesis == "singleton.cpg.gene_disruptive"), ]),
+                                title="Samples with singleton\ngene-disruptive SV", label.l="COSMIC Tier 1",
                                 label.r="Germline CPGs", left.axis.units="percent",
                                 group.label.cex=5/6, parmar=c(1.15, 3.25, 0.75, 0.25))
 dev.off()
