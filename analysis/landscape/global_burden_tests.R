@@ -638,6 +638,7 @@ for(freq in c("rare", "vrare", "singleton")){
     ylims <- c(0, max(sapply(surv.models, function(ss){
       max(ss$surv[which(ss$time>log10(50000))], na.rm=T)
     }), na.rm=T) + 0.025)
+
     pdf(paste(args$out_prefix, freq, "genomic_imbalance_km", sex.title, "pdf", sep="."),
         height=2.15, width=2.5)
     svlen.line.plot(x.svlen=lapply(surv.models, function(sm){sm$time}),

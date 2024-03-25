@@ -251,6 +251,8 @@ barplot.by.phenotype <- function(plot.df, bar.hex=0.5, case.control.sep=0.375,
 #' @param left.axis.units Specify units for left axis. Options are NULL (for
 #' numeric) or "percent" \[default: NULL\]
 #' @param title Custom title for left axis
+#' @param y.title.line `title.line` parameter passed to [PedSV::clean.axis()]
+#' for left axis \[default: 0.35\]
 #' @param orient.cases Should cases be plotted to the `left` or `right` of controls? \[default: "left"\]
 #' @param label.l Optional label for left set of bars.
 #' @param label.r Optional label for right set of bars.
@@ -267,8 +269,8 @@ barplot.by.phenotype <- function(plot.df, bar.hex=0.5, case.control.sep=0.375,
 doublewide.barplot.by.phenotype <-
   function(plot.df.l, plot.df.r, bar.wex=0.5, case.control.sep=0.375,
            group.spacer=0.5, color.by.sig=TRUE, add.left.axis=TRUE,
-           left.axis.units=NULL, title="Value", orient.cases="left",
-           label.l=NULL, label.r=NULL, group.label.cex=1,
+           left.axis.units=NULL, title="Value", y.title.line=0.35,
+           orient.cases="left", label.l=NULL, label.r=NULL, group.label.cex=1,
            parmar=c(1.15, 2.25, 0.75, 0.25)){
     # Get plot dimensions
     both.plot.df <- rbind(plot.df.l, plot.df.r)
@@ -295,7 +297,7 @@ doublewide.barplot.by.phenotype <-
     if(add.left.axis){
       clean.axis(2, label.units=left.axis.units,
                  title=title, infinite.positive=TRUE, tck=-0.015,
-                 label.line=-0.8, title.line=0.35, max.ticks=5)
+                 label.line=-0.8, title.line=y.title.line, max.ticks=5)
     }
     sapply(1:2, function(i){
       axis(1, at=c(group.x.mean.l, group.x.mean.r)[i], tick=F, line=-0.9,

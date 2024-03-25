@@ -196,6 +196,16 @@ doublewide.barplot.by.phenotype(plot.df.l=stats2barplotdf(ss[which(ss$hypothesis
 dev.off()
 
 
+# Horizontal double-wide barplot of rare unbalanced autosomal SVs in *EUROPEAN* males vs. females for supp figure
+pdf(paste(args[2], ".large_rare_unbal_male_vs_female.autosomes_only.EUR_only.double_bars.pdf", sep=""),
+    height=doublebar.height, width=doublebar.width)
+doublewide.barplot.by.phenotype(plot.df.l=stats2barplotdf(ss[which(ss$hypothesis == "large.rare.unbalanced.autosomal_only.EUR_only.MALE_only"), ], ci.mode="binomial"),
+                                plot.df.r=stats2barplotdf(ss[which(ss$hypothesis == "large.rare.unbalanced.autosomal_only.EUR_only.FEMALE_only"), ], ci.mode="binomial"),
+                                left.axis.units="percent", title="Rare autosomal SV >1Mb",
+                                label.l="Eur. males (XY)", label.r="Eur. females (XX)")
+dev.off()
+
+
 # Horizontal double-wide barplot of rare unbalanced autosomal SVs after excluding COSMIC + CPGs in males vs. females for supp figure
 pdf(paste(args[2], ".large_rare_unbal_male_vs_female.autosomes_only.no_COSMIC_no_CPG.double_bars.pdf", sep=""),
     height=doublebar.height, width=doublebar.width)
@@ -243,6 +253,16 @@ doublewide.barplot.by.phenotype(plot.df.l=stats2barplotdf(ss[which(ss$hypothesis
                                 plot.df.r=stats2barplotdf(ss[which(ss$hypothesis == "singleton.single_gene_disruptive"), ]),
                                 title="Single gene-disruptive SVs",
                                 label.l="Rare (AF<1%)", label.r="Singleton (AC=1)")
+dev.off()
+
+
+# Horizontal double-wide barplot of rare gene-disruptive SVs in males vs. females for supp figure
+pdf(paste(args[2], ".rare_gene_disruptive.male_vs_female.double_bars.pdf", sep=""),
+    height=doublebar.height, width=doublebar.width)
+doublewide.barplot.by.phenotype(plot.df.l=stats2barplotdf(ss[which(ss$hypothesis == "rare.gene_disruptive.MALE_only"), ]),
+                                plot.df.r=stats2barplotdf(ss[which(ss$hypothesis == "rare.gene_disruptive.FEMALE_only"), ]),
+                                title="Gene-disruptive SVs", y.title.line=-0.2,
+                                label.l="Male (XY)", label.r="Female (XX)")
 dev.off()
 
 
