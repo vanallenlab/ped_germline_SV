@@ -6,7 +6,7 @@
 \usage{
 \method{plot}{manhattan}(
   df,
-  cutoff = 1e-08,
+  cutoff = 0.00000001,
   highlights = NULL,
   highlight.color = "#4EE69A",
   highlight.name = "Highlighted Loci",

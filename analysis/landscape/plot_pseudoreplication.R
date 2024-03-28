@@ -26,6 +26,29 @@ PedSV::load.constants("all")
 ##################
 # Data functions #
 ##################
+# Load ncCWAS sumstats
+load.nccwas.ss <- function(tsv.in, cancer){
+  ss <- read.table(tsv.in, header=F, sep="\t", quote="")
+  colnames(ss) <- c("coefficient", "std.err", "test.statistic", "P.value",
+                    "case_count", "case_max",  "n.case.ref", "n.case",
+                    "control_count", "control_max",  "n.control.ref", "n.control",
+                    "n.SVs", "hypothesis")
+  ss$n.case.carrier <- ss$n.case - ss$n.case.ref
+  ss$n.control.carrier <- ss$n.control - ss$n.control.ref
+  ss$test <- "glm"
+  ss$model <- "logit"
+  ss$case.mean <- ss$case_count / ss$n.case
+  ss$case.stdev <- NA
+  ss$control.mean <- ss$control_count / ss$n.control
+  ss$control.stdev <- NA
+  ss$disease <- cancer
+  ss[, c("hypothesis", "disease", "model", "n.case", "n.case.carrier",
+         "case.mean", "case.stdev", "n.control", "n.control.carrier",
+         "control.mean", "control.stdev", "coefficient", "std.err",
+         "test.statistic", "P.value", "test")]
+}
+
+
 # Infer cohort pairings based on study stage & cancer type
 get.cohort.names <- function(meta, cancer, stage){
   stage.meta <- meta[which(meta$study_phase == stage), ]
@@ -117,6 +140,12 @@ parser$add_argument("--trio-stats", metavar=".tsv", type="character",
                     help="Summary stats from trio cohort.", required=TRUE)
 parser$add_argument("--metadata", metavar=".tsv", type="character",
                     help="sample metadata .tsv", required=TRUE)
+parser$add_argument("--case-control-nbl-noncoding-cwas", required=TRUE,
+                    help=paste("Neuroblastoma noncoding CWAS summary statistics",
+                               "for case-control cohort"))
+parser$add_argument("--trio-nbl-noncoding-cwas", required=TRUE,
+                    help=paste("Neuroblastoma noncoding CWAS summary statistics",
+                               "for trio cohort"))
 parser$add_argument("--subset-samples", metavar=".tsv", type="character",
                     help="list of samples to subset [default: use all samples]")
 parser$add_argument("--out-prefix", metavar="path", type="character", required=TRUE,
@@ -127,6 +156,8 @@ args <- parser$parse_args()
 # args <- list("case_control_stats" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_MS/PedSV_figures/PedSV.v2.5.3_analysis_outputs/stats/PedSV.v2.5.3.case_control_cohort.global_burden_tests.tsv.gz",
 #              "trio_stats" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_MS/PedSV_figures/PedSV.v2.5.3_analysis_outputs/stats/PedSV.v2.5.3.trio_cohort.global_burden_tests.tsv.gz",
 #              "metadata" = "~/scratch/PedSV.v2.5.3.cohort_metadata.w_control_assignments.tsv.gz",
+#              "case_control_nbl_noncoding_cwas" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/data/ncCWAS_sumstats/adjusted_rlc_03_25_24/neuroblastoma_discovery_noncoding_cwas_concatenated_glm_results_12_26_23.adjusted.txt",
+#              "trio_nbl_noncoding_cwas" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/data/ncCWAS_sumstats/adjusted_rlc_03_25_24/neuroblastoma_trio_noncoding_cwas_concatenated_glm_results_12_26_23.adjusted.txt",
 #              "subset_samples" = "~/scratch/PedSV.v2.5.3.final_analysis_cohort.samples.list",
 #              "out_prefix" = "~/scratch/PedSV.v2.5.3.dev")
 
@@ -140,6 +171,13 @@ meta <- load.sample.metadata(args$metadata, keep.samples=keepers)
 # Load summary statistics for each cohort
 cc.ss <- load.burden.sumstats(args$case_control_stats)
 trio.ss <- load.burden.sumstats(args$trio_stats)
+do.nccwas <- FALSE
+if(!is.null(args$case_control_nbl_noncoding_cwas)
+   & !is.null(args$trio_nbl_noncoding_cwas)){
+  do.nccwas <- TRUE
+  cc.nc.ss <- load.nccwas.ss(args$case_control_nbl_noncoding_cwas, cancer="NBL")
+  trio.nc.ss <- load.nccwas.ss(args$trio_nbl_noncoding_cwas, cancer="NBL")
+}
 
 
 # Set plot device parameters
@@ -169,4 +207,21 @@ pseudorep.bars(top.data=get.subpanel.data(cc.ss, trio.ss, "singleton.gene_disrup
                outer.y.axis.labels=c("Neuro.", "Ewing"),
                title="Singleton gene-disruptive SVs/sample")
 dev.off()
+
+
+# NBL noncoding TAD boundary categories
+if(do.nccwas){
+  pdf(paste(args$out_prefix, "singleton_tad_boundary.ncCWAS.pseudoreplication.pdf", sep="."),
+      height=pdf.height, width=pdf.width)
+  pseudorep.bars(top.data=get.subpanel.data(cc.nc.ss, trio.nc.ss, "ANY.SINGLETON.PREDICTED_NONCODING_BREAKPOINT.neuroblastoma_tad_boundary.PREDICTED_INTERGENIC.ANY.ANY.protein_coding", "NBL", meta),
+                 top.cancer.types=c("NBL", "NBL"),
+                 bottom.data=get.subpanel.data(cc.nc.ss, trio.nc.ss, "DEL.SINGLETON.PREDICTED_NONCODING_BREAKPOINT.neuroblastoma_tad_boundary.PREDICTED_INTERGENIC.ANY.ANY.protein_coding", "NBL", meta),
+                 bottom.cancer.types=c("NBL", "NBL"),
+                 outer.y.axis.labels=c("All\nnoncoding\nSVs", "Noncoding\ndeletions"),
+                 title="Singletons disrupting adrenal TADs",
+                 parmar=c(0, 9.65, 2, 4.25))
+  dev.off()
+}
+
+
 

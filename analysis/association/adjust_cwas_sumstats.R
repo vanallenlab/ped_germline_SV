@@ -21,6 +21,12 @@ require(EQL, quietly=TRUE)
 
 # Two simple positional arguments: in.tsv and out.tsv
 args <- commandArgs(trailingOnly=TRUE)
+
+# # DEV inputs:
+# args <- c("~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/data/ncCWAS_sumstats/ewing_all_noncoding_cwas_concatenated_glm_results_12_26_23.txt",
+#           "~/scratch/nccwas.correction.test.tsv")
+
+# Read input
 ss <- read.table(args[1], header=F, sep="\t")
 colnames(ss) <- c("point_estimate", "std_error", "z_score", "p_value",
                   "SV_counts_cases", "SV_counts_cases_max",
@@ -28,6 +34,10 @@ colnames(ss) <- c("point_estimate", "std_error", "z_score", "p_value",
                   "SV_counts_controls", "SV_counts_controls_max",
                   "number_of_controls_with_zero_SVs", "total_controls",
                   "number_of_unique_SVs", "category_name")
+
+# Saddlepoint adjustment requires all tests to use the same test statistic
+# Thus, we force everything to Z-scores
+ss$z_score <- ss$point_estimate / ss$std_error
 
 # Saddlepoint adjust Z-scores and P-values
 spa.res <- saddlepoint.adj(ss$z_score)

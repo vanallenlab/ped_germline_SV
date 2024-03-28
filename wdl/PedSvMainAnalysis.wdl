@@ -65,6 +65,9 @@ workflow PedSvMainAnalysis {
     File full_cohort_w_relatives_ad_matrix_idx
     File full_cohort_w_relatives_samples_list
 
+    File case_control_nbl_noncoding_cwas_stats
+    File trio_nbl_noncoding_cwas_stats
+
     Array[File]? gene_lists
     Array[String]? gene_list_names
 
@@ -513,6 +516,8 @@ workflow PedSvMainAnalysis {
       case_control_cohort_burden_stats = CaseControlCohortBurdenTests.burden_stats,
       trio_cohort_burden_stats = TrioCohortBurdenTests.burden_stats,
       sample_metadata_tsv = sample_metadata_tsv,
+      case_control_nbl_noncoding_cwas_stats = case_control_nbl_noncoding_cwas_stats,
+      trio_nbl_noncoding_cwas_stats = trio_nbl_noncoding_cwas_stats,
       samples_list = all_samples_list,
       prefix = study_prefix,
       docker = pedsv_r_docker
@@ -1401,6 +1406,8 @@ task Pseudoreplication {
     File case_control_cohort_burden_stats
     File trio_cohort_burden_stats
     File sample_metadata_tsv
+    File case_control_nbl_noncoding_cwas_stats
+    File trio_nbl_noncoding_cwas_stats
     File samples_list
     String prefix
     String docker

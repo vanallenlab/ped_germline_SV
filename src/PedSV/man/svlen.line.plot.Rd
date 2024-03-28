@@ -21,7 +21,7 @@ svlen.line.plot(
   title = NULL,
   xlab = NULL,
   xlab.line = 0,
-  xlims = log10(c(10000, 1e+06)),
+  xlims = log10(c(10000, 1000000)),
   ylab = "Value",
   y.title.line = 1,
   y.axis.units = NULL,

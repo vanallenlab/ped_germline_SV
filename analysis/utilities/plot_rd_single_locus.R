@@ -196,6 +196,18 @@ if(!is.null(args$subset_samples)){
                  union(keep.samples, samples.to.plot))]
 }
 
+# If region is on sex chromosome and all --sample-id are the same sex,
+# subset only to samples with matching sex
+if(cov[1, 1] %in% c("chrX", "chrY")){
+  target.sexes <- table(meta[args$sample_id, "inferred_sex"])
+  if(length(target.sexes) == 1){
+    target.sex <- names(target.sexes)
+    sex.matches <- rownames(meta)[which(meta$inferred_sex == target.sex)]
+    cov <- cov[, c("chrom", "start", "end",
+                   intersect(colnames(cov), union(sex.matches, samples.to.plot)))]
+  }
+}
+
 # Get coverage median for each sample over the SV interval (used for margin swarmplot)
 if(!is.null(args$sv_interval)){
   sv.coords <- as.numeric(unlist(strsplit(unlist(strsplit(args$sv_interval, split=":"))[2], split="-")))
