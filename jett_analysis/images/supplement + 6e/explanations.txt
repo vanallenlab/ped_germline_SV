@@ -1,0 +1,15 @@
+S8-ewing: jaccard similarity heatmap between gene sets that are Bonferroni significant via Fisher's in ewing sarcoma significant categories. Some gene sets display a high degree of correlation with one another.
+
+S8-neuroblastoma: same for neuroblastoma
+
+S8-gsea-heatmap: heatmap showing some gene sets in neuroblastoma and ewing, across all significant categories in each disease. White dot is Fisher p < 0.05.
+
+S8-heatmap: expression heatmap for all singleton coding SVs (n = 196)
+
+S8-sv-effect: individual histograms of all singleton coding SVs, split by predicted effect. Histogram is of normalized rank of SV-affected samples. Black line is mean rank, but p refers to p value from absolute rank deviation (ie rank absolute deviation != 0.25). This is why copy gain is significant (p = 0.015) but has a mean rank of ~0.50.
+
+S8-gtex: showing case-unique and control-unique gtex expression across a variety of tissues
+
+S10: Individual gene analyses, rare SVs, split by cohort. Positive y is cases, negative y is controls. There is only one nominally significant SV (a rare SV near MYCN in St Jude).. No other significant loci. Common SVs not shown.
+
+S13: neuroblastoma TAD boundary GSEA. Same as 4B.
