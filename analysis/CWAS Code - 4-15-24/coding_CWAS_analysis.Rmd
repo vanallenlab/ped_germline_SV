@@ -1,0 +1,234 @@
+---
+title: "Untitled"
+author: "Riaz Gillani"
+date: "2023-04-06"
+output: html_document
+---
+
+```{r}
+
+library(MASS)
+library(tidyverse)
+library(useful)
+library(here)
+library(dplyr)
+library(ggplot2)
+library(RColorBrewer)
+library(ggrepel)
+library(VennDiagram)
+library(stringr)
+library(scales)
+library(grid)
+library(exact2x2)
+library(readr)
+library(biomaRt)
+library(sqldf)
+library(gridExtra)
+library(ggbeeswarm)
+library(caret)
+library(vcfR)
+library(bedr)
+library(PedSV)
+library(parallel)
+library(argparse)
+library(qqman)
+library(metafor)
+library(rCNV2)
+library(ggpubr)
+library(ggbeeswarm)
+library(quest)
+library(EQL)
+library(logistf)
+library(viridis)
+PedSV::load.constants("all")
+
+```
+
+##Neuroblastoma
+#Eigenvalue decomposition of z-score matrix for all coding categories
+```{r}
+
+neuroblastoma_cwas_concatenated_glm_results_permuted_z_score_matrix <- read_tsv(here::here("data","neuroblastoma_all_coding_cwas_concatenated_glm_results_permuted_z_score_matrix_4_11_24.txt"), col_names = FALSE) %>% column_to_rownames("X1") %>% remove_missing()
+
+neuroblastoma_cwas_concatenated_glm_results_permuted_z_score_matrix_formatted <- neuroblastoma_cwas_concatenated_glm_results_permuted_z_score_matrix %>% as.matrix() %>% t()
+
+neuroblastoma_cwas_concatenated_glm_results_permuted_z_score_correlation_matrix <- cor(neuroblastoma_cwas_concatenated_glm_results_permuted_z_score_matrix_formatted)
+
+neuroblastoma_cwas_concatenated_glm_results_permuted_z_score_correlation_matrix_ev <- eigen(neuroblastoma_cwas_concatenated_glm_results_permuted_z_score_correlation_matrix)
+
+neuroblastoma_cwas_concatenated_glm_results_permuted_z_score_correlation_matrix_eigenvalues_sorted <- neuroblastoma_cwas_concatenated_glm_results_permuted_z_score_correlation_matrix_ev$values %>% sort(decreasing = TRUE)
+
+neuroblastoma_cwas_concatenated_glm_results_permuted_z_score_correlation_matrix_eigenvalues_sum <- neuroblastoma_cwas_concatenated_glm_results_permuted_z_score_correlation_matrix_ev$values %>% sum()
+
+count = 0
+sum_of_eigenvalues = 0
+number_of_leading_eigenvalues_percentage_total_variations_tibble <- tibble(number_of_leading_eigenvalues = NA, percentage_total_variations = NA)
+
+for(number_of_leading_eigenvalues in 1:dim(neuroblastoma_cwas_concatenated_glm_results_permuted_z_score_matrix_formatted)[2]){
+  
+sum_of_eigenvalues <- sum_of_eigenvalues + neuroblastoma_cwas_concatenated_glm_results_permuted_z_score_correlation_matrix_eigenvalues_sorted[number_of_leading_eigenvalues]
+
+percentage_total_variations <- sum_of_eigenvalues/neuroblastoma_cwas_concatenated_glm_results_permuted_z_score_correlation_matrix_eigenvalues_sum
+
+number_of_leading_eigenvalues_percentage_total_variations_tibble <- add_row(number_of_leading_eigenvalues_percentage_total_variations_tibble, number_of_leading_eigenvalues = number_of_leading_eigenvalues, percentage_total_variations = percentage_total_variations)
+
+count = count + 1
+print(count)
+    
+  
+}
+
+number_of_leading_eigenvalues_percentage_total_variations_tibble %>% filter(percentage_total_variations <= 0.99)
+
+threshold_for_nominal_significance <- .05
+threshold_for_multiple_hypothesis_significance_neuroblastoma_all_cohort <- .05/321
+
+```
+
+#CWAS statistics and exploratory visualizations - RARE and SINGLETON categories
+```{r}
+
+neuroblastoma_cwas_concatenated_glm_results_col_names <- c("point_estimate","std_error","z_score","p_value","SV_counts_cases","SV_counts_cases_max","number_of_cases_with_zero_SVs","total_cases","SV_counts_controls","SV_counts_controls_max","number_of_controls_with_zero_SVs","total_controls","number_of_unique_SVs","category_name")
+
+neuroblastoma_cwas_concatenated_glm_results <- read_tsv(here::here("data","neuroblastoma_all_coding_cwas_concatenated_glm_results_4_11_24.txt"), col_names = neuroblastoma_cwas_concatenated_glm_results_col_names) %>% mutate(sv_type = str_split_fixed(category_name,"\\.",6)[,1], frequency = str_split_fixed(category_name,"\\.",6)[,2], mean_SVs_per_case = SV_counts_cases/total_cases, mean_SVs_per_control = SV_counts_controls/total_controls, mean_SVs_total = ((SV_counts_cases + SV_counts_controls)/ (total_cases + total_controls)))
+
+neuroblastoma_cwas_concatenated_glm_results$p_value[neuroblastoma_cwas_concatenated_glm_results$p_value == 0] <- 1E-17
+
+neuroblastoma_cwas_concatenated_glm_results_all_nominally_significant_categories <- neuroblastoma_cwas_concatenated_glm_results %>% filter(p_value < .05) %>% dplyr::select(category_name) %>% unlist() %>% unname()
+
+neuroblastoma_cwas_concatenated_glm_results_all_bonferroni_significant_categories <- neuroblastoma_cwas_concatenated_glm_results %>% filter(p_value < .05/321) %>% dplyr::select(category_name) %>% unlist() %>% unname()
+
+#Rare SV categories
+
+neuroblastoma_cwas_concatenated_glm_results_RARE <- neuroblastoma_cwas_concatenated_glm_results[neuroblastoma_cwas_concatenated_glm_results$frequency == "RARE",] %>% mutate(negative_log10_p_value = -log10(p_value))
+
+write_tsv(neuroblastoma_cwas_concatenated_glm_results_RARE, here::here("data","neuroblastoma_all_coding_cwas_concatenated_glm_results_RARE_4_11_24.txt"))
+
+neuroblastoma_cwas_concatenated_glm_results_RARE_plot <- ggplot(neuroblastoma_cwas_concatenated_glm_results_RARE, aes(x = point_estimate, y = negative_log10_p_value)) + geom_point(color = "Dark blue", alpha = 0.3) + geom_hline(yintercept = -log10(threshold_for_multiple_hypothesis_significance_neuroblastoma_all_cohort), linetype = 2) + theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), axis.ticks.x=element_blank(),  axis.ticks.y=element_blank(), axis.text.y = element_text(size = 16, color = "black"), axis.text.x = element_text(size = 16, color = "black"), axis.title = element_text(size = 16, color = "black"), title = element_text(size = 16, color = "black"), legend.position="none") + labs(title = "Coding category-wide association testing\nin neuroblastoma germline samples vs controls:\nRare Variants", x = expression(ln(Odds~Ratio)), y = expression(-log[10](p~value))) + xlim(-3,3)
+
+ggsave(here::here("results","neuroblastoma_all_coding_cwas_concatenated_glm_results_RARE_plot_4_11_24.png"),neuroblastoma_cwas_concatenated_glm_results_RARE_plot)
+
+#SINGLETON SV categories
+
+neuroblastoma_cwas_concatenated_glm_results_SINGLETON <- neuroblastoma_cwas_concatenated_glm_results[neuroblastoma_cwas_concatenated_glm_results$frequency == "SINGLETON",] %>% mutate(negative_log10_p_value = -log10(p_value))
+
+write_tsv(neuroblastoma_cwas_concatenated_glm_results_SINGLETON, here::here("data","neuroblastoma_all_coding_cwas_concatenated_glm_results_SINGLETON_4_11_24.txt"))
+
+neuroblastoma_cwas_concatenated_glm_results_SINGLETON_plot <- ggplot(neuroblastoma_cwas_concatenated_glm_results_SINGLETON, aes(x = point_estimate, y = negative_log10_p_value)) + geom_point(color = "Dark blue", alpha = 0.3) + geom_hline(yintercept = -log10(threshold_for_multiple_hypothesis_significance_neuroblastoma_all_cohort), linetype = 2) + theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), axis.ticks.x=element_blank(),  axis.ticks.y=element_blank(), axis.text.y = element_text(size = 16, color = "black"), axis.text.x = element_text(size = 16, color = "black"), axis.title = element_text(size = 16, color = "black"), title = element_text(size = 16, color = "black"), legend.position="none") + labs(title = "Coding category-wide association testing\nin neuroblastoma germline samples vs controls:\nSINGLETON Variants", x = expression(ln(Odds~Ratio)), y = expression(-log[10](p~value))) + xlim(-3,3)
+
+ggsave(here::here("results","neuroblastoma_all_coding_cwas_concatenated_glm_results_SINGLETON_plot_4_11_24.png"),neuroblastoma_cwas_concatenated_glm_results_SINGLETON_plot)
+
+```
+
+##Ewing
+#Eigenvalue decomposition of z-score matrix for all coding categories
+```{r}
+
+ewing_cwas_concatenated_glm_results_permuted_z_score_matrix <- read_tsv(here::here("data","ewing_all_coding_cwas_concatenated_glm_results_permuted_z_score_matrix_4_11_24.txt"), col_names = FALSE) %>% column_to_rownames("X1") %>% remove_missing()
+
+ewing_cwas_concatenated_glm_results_permuted_z_score_matrix_formatted <- ewing_cwas_concatenated_glm_results_permuted_z_score_matrix %>% as.matrix() %>% t()
+
+ewing_cwas_concatenated_glm_results_permuted_z_score_correlation_matrix <- cor(ewing_cwas_concatenated_glm_results_permuted_z_score_matrix_formatted)
+
+ewing_cwas_concatenated_glm_results_permuted_z_score_correlation_matrix_ev <- eigen(ewing_cwas_concatenated_glm_results_permuted_z_score_correlation_matrix)
+
+ewing_cwas_concatenated_glm_results_permuted_z_score_correlation_matrix_eigenvalues_sorted <- ewing_cwas_concatenated_glm_results_permuted_z_score_correlation_matrix_ev$values %>% sort(decreasing = TRUE)
+
+ewing_cwas_concatenated_glm_results_permuted_z_score_correlation_matrix_eigenvalues_sum <- ewing_cwas_concatenated_glm_results_permuted_z_score_correlation_matrix_ev$values %>% sum()
+
+count = 0
+sum_of_eigenvalues = 0
+number_of_leading_eigenvalues_percentage_total_variations_tibble <- tibble(number_of_leading_eigenvalues = NA, percentage_total_variations = NA)
+
+for(number_of_leading_eigenvalues in 1:dim(ewing_cwas_concatenated_glm_results_permuted_z_score_matrix_formatted)[2]){
+  
+sum_of_eigenvalues <- sum_of_eigenvalues + ewing_cwas_concatenated_glm_results_permuted_z_score_correlation_matrix_eigenvalues_sorted[number_of_leading_eigenvalues]
+
+percentage_total_variations <- sum_of_eigenvalues/ewing_cwas_concatenated_glm_results_permuted_z_score_correlation_matrix_eigenvalues_sum
+
+number_of_leading_eigenvalues_percentage_total_variations_tibble <- add_row(number_of_leading_eigenvalues_percentage_total_variations_tibble, number_of_leading_eigenvalues = number_of_leading_eigenvalues, percentage_total_variations = percentage_total_variations)
+
+count = count + 1
+print(count)
+    
+  
+}
+
+number_of_leading_eigenvalues_percentage_total_variations_tibble %>% filter(percentage_total_variations <= 0.99)
+
+threshold_for_nominal_significance <- .05
+threshold_for_multiple_hypothesis_significance_ewing_all_cohort <- .05/322
+
+```
+
+#CWAS statistics and exploratory visualizations - RARE and SINGLETON categories
+```{r}
+
+ewing_cwas_concatenated_glm_results_col_names <- c("point_estimate","std_error","z_score","p_value","SV_counts_cases","SV_counts_cases_max","number_of_cases_with_zero_SVs","total_cases","SV_counts_controls","SV_counts_controls_max","number_of_controls_with_zero_SVs","total_controls","number_of_unique_SVs","category_name")
+
+ewing_cwas_concatenated_glm_results <- read_tsv(here::here("data","ewing_all_coding_cwas_concatenated_glm_results_4_11_24.txt"), col_names = ewing_cwas_concatenated_glm_results_col_names) %>% mutate(sv_type = str_split_fixed(category_name,"\\.",6)[,1], frequency = str_split_fixed(category_name,"\\.",6)[,2], mean_SVs_per_case = SV_counts_cases/total_cases, mean_SVs_per_control = SV_counts_controls/total_controls, mean_SVs_total = ((SV_counts_cases + SV_counts_controls)/ (total_cases + total_controls)))
+
+ewing_cwas_concatenated_glm_results$p_value[ewing_cwas_concatenated_glm_results$p_value == 0] <- 1E-17
+
+ewing_cwas_concatenated_glm_results_all_nominally_significant_categories <- ewing_cwas_concatenated_glm_results %>% filter(p_value < .05) %>% dplyr::select(category_name) %>% unlist() %>% unname()
+
+ewing_cwas_concatenated_glm_results_all_bonferroni_significant_categories <- ewing_cwas_concatenated_glm_results %>% filter(p_value < .05/322) %>% dplyr::select(category_name) %>% unlist() %>% unname()
+
+#Rare SV categories
+
+ewing_cwas_concatenated_glm_results_RARE <- ewing_cwas_concatenated_glm_results[ewing_cwas_concatenated_glm_results$frequency == "RARE",] %>% mutate(negative_log10_p_value = -log10(p_value))
+
+write_tsv(ewing_cwas_concatenated_glm_results_RARE, here::here("data","ewing_all_coding_cwas_concatenated_glm_results_RARE_4_11_24.txt"))
+
+ewing_cwas_concatenated_glm_results_RARE_plot <- ggplot(ewing_cwas_concatenated_glm_results_RARE, aes(x = point_estimate, y = negative_log10_p_value)) + geom_point(color = "Dark blue", alpha = 0.3) + geom_hline(yintercept = -log10(threshold_for_multiple_hypothesis_significance_ewing_all_cohort), linetype = 2) + theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), axis.ticks.x=element_blank(),  axis.ticks.y=element_blank(), axis.text.y = element_text(size = 16, color = "black"), axis.text.x = element_text(size = 16, color = "black"), axis.title = element_text(size = 16, color = "black"), title = element_text(size = 16, color = "black"), legend.position="none") + labs(title = "Coding category-wide association testing\nin Ewing sarcoma germline samples vs controls:\nRare Variants", x = expression(ln(Odds~Ratio)), y = expression(-log[10](p~value))) + xlim(-3,3)
+
+ggsave(here::here("results","ewing_all_coding_cwas_concatenated_glm_results_RARE_plot_4_11_24.png"),ewing_cwas_concatenated_glm_results_RARE_plot)
+
+#SINGLETON SV categories
+
+ewing_cwas_concatenated_glm_results_SINGLETON <- ewing_cwas_concatenated_glm_results[ewing_cwas_concatenated_glm_results$frequency == "SINGLETON",] %>% mutate(negative_log10_p_value = -log10(p_value))
+
+write_tsv(ewing_cwas_concatenated_glm_results_SINGLETON, here::here("data","ewing_all_coding_cwas_concatenated_glm_results_SINGLETON_4_11_24.txt"))
+
+ewing_cwas_concatenated_glm_results_SINGLETON_plot <- ggplot(ewing_cwas_concatenated_glm_results_SINGLETON, aes(x = point_estimate, y = negative_log10_p_value)) + geom_point(color = "Dark blue", alpha = 0.3) + geom_hline(yintercept = -log10(threshold_for_multiple_hypothesis_significance_ewing_all_cohort), linetype = 2) + theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), axis.ticks.x=element_blank(),  axis.ticks.y=element_blank(), axis.text.y = element_text(size = 16, color = "black"), axis.text.x = element_text(size = 16, color = "black"), axis.title = element_text(size = 16, color = "black"), title = element_text(size = 16, color = "black"), legend.position="none") + labs(title = "Coding category-wide association testing\nin Ewing sarcoma germline samples vs controls:\nSINGLETON Variants", x = expression(ln(Odds~Ratio)), y = expression(-log[10](p~value))) + xlim(-3,3)
+
+ggsave(here::here("results","ewing_all_coding_cwas_concatenated_glm_results_SINGLETON_plot_4_11_24.png"),ewing_cwas_concatenated_glm_results_SINGLETON_plot)
+
+```
+
+#Formatted CWAS plots with highlighting
+```{r}
+
+#Load files
+
+neuroblastoma_cwas_concatenated_glm_results_col_names <- c("point_estimate","std_error","z_score","p_value","SV_counts_cases","SV_counts_cases_max","number_of_cases_with_zero_SVs","total_cases","SV_counts_controls","SV_counts_controls_max","number_of_controls_with_zero_SVs","total_controls","number_of_unique_SVs","category_name")
+
+neuroblastoma_cwas_concatenated_glm_results <- read_tsv(here::here("data","neuroblastoma_all_coding_cwas_concatenated_glm_results_4_11_24.txt"), col_names = neuroblastoma_cwas_concatenated_glm_results_col_names) %>% mutate(sv_type = str_split_fixed(category_name,"\\.",6)[,1], frequency = str_split_fixed(category_name,"\\.",6)[,2], genic_relationship = str_split_fixed(category_name,"\\.",6)[,3], constraint = str_split_fixed(category_name,"\\.",6)[,4], expression = str_split_fixed(category_name,"\\.",6)[,5], gene_group = str_split_fixed(category_name,"\\.",6)[,6], mean_SVs_per_case = SV_counts_cases/total_cases, mean_SVs_per_control = SV_counts_controls/total_controls, mean_SVs_total = ((SV_counts_cases + SV_counts_controls)/ (total_cases + total_controls)), negative_log10_p_value = -log10(p_value))
+
+neuroblastoma_cwas_concatenated_glm_results$p_value[neuroblastoma_cwas_concatenated_glm_results$p_value == 0] <- 1E-17
+
+neuroblastoma_cwas_concatenated_glm_results <- neuroblastoma_cwas_concatenated_glm_results %>% mutate(odds_ratio = exp(point_estimate))
+
+ewing_cwas_concatenated_glm_results_col_names <- c("point_estimate","std_error","z_score","p_value","SV_counts_cases","SV_counts_cases_max","number_of_cases_with_zero_SVs","total_cases","SV_counts_controls","SV_counts_controls_max","number_of_controls_with_zero_SVs","total_controls","number_of_unique_SVs","category_name")
+
+ewing_cwas_concatenated_glm_results <- read_tsv(here::here("data","ewing_all_coding_cwas_concatenated_glm_results_4_11_24.txt"), col_names = ewing_cwas_concatenated_glm_results_col_names) %>% mutate(sv_type = str_split_fixed(category_name,"\\.",6)[,1], frequency = str_split_fixed(category_name,"\\.",6)[,2], genic_relationship = str_split_fixed(category_name,"\\.",6)[,3], constraint = str_split_fixed(category_name,"\\.",6)[,4], expression = str_split_fixed(category_name,"\\.",6)[,5], gene_group = str_split_fixed(category_name,"\\.",6)[,6], mean_SVs_per_case = SV_counts_cases/total_cases, mean_SVs_per_control = SV_counts_controls/total_controls, mean_SVs_total = ((SV_counts_cases + SV_counts_controls)/ (total_cases + total_controls)), negative_log10_p_value = -log10(p_value))
+
+ewing_cwas_concatenated_glm_results$p_value[ewing_cwas_concatenated_glm_results$p_value == 0] <- 1E-17
+
+threshold_for_multiple_hypothesis_significance_neuroblastoma_all_cohort <- .05/321
+
+threshold_for_multiple_hypothesis_significance_ewing_all_cohort <- .05/322
+
+##Neuroblastoma
+
+neuroblastoma_cwas_concatenated_glm_results_plot <- ggplot(neuroblastoma_cwas_concatenated_glm_results, aes(x = point_estimate, y = negative_log10_p_value,fill = frequency)) + geom_point(stroke = 0, alpha = 1, size = 3, shape = 21) + scale_fill_manual(values = c("#763A82","#C494CE"), labels = c("Rare","Singleton"))+ geom_hline(yintercept = -log10(threshold_for_multiple_hypothesis_significance_neuroblastoma_all_cohort), linetype = 2) + geom_hline(yintercept = -log10(.05), linetype = 2, color = "black") + theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), axis.ticks.x=element_blank(),  axis.ticks.y=element_blank(), axis.text.y = element_text(size = 16, color = "black"), axis.text.x = element_text(size = 16, color = "black"), axis.title = element_text(size = 16, color = "black"), title = element_text(size = 14, color = "black"), legend.position= c(0.2,0.9), legend.title = element_blank(),legend.text = element_text(size = 16, color = "black")) + labs(title = "Neuroblastoma coding CWAS", x = expression("Odds ratio (cases vs. controls)"), y = expression(paste(-log[10],italic(" P")))) + scale_x_continuous(limits = c(-2.5,2.5), breaks = c(log(0.125),log(0.25),log(.5),log(0),log(1),log(2),log(4),log(8)), labels = c(0.125,0.25,0.5,0,1,2,4,8)) + scale_y_continuous(limits = c(0,12))
+
+ggsave(here::here("results","neuroblastoma_all_coding_cwas_concatenated_glm_results_plot_4_11_24.png"),neuroblastoma_cwas_concatenated_glm_results_plot)
+
+#Ewing sarcoma
+
+ewing_cwas_concatenated_glm_results_plot <- ggplot(ewing_cwas_concatenated_glm_results, aes(x = point_estimate, y = negative_log10_p_value,fill = frequency)) + geom_point(stroke = 0, alpha = 1, size = 3, shape = 21) + scale_fill_manual(values = c("#3B5CB0","#95AFF3"), labels = c("Rare","Singleton")) + geom_hline(yintercept = -log10(threshold_for_multiple_hypothesis_significance_ewing_all_cohort), linetype = 2) + geom_hline(yintercept = -log10(.05), linetype = 2, color = "black") + theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), axis.ticks.x=element_blank(),  axis.ticks.y=element_blank(), axis.text.y = element_text(size = 16, color = "black"), axis.text.x = element_text(size = 16, color = "black"), axis.title = element_text(size = 16, color = "black"), title = element_text(size = 14, color = "black"), legend.position= c(0.2,0.9), legend.title = element_blank(),legend.text = element_text(size = 16, color = "black")) + labs(title = "Ewing sarcoma coding CWAS", x = expression("Odds ratio (cases vs. controls)"), y = expression(paste(-log[10],italic(" P")))) + scale_x_continuous(limits = c(-2.5,2.5), breaks = c(log(0.125),log(0.25),log(.5),log(0),log(1),log(2),log(4),log(8)), labels = c(0.125,0.25,0.5,0,1,2,4,8)) + scale_y_continuous(limits = c(0,12))
+
+ggsave(here::here("results","ewing_all_coding_cwas_concatenated_glm_results_plot_4_11_24.png"),ewing_cwas_concatenated_glm_results_plot)
+
+```
