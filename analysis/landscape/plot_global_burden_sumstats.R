@@ -272,7 +272,7 @@ pdf(paste(args[2], ".rare_cosmic_and_cpg_disruptive.double_bars.pdf", sep=""),
     height=2.75, width=3.75)
 doublewide.barplot.by.phenotype(plot.df.l=stats2barplotdf(ss[which(ss$hypothesis == "rare.cosmic.gene_disruptive"), ]),
                                 plot.df.r=stats2barplotdf(ss[which(ss$hypothesis == "rare.cpg.gene_disruptive"), ]),
-                                title="Samples with rare\ngene-disruptive SV", label.l="COSMIC Tier 1",
+                                title="Samples with rare\ngene-disruptive SVs", label.l="COSMIC Tier 1",
                                 label.r="Germline CPGs", left.axis.units="percent",
                                 group.label.cex=5/6, parmar=c(1.15, 3.25, 0.75, 0.25))
 dev.off()

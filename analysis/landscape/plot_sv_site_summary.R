@@ -292,8 +292,8 @@ plot.HWE <- function(bed, pop=NULL, title=NULL, full.legend=F, lab.cex=1,
 
 # Plot a summary table graphic of large, rare SVs
 plot.large.sv.summary <- function(bed, ad, meta, schematic.wex=12, count.wex=2,
-                                  freq.wex=3, w.buffer=0.25, title.cex=5/6,
-                                  content.cex=4/6){
+                                  freq.wex=3, svtype.x.adj=0.5, w.buffer=0.25,
+                                  title.cex=5/6, content.cex=4/6){
   # Get data for plotting
   cancers <- intersect(names(cancer.colors), metadata.cancer.label.map[meta$disease])
   plot.df <- get.large.sv.summary.data(bed, ad, meta, cancers)
@@ -323,7 +323,7 @@ plot.large.sv.summary <- function(bed, ad, meta, schematic.wex=12, count.wex=2,
   # Add column headers
   clean.axis(3, at=x.breaks[1:2] + (c(-1, 1) * w.buffer),
              tck=0, labels=NA, label.line=-0.9, cex.axis=1)
-  text(x=0, y=-0.5, xpd=T, pos=4, labels="SV type", cex=title.cex)
+  text(x=0-svtype.x.adj, y=-0.5, xpd=T, pos=4, labels="SV type", cex=title.cex)
   clean.axis(3, tck=0, labels=c(NA, "Total", "Auto.", "Allo.", NA),
              label.line=-0.9, cex.axis=content.cex,
              at=c(x.breaks[2]+w.buffer,
@@ -347,7 +347,7 @@ plot.large.sv.summary <- function(bed, ad, meta, schematic.wex=12, count.wex=2,
     }else{
       sv.label <- sv.names[plot.df$svtype[i]]
     }
-    text(x=x.breaks[1], y=i-0.5, pos=4, labels=sv.label, cex=5/6)
+    text(x=x.breaks[1]-svtype.x.adj, y=i-0.5, pos=4, labels=sv.label, cex=5/6)
     text(x=sapply(2:4, function(x){mean(x.breaks[c(x, x+1)])}),
          y=i-0.5, labels=plot.df[i, 2:4], cex=content.cex)
     freq.labels <- sapply(cancers, function(cancer){
@@ -396,21 +396,13 @@ args <- parser$parse_args()
 #              "af_field" = "POPMAX_AF",
 #              "ac_field" = "AC",
 #              "out_prefix" = "~/scratch/PedSV.v2.5.3.dev.full_cohort")
-# args <- list("bed" = "~/scratch/PedSV.v2.2.1.case_control_cohort.analysis_samples.sites.bed.gz",
-#              "cohort_prefix" = "case_control",
-#              "af_field" = "POPMAX_AF",
-#              "ac_field" = "AC",
-#              "out_prefix" = "~/scratch/PedSV.v2.2.1.dev.case_control")
-# args <- list("bed" = "~/scratch/PedSV.v2.1.trio_cohort.analysis_samples.sites.bed.gz",
-#              "cohort_prefix" = "trio",
-#              "af_field" = "POPMAX_AF",
-#              "ac_field" = "AC",
-#              "out_prefix" = "~/scratch/PedSV.v2.1.dev.trio")
 # args <- list("bed" = "~/scratch/YL-gatsv-v1-allBatches.annotated.samples_excluded.bed.gz",
+#              "metadata" = "/Users/ryan/Desktop/Collins/VanAllen/jackie_younglung/younglung_metadata/YL.SV.v1.1.analysis_metadata.tsv.gz",
+#              "subset_samples" = "/Users/ryan/Desktop/Collins/VanAllen/jackie_younglung/YL_analysis/YL.analysis_samples.list",
 #              "cohort_prefix" = "",
 #              "af_field" = "POPMAX_AF",
 #              "ac_field" = "AC",
-#              "out_prefix" = "~/scratch/YL.v1")
+#              "out_prefix" = "~/scratch/YL.v1.1")
 
 # Infer frequency columns to use
 if(is.null(args$af_field)){

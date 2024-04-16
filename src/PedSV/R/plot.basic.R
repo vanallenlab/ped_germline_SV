@@ -23,9 +23,11 @@
 #' @param pc.Y PC to be plotted on the Y-axis (see `Details`)
 #' @param colors Vector of colors. Must be supplied in the same order as rows in `pcs`
 #' @param title Main title for plot \[default: NULL\]
+#' @param x.label.line Line for X-axis labels (`label.line` parameter for [PedSV::clean.axis])
 #' @param x.title Title for X-axis
 #' @param x.title.line Line for X-axis title (`title.line` parameter for [PedSV::clean.axis])
 #' @param xlims Limits for X-axis
+#' @param y.label.line Line for X-axis labels (`label.line` parameter for [PedSV::clean.axis])
 #' @param y.title Title for Y-axis
 #' @param y.title.line Line for axis titles (`title.line` parameter for [PedSV::clean.axis])
 #' @param ylims Limits for Y-axis
@@ -42,8 +44,8 @@
 #' @export pc.scatterplot
 #' @export
 pc.scatterplot <- function(pcs, pc.X, pc.Y, colors, title=NULL,
-                           x.title=NULL, x.title.line=0.5, xlims=NULL,
-                           y.title=NULL, y.title.line=0.5, ylims=NULL,
+                           x.label.line=NULL, x.title=NULL, x.title.line=0.5, xlims=NULL,
+                           y.label.line=NULL, y.title=NULL, y.title.line=0.5, ylims=NULL,
                            legend.vals=NULL, legend.labels=NULL,
                            cex=0.3, parmar=c(2.5, 2.5, 1, 1)){
   if(!is.numeric(pc.X)){
@@ -67,12 +69,12 @@ pc.scatterplot <- function(pcs, pc.X, pc.Y, colors, title=NULL,
   if(is.null(x.title)){
     x.title <- paste("Principal component", pc.X)
   }
-  clean.axis(1, title=x.title, infinite=T, title.line=x.title.line)
+  clean.axis(1, title=x.title, infinite=T, label.line=x.label.line, title.line=x.title.line)
 
   if(is.null(y.title)){
     y.title <- paste("Principal component", pc.Y)
   }
-  clean.axis(2, title=y.title, infinite=T, title.line=y.title.line)
+  clean.axis(2, title=y.title, infinite=T, label.line=y.label.line, title.line=y.title.line)
 
   points(x, y, pch=19, cex=cex, col=colors, xpd=T)
 
@@ -140,6 +142,7 @@ ridgeplot <- function(data, names=NULL, hill.overlap=0.35, xlims=NULL, x.axis=TR
 
   # Prep plot area
   prep.plot.area(xlims, ylims, parmar, xaxs="i", yaxs="r")
+  median(unlist(sapply(data, function(df){df$y})), na.rm=T)
   if(x.axis){
     clean.axis(1, title="Values", infinite=TRUE)
   }
@@ -292,8 +295,9 @@ doublewide.barplot.by.phenotype <-
 
     # Prep plot area
     prep.plot.area(xlims, ylims, parmar=parmar, xaxs="i", yaxs="r")
-    axis(1, at=c(0, nrow(plot.df.l)), tck=0, labels=NA)
-    axis(1, at=c(0, nrow(plot.df.r)) + nrow(plot.df.l) + group.spacer, tck=0, labels=NA)
+    axis(1, at=c(0, nrow(plot.df.l)), tck=0, labels=NA, col="gray70")
+    axis(1, at=c(0, nrow(plot.df.r)) + nrow(plot.df.l) + group.spacer,
+         tck=0, labels=NA, col="gray70")
     if(add.left.axis){
       clean.axis(2, label.units=left.axis.units,
                  title=title, infinite.positive=TRUE, tck=-0.015,
@@ -619,8 +623,7 @@ swarmplot.by.phenotype <- function(plot.vals, meta, title=NULL, title.line=0,
            labels=ss.label, xpd=T, srt=45, cex=5/6, adj=c(1, 0))
     }
     text(x=x.label.at, y=par("usr")[3]-(0.05*diff(par("usr")[3:4])),
-         labels=x.label, xpd=T, srt=45, cex=5/6, adj=c(1, 0),
-         col=cancer.palettes[[plot.cancers[i]]]["dark2"])
+         labels=x.label, xpd=T, srt=45, cex=5/6, adj=c(1, 0))
     if(median.labels){
       text(x=swarm.at[i] + tick.widths[i] + (0.01*diff(par("usr")[1:2])),
            y=cancer.meds[i], adj=c(0, 0.45),
@@ -938,5 +941,5 @@ plot.qq <- function(pvals, cutoff=NULL, do.fdr=TRUE, fdr.cutoff=0.01, print.stat
              label.line=-0.75, title.line=0.35, infinite=TRUE)
   clean.axis(2, title=expression(Observed ~ ~-log[10] ~ italic(P)),
              title.line=0.15, infinite=TRUE)
-  mtext(1, line=title.line, text=title)
+  mtext(3, line=title.line, text=title)
 }

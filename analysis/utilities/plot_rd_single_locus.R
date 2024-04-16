@@ -311,7 +311,7 @@ if(!is.null(args$highlight_gene_features)){
     gene.label <- "Genes"
     gene.label.color <- background.gene.color
   }else{
-    gene.label.font <- 3
+    gene.label.font <- 4
     gene.label <- args$highlight_gene_label
     gene.label.color <- gene.color
   }
@@ -326,7 +326,11 @@ if(!is.null(args$highlight_gene_features)){
 }
 
 # Add X axis
-x.labels <- unique(sort(round(axTicks(3) / 1000000, 2)))
+x.labels <- unique(sort(round(axTicks(3) / 1000000, 3)))
+max.x.ticks <- 5
+if(length(x.labels) > max.x.ticks){
+  x.labels <- x.labels[c(TRUE, FALSE)]
+}
 x.ax.at <- 1000000 * x.labels
 if(args$no_idiogram){
   x.title <- paste(cov[1, 1], "coordinate (Mb)")

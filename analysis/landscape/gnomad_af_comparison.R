@@ -33,7 +33,8 @@ gnomad.pop.map <- c("AFR" = "AFR",
 # Plotting functions #
 ######################
 # Plot AF correlation vs. gnomAD for a single population
-plot.af.comparison <- function(bed, pop, cohort, pt.cex=0.1, bandwidth=2, alpha=1){
+plot.af.comparison <- function(bed, pop, cohort, square.mins=TRUE, pt.cex=0.1,
+                               bandwidth=2, alpha=1, annotate.void=FALSE){
   # Get plot data
   bed <- filter.bed(bed, query="", autosomal=TRUE, pass.only=TRUE)
   x <- bed[, gsub("^_", "", paste(cohort, pop, "AF", sep="_"))]
@@ -41,20 +42,21 @@ plot.af.comparison <- function(bed, pop, cohort, pt.cex=0.1, bandwidth=2, alpha=
   keepers <- which(!is.na(x) & !is.na(y) & x > 0)
   x <- log10(x[keepers]); y <- log10(y[keepers])
   x.min <- min(x)
-  y.min <- min(y[which(!is.infinite(y))])
+  y.min <- if(square.mins){x.min}else{min(y[which(!is.infinite(y))])}
   ax.lims <- c(min(c(x.min, y.min)), log10(1))
 
   # Prep plot area
-  prep.plot.area(xlims=ax.lims, ylims=ax.lims, parmar=c(2.5, 3.4, 1, 0.1),
-                 xaxs="r", yaxs="r")
+  prep.plot.area(xlims=ax.lims, ylims=ax.lims, parmar=c(2.65, 3.4, 1, 0.25))
   abline(0, 1, col="gray30")
-  rect(xleft=par("usr")[1], xright=x.min, ybottom=par("usr")[3], ytop=par("usr")[4],
-       col="gray90", border=NA)
-  rect(xleft=par("usr")[1], xright=x.min, ybottom=par("usr")[3], ytop=par("usr")[4],
-       col="white", border=NA, density=4)
-  text(x=mean(c(par("usr")[1], x.min)), y=mean(par("usr")[3:4]),
-       labels="Below AF resolution", col="gray65", cex=5/6,
-       srt=(180 / pi) * atan(diff(par("usr")[3:4])/(x.min-par("usr")[1])))
+  if(annotate.void){
+    rect(xleft=par("usr")[1], xright=x.min, ybottom=par("usr")[3], ytop=par("usr")[4],
+         col="gray90", border=NA)
+    rect(xleft=par("usr")[1], xright=x.min, ybottom=par("usr")[3], ytop=par("usr")[4],
+         col="white", border=NA, density=4)
+    text(x=mean(c(par("usr")[1], x.min)), y=mean(par("usr")[3:4]),
+         labels="Below AF resolution", col="gray65", cex=5/6,
+         srt=(180 / pi) * atan(diff(par("usr")[3:4])/(x.min-par("usr")[1])))
+  }
   label.denoms <- gsub("000$", "k", gsub("000000$", "M", as.character(ceiling(1/logscale.major))))
   ax.labels <- gsub("^1:1$", "1", paste("1", label.denoms, sep=":"))
   clean.axis(1, at=log10(logscale.major), title="Allele freq. (this study)",
@@ -67,7 +69,7 @@ plot.af.comparison <- function(bed, pop, cohort, pt.cex=0.1, bandwidth=2, alpha=
   plot.df <- color.points.by.density(x, y, bandwidth=bandwidth,
                                      palette=colorRampPalette(pop.palettes[[pop]][4:2])(256))
   # plot.df <- data.frame("x"=x, "y"=y, "col"=as.character(pop.colors[pop]))
-  points(plot.df$x, plot.df$y, col=adjustcolor(plot.df$col, alpha=alpha), pch=19, cex=pt.cex, xpd=T)
+  points(plot.df$x, plot.df$y, col=adjustcolor(plot.df$col, alpha=alpha), pch=19, cex=pt.cex)
 
   # Add correlation coefficient below title
   cor.stats <- cor.test(10^x, 10^y, use="complete.obs")
@@ -90,7 +92,7 @@ parser$add_argument("--cohort-prefix", default="", metavar="string", type="chara
 parser$add_argument("--out-prefix", metavar="path", type="character", required=TRUE,
                     help="Path/prefix for all output files")
 args <- parser$parse_args()
-
+#
 # # DEV:
 # args <- list("bed" = "~/scratch/PedSV.v2.5.3.full_cohort.analysis_samples.sites.bed.gz",
 #              "cohort_prefix" = "",
@@ -125,6 +127,7 @@ for(pop in intersect(names(pop.colors), pops.in.bed)){
     cat(paste("gnomAD AF comparison for ", pop.names.long[pop], ":\n", sep=""))
     tiff(paste(args$out_prefix, pop, "vs_gnomad.tiff", sep="."),
          height=1300, width=1300, res=400)
+    par(family="Arial")
     cor.stats <- plot.af.comparison(bed, pop, args$cohort_prefix)
     dev.off()
     cat(paste("R2 =", cor.stats$estimate^2, "\nP =", cor.stats$p.value, "\n"))

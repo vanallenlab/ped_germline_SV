@@ -133,7 +133,7 @@ pseudorep.bars <- function(top.data, top.cancer.types, bottom.data, bottom.cance
 # RScript #
 ###########
 # Parse command line arguments and options
-parser <- ArgumentParser(description="Case:control SV burden tests")
+parser <- ArgumentParser(description="Generate pseudoreplication plots")
 parser$add_argument("--case-control-stats", metavar=".tsv", type="character",
                     help="Summary stats from case-control cohort.", required=TRUE)
 parser$add_argument("--trio-stats", metavar=".tsv", type="character",
@@ -156,8 +156,8 @@ args <- parser$parse_args()
 # args <- list("case_control_stats" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_MS/PedSV_figures/PedSV.v2.5.3_analysis_outputs/stats/PedSV.v2.5.3.case_control_cohort.global_burden_tests.tsv.gz",
 #              "trio_stats" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_MS/PedSV_figures/PedSV.v2.5.3_analysis_outputs/stats/PedSV.v2.5.3.trio_cohort.global_burden_tests.tsv.gz",
 #              "metadata" = "~/scratch/PedSV.v2.5.3.cohort_metadata.w_control_assignments.tsv.gz",
-#              "case_control_nbl_noncoding_cwas" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/data/ncCWAS_sumstats/adjusted_rlc_03_25_24/neuroblastoma_discovery_noncoding_cwas_concatenated_glm_results_12_26_23.adjusted.txt",
-#              "trio_nbl_noncoding_cwas" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/data/ncCWAS_sumstats/adjusted_rlc_03_25_24/neuroblastoma_trio_noncoding_cwas_concatenated_glm_results_12_26_23.adjusted.txt",
+#              "case_control_nbl_noncoding_cwas" = "/Users/ryan/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/data/ncCWAS_sumstats/adjusted_rlc_04_12_24/neuroblastoma_discovery_noncoding_cwas_concatenated_glm_results_4_11_24.adjusted.txt",
+#              "trio_nbl_noncoding_cwas" = "/Users/ryan/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/data/ncCWAS_sumstats/adjusted_rlc_04_12_24/neuroblastoma_trio_noncoding_cwas_concatenated_glm_results_4_11_24.adjusted.txt",
 #              "subset_samples" = "~/scratch/PedSV.v2.5.3.final_analysis_cohort.samples.list",
 #              "out_prefix" = "~/scratch/PedSV.v2.5.3.dev")
 
@@ -193,7 +193,7 @@ pseudorep.bars(top.data=get.subpanel.data(cc.ss, trio.ss, "large.rare.unbalanced
                bottom.data=get.subpanel.data(cc.ss, trio.ss, "large.rare.unbalanced.autosomal_only.FEMALE_only", "NBL", meta),
                bottom.cancer.types=c("NBL", "NBL"),
                outer.y.axis.labels=c("Male\n(XY)", "Female\n(XX)"),
-               title="Samples w/rare unbalanced SV >1Mb", top.axis.units="percent")
+               title="Samples w/ rare unbalanced SV >1Mb", top.axis.units="percent")
 dev.off()
 
 
@@ -213,9 +213,9 @@ dev.off()
 if(do.nccwas){
   pdf(paste(args$out_prefix, "singleton_tad_boundary.ncCWAS.pseudoreplication.pdf", sep="."),
       height=pdf.height, width=pdf.width)
-  pseudorep.bars(top.data=get.subpanel.data(cc.nc.ss, trio.nc.ss, "ANY.SINGLETON.PREDICTED_NONCODING_BREAKPOINT.neuroblastoma_tad_boundary.PREDICTED_INTERGENIC.ANY.ANY.protein_coding", "NBL", meta),
+  pseudorep.bars(top.data=get.subpanel.data(cc.nc.ss, trio.nc.ss, "ANY.SINGLETON.ANY.neuroblastoma_tad_boundary.ANY.ANY.ANY.protein_coding", "NBL", meta),
                  top.cancer.types=c("NBL", "NBL"),
-                 bottom.data=get.subpanel.data(cc.nc.ss, trio.nc.ss, "DEL.SINGLETON.PREDICTED_NONCODING_BREAKPOINT.neuroblastoma_tad_boundary.PREDICTED_INTERGENIC.ANY.ANY.protein_coding", "NBL", meta),
+                 bottom.data=get.subpanel.data(cc.nc.ss, trio.nc.ss, "DEL.SINGLETON.ANY.neuroblastoma_tad_boundary.ANY.ANY.ANY.protein_coding", "NBL", meta),
                  bottom.cancer.types=c("NBL", "NBL"),
                  outer.y.axis.labels=c("All\nnoncoding\nSVs", "Noncoding\ndeletions"),
                  title="Singletons disrupting adrenal TADs",

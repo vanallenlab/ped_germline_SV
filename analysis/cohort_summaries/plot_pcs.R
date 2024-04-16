@@ -70,9 +70,9 @@ args <- parser$parse_args()
 # args <- list("metadata" = "~/scratch/PedSV.v2.5.3.cohort_metadata.w_control_assignments.tsv.gz",
 #              "subset_samples" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_v2_callset_generation/v2.5.3/PedSV.v2.5.3.final_analysis_cohort.samples.list",
 #              "out_prefix" = "~/scratch/PedSV.v2.5.3.dev")
-# args <- list("metadata" = "/Users/ryan/Desktop/Collins/VanAllen/jackie_younglung/younglung_metadata/YL.SV.v1.analysis_metadata.tsv.gz",
+# args <- list("metadata" = "/Users/ryan/Desktop/Collins/VanAllen/jackie_younglung/younglung_metadata/YL.SV.v1.1.analysis_metadata.tsv.gz",
 #              "subset_samples" = "/Users/ryan/Desktop/Collins/VanAllen/jackie_younglung/YL_analysis/YL.analysis_samples.list",
-#              "out_prefix" = "~/scratch/YL.SV.v1")
+#              "out_prefix" = "~/scratch/YL.SV.v1.1")
 
 # Load PCs
 keepers <- NULL
@@ -89,8 +89,8 @@ meta <- meta[c(which(meta$disease == "control"),
 
 # Plot PCs
 pdf.dim <- 3.25
-axis.title.line <- 0.65
-parmar <- c(2.65, 2.65, 0.5, 0.5)
+axis.title.line <- 1
+parmar <- c(3, 3, 0.5, 0.5)
 pop.legend.labels <- sapply(names(pop.colors), function(pop){
   paste(pop.names.short[pop], " (",
         round(100 * length(which(meta$inferred_ancestry == pop)) / nrow(meta), 0),
@@ -103,39 +103,56 @@ disease.legend.labels <- sapply(names(cancer.colors), function(disease){
 })
 sapply(list(c(1, 2), c(3, 4), c(5, 6), c(7, 8)), function(pc.idxs){
 
-  # Colored by ancestry
-  pdf(paste(args$out_prefix, ".pc", pc.idxs[1], "_vs_pc",
-            pc.idxs[2], ".by_ancestry.pdf", sep=""),
-      height=pdf.dim, width=pdf.dim)
-  pc.scatterplot(meta,
-                 paste("PC", pc.idxs[1], sep=""),
-                 paste("PC", pc.idxs[2], sep=""),
-                 colors=pop.colors[meta$inferred_ancestry],
-                 x.title=paste("SV principal component", pc.idxs[1]),
-                 x.title.line=axis.title.line,
-                 y.title=paste("SV principal component", pc.idxs[2]),
-                 y.title.line=axis.title.line,
-                 legend.vals=pop.colors[which(names(pop.colors) != "OTH")],
-                 legend.labels=pop.legend.labels[which(names(pop.colors) != "OTH")],
-                 parmar=parmar)
-  dev.off()
+  # Check for presence of both SNV- and SV-derived PCs
+  # If present, plot & label them separately
+  if(length(intersect(c("SV.PC1", "PC1"), colnames(meta))) == 2){
+    pc.col.prefixes <- c("PC", "SV.PC")
+    pc.label.prefixes <- c("SNV principal component", "SV principal component")
+    plot.suffixes <- c(".SNV_PCs", "")
+  }else{
+    pc.col.prefixes <- c("PC")
+    pc.label.prefixes <- "SV principal component"
+    plot.suffixes <- ""
+  }
 
-  # Colored by cancer type
-  pdf(paste(args$out_prefix, ".pc", pc.idxs[1], "_vs_pc",
-            pc.idxs[2], ".by_disease.pdf", sep=""),
-      height=pdf.dim, width=pdf.dim)
-  pc.scatterplot(meta,
-                 paste("PC", pc.idxs[1], sep=""),
-                 paste("PC", pc.idxs[2], sep=""),
-                 colors=cancer.colors[metadata.cancer.label.map[meta$disease]],
-                 x.title=paste("SV principal component", pc.idxs[1]),
-                 x.title.line=axis.title.line,
-                 y.title=paste("SV principal component", pc.idxs[2]),
-                 y.title.line=axis.title.line,
-                 legend.vals=cancer.colors[which(names(cancer.colors) %in% unique(metadata.cancer.label.map[meta$disease]))],
-                 legend.labels=disease.legend.labels[which(names(cancer.colors) %in% unique(metadata.cancer.label.map[meta$disease]))],
-                 parmar=parmar)
-  dev.off()
+  # Plot PCs
+  for(pctype.idx in 1:length(pc.col.prefixes)){
+    # Colored by ancestry
+    pdf(paste(args$out_prefix, ".pc", pc.idxs[1], "_vs_pc",
+              pc.idxs[2], ".by_ancestry", plot.suffixes[pctype.idx],
+              ".pdf", sep=""),
+        height=pdf.dim, width=pdf.dim)
+    pc.scatterplot(meta,
+                   paste(pc.col.prefixes[pctype.idx], pc.idxs[1], sep=""),
+                   paste(pc.col.prefixes[pctype.idx], pc.idxs[2], sep=""),
+                   colors=pop.colors[meta$inferred_ancestry],
+                   x.title=paste(pc.label.prefixes[pctype.idx], pc.idxs[1]),
+                   x.title.line=axis.title.line-0.5,
+                   y.title=paste(pc.label.prefixes[pctype.idx], pc.idxs[2]),
+                   y.title.line=axis.title.line,
+                   legend.vals=pop.colors[which(names(pop.colors) != "OTH")],
+                   legend.labels=pop.legend.labels[which(names(pop.colors) != "OTH")],
+                   parmar=parmar)
+    dev.off()
+
+    # Colored by cancer type
+    pdf(paste(args$out_prefix, ".pc", pc.idxs[1], "_vs_pc",
+              pc.idxs[2], ".by_disease", plot.suffixes[pctype.idx],
+              ".pdf", sep=""),
+        height=pdf.dim, width=pdf.dim)
+    pc.scatterplot(meta,
+                   paste(pc.col.prefixes[pctype.idx], pc.idxs[1], sep=""),
+                   paste(pc.col.prefixes[pctype.idx], pc.idxs[2], sep=""),
+                   colors=cancer.colors[metadata.cancer.label.map[meta$disease]],
+                   x.title=paste(pc.label.prefixes[pctype.idx], pc.idxs[1]),
+                   x.title.line=axis.title.line-0.5,
+                   y.title=paste(pc.label.prefixes[pctype.idx], pc.idxs[2]),
+                   y.title.line=axis.title.line,
+                   legend.vals=cancer.colors[which(names(cancer.colors) %in% unique(metadata.cancer.label.map[meta$disease]))],
+                   legend.labels=disease.legend.labels[which(names(cancer.colors) %in% unique(metadata.cancer.label.map[meta$disease]))],
+                   parmar=parmar)
+    dev.off()
+  }
 })
 
 # Compile table of sample counts per ancestry

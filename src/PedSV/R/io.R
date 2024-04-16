@@ -183,7 +183,7 @@ load.sample.metadata <- function(tsv.in, keep.samples=NULL,
                      colnames(df)[grep("_control$", colnames(df))],
                      "reported_ancestry", "inferred_ancestry", "inferred_sex", "age", "age_at_dx",
                      "insert_size", "median_coverage", "wgd_score",
-                     colnames(df)[grep("^PC", colnames(df))],
+                     colnames(df)[grep("PC[1-9]", colnames(df))],
                      colnames(df)[grep("_CopyNumber$", colnames(df))],
                      colnames(df)[grep("_aneuploidy", colnames(df))])
   if(!is.null(other.keep.columns)){

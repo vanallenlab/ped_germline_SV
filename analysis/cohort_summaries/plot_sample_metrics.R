@@ -39,9 +39,9 @@ args <- parser$parse_args()
 # args <- list("metadata" = "~/scratch/PedSV.v2.5.3.cohort_metadata.w_control_assignments.tsv.gz",
 #              "subset_samples" = "~/scratch/PedSV.v2.5.3.final_analysis_cohort.samples.list",
 #              "out_prefix" = "~/scratch/PedSV.v2.5.3.dev")
-# args <- list("metadata" = "/Users/ryan/Desktop/Collins/VanAllen/jackie_younglung/younglung_metadata/YL.SV.v1.analysis_metadata.tsv.gz",
+# args <- list("metadata" = "/Users/ryan/Desktop/Collins/VanAllen/jackie_younglung/younglung_metadata/YL.SV.v1.1.analysis_metadata.tsv.gz",
 #              "subset_samples" = "/Users/ryan/Desktop/Collins/VanAllen/jackie_younglung/YL_analysis/YL.analysis_samples.list",
-#              "out_prefix" = "~/scratch/YL.SV.v1")
+#              "out_prefix" = "~/scratch/YL.SV.v1.1")
 
 # Load metadata
 keepers <- NULL
@@ -51,8 +51,10 @@ if(!is.null(args$subset_samples)){
 meta <- PedSV::load.sample.metadata(args$metadata, keep.samples=keepers)
 
 # Set plot dimensions
-swarmplot.height <- 2.25
-swarmplot.width <- 1.5 + (length(unique(meta$disease)) / 2)
+swarmplot.height <- 3.75
+swarmplot.width <- 2.2 + (length(unique(meta$disease)) / 2)
+swarmplot.height.small <- 2.75
+swarmplot.width.small <- 1.25 + (length(unique(meta$disease)) / 2)
 
 # Plot coverage by cancer type
 v.cov <- as.numeric(meta$median_coverage)
@@ -60,6 +62,14 @@ names(v.cov) <- rownames(meta)
 pdf(paste(args$out_prefix, "wgs_coverage_by_cancer.pdf", sep="."),
     height=swarmplot.height, width=swarmplot.width)
 swarmplot.by.phenotype(v.cov, meta, median.labels=T, y.axis.title="WGS coverage",
-                       shorten.cancer.names=T, add.sample.size=T,
+                       shorten.cancer.names=T, add.sample.size=F,
+                       sample.size.mirror.buffer=0.15)
+dev.off()
+
+# Smaller coverage plot (better viewing on slides)
+pdf(paste(args$out_prefix, "wgs_coverage_by_cancer.small.pdf", sep="."),
+    height=swarmplot.height.small, width=swarmplot.width.small)
+swarmplot.by.phenotype(v.cov, meta, median.labels=T, y.axis.title="WGS coverage",
+                       shorten.cancer.names=T, add.sample.size=F,
                        sample.size.mirror.buffer=0.15)
 dev.off()

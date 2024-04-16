@@ -105,12 +105,14 @@ burden.test <- function(data, query, meta, ad.vals, family,
     X <- ad.vals[intersect(names(ad.vals), c(case.ids, control.ids))]
     Y <- get.phenotype.vector(case.ids, control.ids)
     overlapping.ids <- intersect(names(X[which(!is.na(X))]), names(Y))
+    case.ids.no.na <- intersect(case.ids, overlapping.ids)
+    control.ids.no.na <- intersect(control.ids, overlapping.ids)
     X <- X[overlapping.ids]
     Y <- Y[overlapping.ids]
     n.carrier.ctrl <- length(which(Y[which(X > 0 & !is.na(X))] == 0))
     n.carrier.case <- length(which(Y[which(X > 0 & !is.na(X))] == 1))
-    c(cancer, length(case.ids), n.carrier.case, mean(X[case.ids], na.rm=T),
-      sd(X[case.ids], na.rm=T), length(control.ids), n.carrier.ctrl,
+    c(cancer, length(case.ids.no.na), n.carrier.case, mean(X[case.ids], na.rm=T),
+      sd(X[case.ids], na.rm=T), length(control.ids.no.na), n.carrier.ctrl,
       mean(X[control.ids], na.rm=T), sd(X[control.ids], na.rm=T),
       pedsv.glm(meta, X, Y, family=family, extra.terms=extra.terms))
   })
@@ -835,8 +837,8 @@ if(!is.null(args$genomic_disorder_hits)){
                intersect(rownames(info$bed)[which(info$bed$SVTYPE == svtype)],
                          gd.ids)
              }))),
-             paste("Samples w/", tolower(freq.names[freq]), " GD ",
-                   tolower(sv.abbreviations[svtype])), sep="")
+             paste("Samples w/", tolower(freq.names[freq]), "GD",
+                   tolower(sv.abbreviations[svtype])))
       })
       keep.idx.list <- lapply(data, function(d){which(rownames(d$bed) %in% gd.ids)})
       all.stats <- main.burden.wrapper(data, query=freq, meta, action="any",
@@ -1086,6 +1088,55 @@ if(!is.null(args$gene_lists)){
   }
 }
 
+
+# LoF constrained rare SVs after excluding COSMIC/CPG
+if(!is.null(args$gene_lists)){
+  if(length(intersect(names(gene.lists), c("LoF Constrained", "COSMIC", "CPG"))) == 3){
+
+    # Exclude all SVs with a predicted coding consequence on any COSMIC gene or CPG
+    x.genes <- sort(unique(unlist(gene.lists[c("COSMIC", "CPG")])))
+    x.csqs <- c("PREDICTED_COPY_GAIN", "PREDICTED_DUP_PARTIAL", "PREDICTED_INTRAGENIC_EXON_DUP",
+                "PREDICTED_LOF", "PREDICTED_PARTIAL_EXON_DUP")
+    no.xgenes <- lapply(data, function(l){
+      which(apply(l$bed[, x.csqs], 1, function(gl){
+        length(intersect(unlist(gl), x.genes)) == 0
+      }))
+    })
+
+    # Set test parameters
+    freq <- "rare"
+    set.name <- "LoF Constrained"
+    set.lower <- tolower(gsub(" ", "_", set.name, fixed=T))
+    gene.list <- gene.lists[[set.name]]
+
+    # Get indexes for SVs with predicted effects on any constrained gene
+    lof.idx.list <- lapply(data, function(info){
+      lof <- which(sapply(info$bed[, c("PREDICTED_LOF")], function(g){any(gene.list %in% g)}))
+      ped <- which(sapply(info$bed[, c("PREDICTED_PARTIAL_EXON_DUP")], function(g){any(gene.list %in% g)}))
+      sort(unique(c(lof, ped)))
+    })
+    cg.idx.list <- lapply(data, function(info){
+      sort(unique(which(sapply(info$bed[, c("PREDICTED_COPY_GAIN")], function(g){any(gene.list %in% g)}))))
+    })
+    ied.idx.list <- lapply(data, function(info){
+      sort(unique(which(sapply(info$bed[, c("PREDICTED_INTRAGENIC_EXON_DUP")], function(g){any(gene.list %in% g)}))))
+    })
+    all.idx.list <- lapply(1:length(data), function(k){
+      sort(intersect(unique(c(lof.idx.list[[k]], cg.idx.list[[k]], ied.idx.list[[k]])), no.xgenes[[k]]))
+    })
+
+    # Run burden test
+    all.stats <- main.burden.wrapper(data, query=paste(freq, set.lower, "gene_disruptive", sep="."),
+                                     meta, action="any", af.fields, ac.fields,
+                                     sv.subsets=NULL, all.stats=all.stats,
+                                     keep.idx.list=all.idx.list,
+                                     out.prefix=paste(args$out_prefix, paste(freq, "disruptive_sv_carrier_rate", sep="_"),
+                                           set.lower, "by_cancer", "no_COSMIC_no_CPG", sep="."),
+                                     main.title=paste(freq.names[freq], set.name, "disruption"),
+                                     barplot.height=barplot.height, barplot.width=barplot.width,
+                                     barplot.units="percent")
+  }
+}
 
 # Write all stats to outfile
 colnames(all.stats)[1] <- paste("#", colnames(all.stats)[1], sep="")
