@@ -1421,6 +1421,8 @@ task Pseudoreplication {
     /opt/ped_germline_SV/analysis/landscape/plot_pseudoreplication.R \
       --case-control-stats ~{case_control_cohort_burden_stats} \
       --trio-stats ~{trio_cohort_burden_stats} \
+      --case-control-nbl-noncoding-cwas ~{case_control_nbl_noncoding_cwas_stats} \
+      --trio-nbl-noncoding-cwas ~{trio_nbl_noncoding_cwas_stats} \
       --metadata ~{sample_metadata_tsv} \
       --subset-samples ~{samples_list} \
       --out-prefix ~{prefix}.Pseudoreplication/~{prefix}

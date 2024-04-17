@@ -374,7 +374,7 @@ svlen.line.plot <- function(x.svlen, y.value, colors, ci.lower=NULL, ci.upper=NU
                             legend.label.spacing=0.075, title=NULL, xlab=NULL, xlab.line=0,
                             xlims=log10(c(10000, 1000000)), ylab="Value", y.title.line=1,
                             y.axis.units=NULL, ylims=NULL, x.axis.labels=NULL,
-                            x.axis.labels.at=NULL, x.tck=-0.01, parmar=c(2, 3, 1, 1)){
+                            x.axis.labels.at=NULL, x.tck=-0.015, parmar=c(2, 3, 1, 1)){
   # Ensure PedSV scale constants are loaded within function scope
   PedSV::load.constants("scales", envir=environment())
 
@@ -942,4 +942,45 @@ plot.qq <- function(pvals, cutoff=NULL, do.fdr=TRUE, fdr.cutoff=0.01, print.stat
   clean.axis(2, title=expression(Observed ~ ~-log[10] ~ italic(P)),
              title.line=0.15, infinite=TRUE)
   mtext(3, line=title.line, text=title)
+}
+
+
+#' Manhattan plot
+#'
+#' Plot genome-wide summary statistics in the "Manhattan" style
+#'
+#' @param stats data.frame with at least two columns: "pos" and `p.column`
+#' @param p.columns Name of column containing P values
+#' @param chrom.colors Named vector of point colors for each chromosome
+#' @param gw.sig P-value threshold for genome-wide significance
+#' @param pt.cex Value of `cex` passed to [points()] \[default: 0.3\]
+#' @param title (Optional) title
+#' @param parmar Value of `mar` passed to [par()]
+#'
+#' @export manhattan
+#' @export
+manhattan <- function(stats, p.column, chrom.colors, gw.sig, pt.cex=0.3,
+                      title=NULL, parmar=c(2, 2.25, 0.25, 0.3)){
+  # Prep plot area
+  xlims <- range(stats$pos)
+  ylims <- c(0, ceiling(max(c(stats[, p.column], gw.sig), na.rm=T) + 1))
+  prep.plot.area(xlims, ylims, parmar=parmar)
+  abline(h=gw.sig, lty=5)
+
+  # Add points
+  set.seed(2024)
+  stats <- stats[sample(1:nrow(stats), size=nrow(stats)), ]
+  points(stats[, c("pos", p.column)], pch=19, cex=pt.cex, col=chrom.colors[stats$chrom])
+
+  # Add axes
+  clean.axis(1, at=c(0, cumsum(contig.lengths)), tck=0.025, infinite=TRUE,
+             labels=NA, title="Genomic coordinate", title.line=0)
+  sapply(1:length(contig.lengths), function(x){
+    axis(1, at=((c(0, cumsum(contig.lengths[-24])) + cumsum(contig.lengths))/2)[x],
+         tick=F, cex.axis=4/6, labels=gsub("^chr", "", names(contig.lengths)[x]),
+         col.axis=chrom.colors[x],
+         line=c(-0.8, -1.3)[as.integer((x %% 2) == 1) + 1])
+  })
+  clean.axis(2, title=bquote(-log[10] ~ italic(P)), infinite.positive=T, title.line=0.2)
+  mtext(3, text=title, line=0)
 }

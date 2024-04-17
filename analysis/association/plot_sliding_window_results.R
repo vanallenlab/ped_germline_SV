@@ -35,36 +35,6 @@ load.sumstats <- function(tsv.in){
 }
 
 
-######################
-# Plotting functions #
-######################
-manhattan <- function(stats, p.column, chrom.colors, gw.sig, pt.cex=0.3,
-                      title=NULL, parmar=c(2, 2.25, 0.25, 0.3)){
-  # Prep plot area
-  xlims <- range(stats$pos)
-  ylims <- c(0, max(c(stats[, p.column], gw.sig), na.rm=T) + 0.1)
-  prep.plot.area(xlims, ylims, parmar=parmar)
-  abline(h=gw.sig, lty=5)
-
-  # Add points
-  set.seed(2024)
-  stats <- stats[sample(1:nrow(stats), size=nrow(stats)), ]
-  points(stats[, c("pos", p.column)], pch=19, cex=pt.cex, col=chrom.colors[stats$chrom])
-
-  # Add axes
-  clean.axis(1, at=c(0, cumsum(contig.lengths)), tck=0.025, infinite=TRUE,
-             labels=NA, title="Genomic coordinate", title.line=0)
-  sapply(1:length(contig.lengths), function(x){
-    axis(1, at=((c(0, cumsum(contig.lengths[-24])) + cumsum(contig.lengths))/2)[x],
-         tick=F, cex.axis=4/6, labels=gsub("^chr", "", names(contig.lengths)[x]),
-         col.axis=chrom.colors[x],
-         line=c(-0.8, -1.3)[as.integer((x %% 2) == 1) + 1])
-  })
-  clean.axis(2, title=bquote(-log[10] ~ italic(P)), infinite.positive=T, title.line=0.2)
-  mtext(3, text=title, line=0)
-}
-
-
 ###########
 # RScript #
 ###########
@@ -111,6 +81,7 @@ sapply(names(cancer.colors), function(cancer){
     # Plot Manhattan
     png(paste(args$out_prefix, cancer, cnv, "sliding_window", "manhattan", "png", sep="."),
         height=2.25*400, width=4*400, res=400)
+    par(family="Arial")
     manhattan(stats, p.colname, chrom.colors, -log10(args$gw_sig), title=title)
     dev.off()
   })

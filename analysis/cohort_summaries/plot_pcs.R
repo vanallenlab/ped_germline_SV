@@ -89,8 +89,8 @@ meta <- meta[c(which(meta$disease == "control"),
 
 # Plot PCs
 pdf.dim <- 3.25
-axis.title.line <- 1
-parmar <- c(3, 3, 0.5, 0.5)
+axis.title.line <- 1.25
+parmar <- c(3.25, 3.25, 0.5, 0.5)
 pop.legend.labels <- sapply(names(pop.colors), function(pop){
   paste(pop.names.short[pop], " (",
         round(100 * length(which(meta$inferred_ancestry == pop)) / nrow(meta), 0),
@@ -128,8 +128,10 @@ sapply(list(c(1, 2), c(3, 4), c(5, 6), c(7, 8)), function(pc.idxs){
                    colors=pop.colors[meta$inferred_ancestry],
                    x.title=paste(pc.label.prefixes[pctype.idx], pc.idxs[1]),
                    x.title.line=axis.title.line-0.5,
+                   x.label.line=-0.7,
                    y.title=paste(pc.label.prefixes[pctype.idx], pc.idxs[2]),
                    y.title.line=axis.title.line,
+                   y.label.line=-0.6,
                    legend.vals=pop.colors[which(names(pop.colors) != "OTH")],
                    legend.labels=pop.legend.labels[which(names(pop.colors) != "OTH")],
                    parmar=parmar)
@@ -146,8 +148,10 @@ sapply(list(c(1, 2), c(3, 4), c(5, 6), c(7, 8)), function(pc.idxs){
                    colors=cancer.colors[metadata.cancer.label.map[meta$disease]],
                    x.title=paste(pc.label.prefixes[pctype.idx], pc.idxs[1]),
                    x.title.line=axis.title.line-0.5,
+                   x.label.line=-0.7,
                    y.title=paste(pc.label.prefixes[pctype.idx], pc.idxs[2]),
                    y.title.line=axis.title.line,
+                   y.label.line=-0.6,
                    legend.vals=cancer.colors[which(names(cancer.colors) %in% unique(metadata.cancer.label.map[meta$disease]))],
                    legend.labels=disease.legend.labels[which(names(cancer.colors) %in% unique(metadata.cancer.label.map[meta$disease]))],
                    parmar=parmar)

@@ -28,7 +28,7 @@ svlen.line.plot(
   ylims = NULL,
   x.axis.labels = NULL,
   x.axis.labels.at = NULL,
-  x.tck = -0.01,
+  x.tck = -0.015,
   parmar = c(2, 3, 1, 1)
 )
 }

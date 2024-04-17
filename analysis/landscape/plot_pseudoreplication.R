@@ -93,7 +93,10 @@ get.subpanel.data <- function(cc.ss, trio.ss, hypothesis, cancer, meta, ci.mode=
 # Plotting functions #
 ######################
 # Plot two sets of two horizontal bars
-pseudorep.bars <- function(top.data, top.cancer.types, bottom.data, bottom.cancer.types, panel.spacer=0.5, title=NULL, top.axis.units=NULL, outer.y.axis.labels=NULL, outer.y.axis.line=5.5, parmar=c(0, 8.5, 2, 4.25)){
+pseudorep.bars <- function(top.data, top.cancer.types, bottom.data,
+                           bottom.cancer.types, panel.spacer=0.5, title=NULL,
+                           top.axis.units=NULL, outer.y.axis.labels=NULL,
+                           outer.y.axis.line=5.5, parmar=c(0, 8.5, 2, 4.25)){
   # Get plot dimensions
   xlims <- c(0, (4/3) * max(as.numeric(unlist(rbind(top.data, bottom.data)[, c(1, 4)]))))
   ylims <- c(nrow(rbind(top.data, bottom.data)) + panel.spacer, 0)
@@ -116,15 +119,21 @@ pseudorep.bars <- function(top.data, top.cancer.types, bottom.data, bottom.cance
              label.line=-0.8, title.line=0.1, max.ticks=5)
 
   # Add inner Y labels
-  axis(2, at=top.bar.mids, tick=F, las=2, cex.axis=4.5/6, line=-0.8, labels=top.data$label)
-  axis(2, at=bottom.bar.mids, tick=F, las=2, cex.axis=4.5/6, line=-0.8, labels=bottom.data$label)
+  axis(2, at=top.bar.mids, tick=F, las=2, cex.axis=4.5/6,
+       line=-0.8, labels=top.data$label)
+  axis(2, at=bottom.bar.mids, tick=F, las=2, cex.axis=4.5/6,
+       line=-0.8, labels=bottom.data$label)
 
   # Add outer Y labels, if optioned
   if(!is.null(outer.y.axis.labels)){
-    axis(2, tck=0, at=range(top.bar.mids)+c(-0.5, 0.5), labels=NA, line=outer.y.axis.line)
-    axis(2, at=mean(top.bar.mids), tick=F, line=outer.y.axis.line-0.9, las=2, labels=outer.y.axis.labels[1])
-    axis(2, tck=0, at=range(bottom.bar.mids)+c(-0.5, 0.5), labels=NA, line=outer.y.axis.line)
-    axis(2, at=mean(bottom.bar.mids), tick=F, line=outer.y.axis.line-0.9, las=2, labels=outer.y.axis.labels[2])
+    axis(2, tck=0, at=range(top.bar.mids)+c(-0.5, 0.5), labels=NA,
+         line=outer.y.axis.line, col="gray70")
+    axis(2, at=mean(top.bar.mids), tick=F, line=outer.y.axis.line-0.9,
+         las=2, labels=outer.y.axis.labels[1])
+    axis(2, tck=0, at=range(bottom.bar.mids)+c(-0.5, 0.5), labels=NA,
+         line=outer.y.axis.line, col="gray70")
+    axis(2, at=mean(bottom.bar.mids), tick=F, line=outer.y.axis.line-0.9,
+         las=2, labels=outer.y.axis.labels[2])
   }
 }
 
@@ -222,6 +231,4 @@ if(do.nccwas){
                  parmar=c(0, 9.65, 2, 4.25))
   dev.off()
 }
-
-
 
