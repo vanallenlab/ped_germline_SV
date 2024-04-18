@@ -217,6 +217,8 @@ color.points.by.density <- function(x, y, palette=NULL, bandwidth=1){
 #' @param horiz Should the bars be plotted horizontally? \[default: TRUE\]
 #' @param color.by.sig Should the case bars be shaded by significance? \[default: TRUE\]
 #' @param legend.on.bars Should a legend be written on the bars? \[default: FALSE\]
+#' @param case.label Label for case bars if `legend.on.bars` is `TRUE` \[default: "Case"\]
+#' @param control.label Label for control bars if `legend.on.bars` is `TRUE` \[default: "Control"\]
 #' @param add.pvals Should P values be annotated on the opposite margin?
 #' \[default: TRUE\]
 #' @param cancer.types.override Specify order of cancer types in `plot.df`
@@ -228,6 +230,7 @@ color.points.by.density <- function(x, y, palette=NULL, bandwidth=1){
 #' @export
 add.pheno.bars <- function(plot.df, bar.mids, bar.hex=0.5, control.sep=0.1875,
                            horiz=TRUE, color.by.sig=TRUE, legend.on.bars=FALSE,
+                           case.label="Case", control.label="Control",
                            add.pvals=FALSE, cancer.types.override=NULL){
   # Infer positional parameters
   n.pheno <- nrow(plot.df)
@@ -255,8 +258,8 @@ add.pheno.bars <- function(plot.df, bar.mids, bar.hex=0.5, control.sep=0.1875,
     ci.y0 <- staggered.bar.mids
     ci.y1 <- staggered.bar.mids
     legend.text.x <- rep(0-(0.05*diff(par("usr")[1:2])), 2)
-    legend.text.y <- c(staggered.bar.mids[longest.control]+(bar.hex/5)+control.sep,
-                       staggered.bar.mids[longest.case]+(bar.hex/10)-control.sep)
+    legend.text.y <- c(staggered.bar.mids[longest.control]+(bar.hex/5),
+                       staggered.bar.mids[longest.case]+(bar.hex/10))
     pval.axis <- 4
   }else{
     bar.x.left <- bar.width.min
@@ -267,8 +270,8 @@ add.pheno.bars <- function(plot.df, bar.mids, bar.hex=0.5, control.sep=0.1875,
     ci.x1 <- staggered.bar.mids
     ci.y0 <- ci.min
     ci.y1 <- ci.max
-    legend.text.x <- c(staggered.bar.mids[longest.control]+(bar.hex/5)+control.sep,
-                       staggered.bar.mids[longest.case]+(bar.hex/10)-control.sep)
+    legend.text.x <- c(staggered.bar.mids[longest.control]+(bar.hex/5),
+                       staggered.bar.mids[longest.case]+(bar.hex/10))
     legend.text.y <- rep(0-(0.05*diff(par("usr")[3:4])), 2)
     pval.axis <- 3
   }

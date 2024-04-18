@@ -234,7 +234,7 @@ barplot.by.phenotype <- function(plot.df, bar.hex=0.5, case.control.sep=0.375,
   # Add bars
   add.pheno.bars(plot.df, bar.mids=y.mids, bar.hex=bar.hex, control.sep=control.sep,
                  horiz=TRUE, color.by.sig=color.by.sig, legend.on.bars=legend.on.bars,
-                 add.pvals=add.pvals)
+                 add.pvals=add.pvals, case.label=case.label, control.label=control.label)
 }
 
 

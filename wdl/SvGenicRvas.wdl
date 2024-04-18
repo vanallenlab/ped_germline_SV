@@ -145,8 +145,7 @@ task ContigRvas {
 
     # Relocate custom script to execution directory if necessary
     if [ ~{defined(custom_rvas_script)} == "true" ]; then
-      mv ~{default="" custom_rvas_script} ./
-      rvas_script="./~{default='' custom_rvas_script}"
+      rvas_script="~{default='' custom_rvas_script}"
       chmod a+x $rvas_script
     else
       rvas_script="/opt/ped_germline_SV/analysis/association/sv_genic_rvas.R"

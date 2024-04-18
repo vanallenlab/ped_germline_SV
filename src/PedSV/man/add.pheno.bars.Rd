@@ -12,6 +12,8 @@ add.pheno.bars(
   horiz = TRUE,
   color.by.sig = TRUE,
   legend.on.bars = FALSE,
+  case.label = "Case",
+  control.label = "Control",
   add.pvals = FALSE,
   cancer.types.override = NULL
 )
@@ -30,6 +32,10 @@ add.pheno.bars(
 \item{color.by.sig}{Should the case bars be shaded by significance? [default: TRUE]}
 
 \item{legend.on.bars}{Should a legend be written on the bars? [default: FALSE]}
+
+\item{case.label}{Label for case bars if \code{legend.on.bars} is \code{TRUE} [default: "Case"]}
+
+\item{control.label}{Label for control bars if \code{legend.on.bars} is \code{TRUE} [default: "Control"]}
 
 \item{add.pvals}{Should P values be annotated on the opposite margin?
 [default: TRUE]}
