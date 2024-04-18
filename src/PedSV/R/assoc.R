@@ -355,6 +355,7 @@ sv.size.survfit <- function(sv.bed, meta, ad, cancer="pancan", use.N.pcs=3,
 #'
 #' @export
 saddlepoint.adj <- function(zscores, alternative="two.sided"){
+  require(EQL, quietly=TRUE)
   zscores.orig <- zscores
   mu.hat <- mean(zscores, na.rm=T)
   sd.hat <- sd(zscores, na.rm=T)
