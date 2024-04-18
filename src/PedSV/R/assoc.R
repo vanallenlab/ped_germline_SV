@@ -23,7 +23,7 @@
 #' @param use.N.pcs Specify how many principal components should be adjusted in
 #' model \[default: 3\]
 #' @param extra.terms Specify if any extra terms should be added to the model.
-#' Named options include:  "batch", "coverage, "insert.size", and "wgd".
+#' Named options include:  "batch", "coverage", "insert.size", and "wgd".
 #' Custom terms can be passed using their exact column names in `meta`.
 #'
 #' @details There are several options for providing `X` and `Y` values:
@@ -105,7 +105,7 @@ prep.glm.matrix <- function(meta, X, Y, use.N.pcs=3, extra.terms=NULL){
 
   # Ensure X and Y have at least two distinct values
   if(!all(c("X", "Y") %in% colnames(df))){
-    stop("Error in prep.glm.matrix: must supply non-separable X and Y values")
+    warning("prep.glm.matrix: must supply non-separable X and Y values")
   }
 
   return(df[complete.cases(df), ])
@@ -190,10 +190,10 @@ get.phenotype.vector <- function(case.ids, control.ids){
 #' @param strict.fallback Implement Firth regression if a standard logit model returns
 #' any errors or warnings. Setting this to `FALSE` will only default to Firth
 #' regression if logit returns any errors or if the standard error of the genotype
-#' coefficient exceeds `nonstrict.se.tolerance` \[default: TRUE\]
-#' @param nonstrict.se.tolerance If `strict.fallback` is `FALSE`, only use Firth
-#' regression if a standard logit model produces a genotype effect standard error
-#' exceeding this value \[default: 10\]
+#' coefficient exceeds `se.tolerance` \[default: TRUE\]
+#' @param se.tolerance If `firth.fallback` is `TRUE` but `strict.fallback` is
+#' `FALSE`, only use Firth regression if a standard logit model produces a
+#' genotype effect standard error exceeding this value \[default: 10\]
 #' @param firth.always Always use Firth regression \[default: FALSE\]
 #' @param return.fit.summary Return the full summary of the fitted model. Only recommended
 #' for debugging purposes. Not recommended for analysis. \[default: FALSE\]
@@ -206,7 +206,7 @@ get.phenotype.vector <- function(case.ids, control.ids){
 #' @export
 pedsv.glm <- function(meta, X, Y, use.N.pcs=3, family=gaussian(), extra.terms=NULL,
                       firth.fallback=TRUE, strict.fallback=TRUE,
-                      nonstrict.se.tolerance=10, firth.always=FALSE,
+                      se.tolerance=10, firth.always=FALSE,
                       return.all.coefficients=FALSE){
   # Ensure Firth package is loaded
   require(logistf, quietly=TRUE)
@@ -215,6 +215,9 @@ pedsv.glm <- function(meta, X, Y, use.N.pcs=3, family=gaussian(), extra.terms=NU
   test.df <- prep.glm.matrix(meta, X, Y, use.N.pcs, extra.terms)
 
   # Check to make sure dataset is not separable
+  if(!all(c("X", "Y") %in% colnames(test.df))){
+    return(c(NA, NA, NA, NA, NA))
+  }
   ct <- table(test.df[, c("X", "Y")])
   if(nrow(ct) <= 1 | ncol(ct) <= 1){
     return(c(NA, NA, NA, NA, NA))
@@ -245,10 +248,10 @@ pedsv.glm <- function(meta, X, Y, use.N.pcs=3, family=gaussian(), extra.terms=NU
       }else{
         fit <- tryCatch(logit.regression(test.df),
                         error=function(e){firth.regression(test.df)})
-        if(fit$method == "glm.fit"){
-          if(summary(fit)$coefficients["X", 2] > nonstrict.se.tolerance){
-            fit <- firth.regression(test.df)
-          }
+      }
+      if(fit$method == "glm.fit"){
+        if(summary(fit)$coefficients["X", 2] > se.tolerance){
+          fit <- firth.regression(test.df)
         }
       }
     }else{
@@ -262,12 +265,13 @@ pedsv.glm <- function(meta, X, Y, use.N.pcs=3, family=gaussian(), extra.terms=NU
   }
 
   # Extract coefficient corresponding to independent variable
-  # Point estimate, stderr, test statistic, P-value
+  # Point estimate, stderr, Z-score, P-value
   if(!return.all.coefficients){
     if(firth){
-      c(as.numeric(c(fit$coefficients["X"],
+      beta <- fit$coefficients["X"]
+      c(as.numeric(c(beta,
                      sqrt(diag(vcov(fit)))["X"],
-                     qchisq(1-fit$prob, df=1)["X"],
+                     (if(beta >= 0){1}else{-1}) * sqrt(qchisq(1-fit$prob["X"], df=1)),
                      fit$prob["X"])), "flic")
     }else{
       c(summary(fit)[["coefficients"]]["X", ], "glm")
@@ -337,3 +341,37 @@ sv.size.survfit <- function(sv.bed, meta, ad, cancer="pancan", use.N.pcs=3,
               "cox.stats" = cox.res))
 }
 
+
+#' Z-score saddlepoint approximation
+#'
+#' Apply saddlepoint approximation to vector of Z-scores to generate adjusted P-values
+#'
+#' @param zscores numeric vector of Z-scores
+#' @param alternative alternative hypothesis. Options include "two.sided", "less", or "greater". \[default: "two.sided"\]
+#'
+#' @return data.frame with two columns:
+#' * `$zscores` for corrected Z-scores
+#' * `$pvalues` for P-values corresponding to corrected Z-scores
+#'
+#' @export
+saddlepoint.adj <- function(zscores, alternative="two.sided"){
+  zscores.orig <- zscores
+  mu.hat <- mean(zscores, na.rm=T)
+  sd.hat <- sd(zscores, na.rm=T)
+  cumuls <- gaussianCumulants(mu.hat, sd.hat)
+  dx <- 0.01
+  x <- seq(-40, 40, dx)
+  saddle.pdf <- saddlepoint(x, 1, cumuls)$approx
+  # Dev note: must infer parameters of saddlepoint-approximated normal for precise extreme P-values with pnorm()
+  mu.saddle <- sum(x * saddle.pdf) * dx
+  sd.saddle <- sqrt(sum(saddle.pdf * dx * (x - mu.saddle)^2))
+
+  # Compute new Z-scores and P-values
+  new.zscores <- (zscores.orig - mu.saddle) / sd.saddle
+  if(alternative == "two.sided"){
+    new.pvals <- 2*mapply(pnorm, new.zscores, lower.tail=new.zscores<=0)
+  }else{
+    new.pvals <- pnorm(new.zscores, lower.tail=(alternative=="less"))
+  }
+  return(data.frame("zscores" = new.zscores, "pvalues" = new.pvals))
+}

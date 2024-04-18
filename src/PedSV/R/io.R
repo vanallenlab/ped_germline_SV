@@ -62,6 +62,7 @@ load.kinship.metrics <- function(tsv.in){
 #' single-column flat text file of sample IDs to retain [default: keep all samples]
 #' @param reassign.parents Assign all parents to have `control` disease labels [default: TRUE]
 #' @param other.keep.columns Names of non-standard columns to be retained, if desired
+#' @param annotate.aneuploidy.bp Should genomic length of aneuploid chromosomes be annotated? \[default: FALSE\]
 #'
 #' @returns data.frame
 #'
@@ -70,7 +71,8 @@ load.kinship.metrics <- function(tsv.in){
 #' @export load.sample.metadata
 #' @export
 load.sample.metadata <- function(tsv.in, keep.samples=NULL,
-                                 reassign.parents=TRUE, other.keep.columns=NULL){
+                                 reassign.parents=TRUE, other.keep.columns=NULL,
+                                 annotate.aneuploidy.bp=FALSE){
   # Load data
   df <- read.table(tsv.in, header=T, comment.char="", sep="\t", check.names=F,
                    stringsAsFactors=F)
@@ -106,7 +108,8 @@ load.sample.metadata <- function(tsv.in, keep.samples=NULL,
                      c("osteosarcoma_control", "OS_control"),
                      c("neuroblastoma_case", "NBL_case"),
                      c("ewing_case", "EWS_case"),
-                     c("osteosarcoma_case", "OS_case"))) {
+                     c("osteosarcoma_case", "OS_case"),
+                     c("age_at_dx_years", "age_at_dx"))) {
     if(cnames[1] %in% colnames(df)){
       colnames(df)[which(colnames(df) == cnames[1])] <- cnames[2]
     }
@@ -135,22 +138,54 @@ load.sample.metadata <- function(tsv.in, keep.samples=NULL,
   }
 
   # Infer whether each sample carries an aneuploidy
+  PedSV::load.constants("scales")
   auto.aneu <- apply(df[, paste("chr", 1:22, "_CopyNumber", sep="")], 1,
-                     function(ploidies){any(ploidies > 2.9 | ploidies < 1.1)})
-  sex.aneu <- abs(df$chrX_CopyNumber + df$chrY_CopyNumber - 2) > 0.9
+                     function(ploidies){any(ploidies > 2.8 | ploidies < 1.2)})
+  auto.aneu.bp <- apply(df[, paste("chr", 1:22, "_CopyNumber", sep="")], 1,
+                        function(ploidies){sum(contig.lengths[which(abs(unlist(as.vector(ploidies)) - 2) > 0.8)])})
+  sex.aneu <- abs(df$chrX_CopyNumber + df$chrY_CopyNumber - 2) > 0.8
+  sex.aneu.bp <- apply(df[, paste("chr", c("X", "Y"), "_CopyNumber", sep="")], 1,
+                       function(sex.vals){
+                         x <- as.numeric(sex.vals[1])
+                         y <- as.numeric(sex.vals[2])
+
+                         # Origin of X0 is ambiguous (XY w/lost Y or XX w/lost X)
+                         if(x < 1.8 & y < 0.2){
+                           return(-mean(contig.lengths[c("chrX", "chrY")]))
+                         }
+
+                         # If Y is present, can assume starting configuration of XY
+                         # and gained X and/or Y
+                         if(y > 0.2){
+                           bp <- round(abs(x - 0.8), 0) * contig.lengths["chrX"]
+                           bp <- bp + round(abs(y - 0.8), 0) * contig.lengths["chrY"]
+
+                         # If no Y present and not X0, can assume started as XX
+                         # and gained extra X
+                         }else{
+                           bp <- round(abs(x - 1.8), 0) * contig.lengths["chrX"]
+                         }
+                         return(bp)
+                       })
+  sex.aneu.bp[which(!sex.aneu)] <- 0
   df$autosomal_aneuploidy <- auto.aneu
   df$sex_aneuploidy <- sex.aneu
   df$any_aneuploidy <- (auto.aneu | sex.aneu)
+  if(annotate.aneuploidy.bp){
+    df$autosomal_aneuploidy_bp <- auto.aneu.bp
+    df$sex_aneuploidy_bp <- sex.aneu.bp
+    df$any_aneuploidy_bp <- abs(auto.aneu.bp) + abs(sex.aneu.bp)
+  }
 
   # Reorder columns and sort on sample ID before returning
   out.col.order <- c("study_phase", "batch", "study", "disease", "proband", "family_id",
                      colnames(df)[grep("_case$", colnames(df))],
                      colnames(df)[grep("_control$", colnames(df))],
-                     "reported_ancestry", "inferred_ancestry", "inferred_sex", "age",
+                     "reported_ancestry", "inferred_ancestry", "inferred_sex", "age", "age_at_dx",
                      "insert_size", "median_coverage", "wgd_score",
-                     colnames(df)[grep("^PC", colnames(df))],
+                     colnames(df)[grep("PC[1-9]", colnames(df))],
                      colnames(df)[grep("_CopyNumber$", colnames(df))],
-                     colnames(df)[grep("_aneuploidy$", colnames(df))])
+                     colnames(df)[grep("_aneuploidy", colnames(df))])
   if(!is.null(other.keep.columns)){
     out.col.order <- c(out.col.order, setdiff(other.keep.columns, out.col.order))
   }
@@ -343,4 +378,21 @@ load.gene.lists <- function(input.tsv){
   sets <- lapply(info.df[, 2], function(path){sort(unique(read.table(path, header=F)[, 1]))})
   names(sets) <- set.names
   return(sets)
+}
+
+
+#' Load burden summary statistics
+#'
+#' Load global SV burden summary statistics
+#'
+#' @param ss.tsv Burden summary statistics generated by generated by global_burden_tests.R
+#'
+#' @returns data.frame
+#'
+#' @export load.burden.sumstats
+#' @export
+load.burden.sumstats <- function(ss.tsv){
+  ss <- read.table(ss.tsv, header=T, sep="\t", comment.char="", check.names=F)
+  colnames(ss)[1] <- gsub("^#", "", colnames(ss)[1])
+  return(ss)
 }

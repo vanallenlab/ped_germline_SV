@@ -74,7 +74,7 @@ tabulate.counts <- function(counts, meta){
 # Plotting functions #
 ######################
 # Plot a waterfall of SV counts grouped by ancestry and colored/ordered by disease
-plot.waterfall <- function(counts, meta, pop.spacer=0.05){
+plot.waterfall <- function(counts, meta, pop.spacer=0.04, median.bar=FALSE){
   # Get plot dimensions
   n.samples <- length(counts)
   n.pops <- length(unique(meta$inferred_ancestry))
@@ -83,27 +83,31 @@ plot.waterfall <- function(counts, meta, pop.spacer=0.05){
   ylims <- c(0, max(counts))
 
   # Prep plot area
-  prep.plot.area(xlims, ylims, parmar=c(2, 2.5, 0.15, 0.15), xaxs="r", yaxs="i")
+  prep.plot.area(xlims, ylims, parmar=c(2, 2.5, 0.35, 0.15), xaxs="r", yaxs="i")
   clean.axis(2, at=axTicks(2), labels=paste(axTicks(2) / 1000, "k", sep=""),
-             title="SVs / Genome", infinite=TRUE)
+             title="SVs per genome", infinite=TRUE)
 
   # Plot ancestries in alphabetical order
   pops <- sort(unique(meta$inferred_ancestry))
+  disease.order <- intersect(c("control", setdiff(names(cancer.colors), "control")),
+                             unique(metadata.cancer.label.map[meta$disease]))
   n.plotted <- 0
   for(i in 1:length(pops)){
     pop <- pops[i]
     n.start <- n.plotted
-    for(pheno in intersect(names(cancer.colors),
-                           unique(metadata.cancer.label.map[meta$disease]))){
+    for(pheno in disease.order){
       sids <- rownames(meta)[which(meta$inferred_ancestry == pop
                                    & metadata.cancer.label.map[meta$disease] == pheno)]
       if(length(sids) > 0){
         vals <- sort(counts[sids], decreasing=T)
         n.vals <- length(vals)
         rect(xleft=n.plotted+(1:n.vals)-1, xright=n.plotted+(1:n.vals),
-             ybottom=0, ytop=vals, col=cancer.colors[pheno], border=cancer.colors[pheno])
-        segments(x0=n.plotted, x1=n.plotted+n.vals, y0=median(vals), y1=median(vals),
-                 col=cancer.palettes[[pheno]]["dark1"], lend="butt", lwd=1.5)
+             ybottom=0, ytop=vals, col=cancer.colors[pheno], border=cancer.colors[pheno],
+             lwd=0.25)
+        if(median.bar){
+          segments(x0=n.plotted, x1=n.plotted+n.vals, y0=median(vals), y1=median(vals),
+                   col=cancer.palettes[[pheno]]["dark1"], lend="butt", lwd=1.5)
+        }
         n.plotted <- n.plotted + n.vals
       }
     }
@@ -144,7 +148,7 @@ meta <- load.sample.metadata(args$metadata, keep.samples=names(counts),
 
 # Plot waterfall
 pdf(paste(args$out_prefix, "svs_per_sample.pdf", sep="."),
-    height=1.6, width=4)
+    height=1.6, width=4.6)
 plot.waterfall(counts, meta)
 dev.off()
 

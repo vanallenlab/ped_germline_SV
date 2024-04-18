@@ -41,8 +41,13 @@
 #' * `rare` : AF < 1%
 #' * `vrare` : AF < 0.1%
 #' * `singleton` : AC = 1
-#' * `large` : SVLEN > 1,000,000 or SVTYPE = CTX
-#' * `karyotypic` : SVLEN > 5,000,000 or SVTYPE = CTX
+#' * `notsmall` : SVLEN > 50,000
+#' * `large` : SVLEN > 1,000,000
+#' * `karyotypic` : SVLEN > 5,000,000
+#' * `unbalanced` : replaces `SVLEN` with total genomic imbalance before applying
+#' any size-based filters
+#' * `balanced` : less than 50bp of total genomic imbalance
+#' * `quasi-balanced` : less than 1kb of total genomic imbalance
 #' * `gene_disruptive` or `genes_disrupted` : any SV with predicted LoF, PED, CG, or IED
 #' * `single_gene_disruptive` : as above, but further restricting to SVs impacting just one gene
 #' * `lof` : predicted LoF and/or PED consequences
@@ -53,11 +58,16 @@
 #' If `query` is provided as a vector, it should contain any of the above terms.
 #' If it is provided as a single character string, it must be period-delimited.
 #'
+#' If no `query` is provided, the input `bed` will be returned after applying
+#' other filters as relevant (e.g., if `autosomal` is `TRUE`)
+#'
 #' If `use.gnomad.freqs` is `TRUE` and any of `rare`, `vrare`, or `singleton`
 #' are included in `query`, then variants will be further filtered
 #' to be < `gnomad.max.freq` according to `gnomad.column`
 #'
 #' @return data.frame
+#'
+#' @seealso [load.sv.bed()]
 #'
 #' @export filter.bed
 #' @export
@@ -66,12 +76,21 @@ filter.bed <- function(bed, query, af.field="POPMAX_AF", ac.field="AC",
                        gnomad.column="gnomad_v3.1_sv_POPMAX_AF",
                        autosomal=FALSE, pass.only=TRUE,
                        keep.idx=NULL, return.idxs=FALSE){
+  # Format query parts
   if(length(query) == 1 & length(grep(".", query, fixed=T)) > 0){
     query.parts <- unlist(strsplit(query, split=".", fixed=T))
   }else{
     query.parts <- query
   }
   has.gnomad <- gnomad.column %in% colnames(bed)
+
+  # Replace SVLEN with total genomic imbalance, if optioned
+  if("unbalanced" %in% query.parts){
+    old.svlen <- bed$SVLEN
+    bed$SVLEN <- calc.genomic.imbalance(bed)
+  }
+
+  # Apply query-invariant filters
   if(is.null(keep.idx)){
     keep.idx <- 1:nrow(bed)
   }
@@ -81,6 +100,8 @@ filter.bed <- function(bed, query, af.field="POPMAX_AF", ac.field="AC",
   if(pass.only){
     keep.idx <- intersect(keep.idx, which(bed$FILTER == "PASS"))
   }
+
+  # Apply each part of query in serial
   for(svtype in c("DEL", "DUP", "CNV", "INS", "INV", "CPX", "CTX")){
     if(svtype %in% query.parts){
       keep.idx <- intersect(keep.idx, which(bed$SVTYPE == svtype))
@@ -99,11 +120,32 @@ filter.bed <- function(bed, query, af.field="POPMAX_AF", ac.field="AC",
      & use.gnomad.freqs & has.gnomad){
       keep.idx <- intersect(keep.idx, which(bed[, gnomad.column] < 0.01))
   }
+  if("notsmall" %in% query.parts){
+    if("unbalanced" %in% query.parts){
+      keep.idx <- intersect(keep.idx, which(bed$SVLEN > 50000))
+    }else{
+      keep.idx <- intersect(keep.idx, which(bed$SVLEN > 50000 | bed$SVTYPE == "CTX"))
+    }
+  }
   if("large" %in% query.parts){
-    keep.idx <- intersect(keep.idx, which(bed$SVLEN > 1000000 | bed$SVTYPE == "CTX"))
+    if("unbalanced" %in% query.parts){
+      keep.idx <- intersect(keep.idx, which(bed$SVLEN > 1000000))
+    }else{
+      keep.idx <- intersect(keep.idx, which(bed$SVLEN > 1000000 | bed$SVTYPE == "CTX"))
+    }
   }
   if("karyotypic" %in% query.parts){
-    keep.idx <- intersect(keep.idx, which(bed$SVLEN > 5000000 | bed$SVTYPE == "CTX"))
+    if("unbalanced" %in% query.parts){
+      keep.idx <- intersect(keep.idx, which(bed$SVLEN > 5000000))
+    }else{
+      keep.idx <- intersect(keep.idx, which(bed$SVLEN > 5000000 | bed$SVTYPE == "CTX"))
+    }
+  }
+  if("balanced" %in% query.parts){
+    keep.idx <- intersect(keep.idx, which(calc.genomic.imbalance(bed) < 50))
+  }
+  if("quasi-balanced" %in% query.parts){
+    keep.idx <- intersect(keep.idx, which(calc.genomic.imbalance(bed) < 1000))
   }
   lof.count <- sapply(bed$PREDICTED_LOF, length) + sapply(bed$PREDICTED_PARTIAL_EXON_DUP, length)
   cg.count <- sapply(bed$PREDICTED_COPY_GAIN, length)
@@ -130,6 +172,12 @@ filter.bed <- function(bed, query, af.field="POPMAX_AF", ac.field="AC",
   if("cg_and_ied" %in% query.parts){
     keep.idx <- intersect(keep.idx, which(cg.count > 0 | ied.count > 0))
   }
+
+  # Revert SVLEN if necessary
+  if("unbalanced" %in% query.parts){
+    bed$SVLEN <- old.svlen
+  }
+
   if(return.idxs){
     keep.idx
   }else{
@@ -137,3 +185,40 @@ filter.bed <- function(bed, query, af.field="POPMAX_AF", ac.field="AC",
   }
 }
 
+
+#' Get net genomic imbalance for each row in an SV BED
+#'
+#' For each variant in an SV BED, compute the sum total of bases involved
+#' in deletion or duplication
+#'
+#' @param bed SV BED file loaded by [load.sv.bed]
+#' @param cnv.type Restrict computation to deletion or duplication
+#' \[default: absolute sum of all gains and losses\]
+#'
+#' @details Recognized options for `cnv.type` include "DEL" and "DUP"
+#'
+#' @seealso [load.sv.bed()]
+#'
+#' @return numeric vector of length `nrow(bed)`
+#'
+#' @export calc.genomic.imbalance
+#' @export
+calc.genomic.imbalance <- function(bed, cnv.type=c("DEL", "DUP")){
+  sapply(1:nrow(bed), function(i){
+    svtype <- bed$SVTYPE[i]
+    if(svtype %in% c("DEL", "DUP", "CNV")){
+      bed$SVLEN[i]
+    }else if(svtype == "CPX"){
+      cpx.intervals <- unlist(strsplit(bed$CPX_INTERVALS[i], split=","))
+      cpx.ints.df <- as.data.frame(strsplit(cpx.intervals, split="_"))
+      sizes <- abs(sapply(strsplit(as.character(cpx.ints.df[2, ]), split=":"),
+                 function(s){eval(parse(text=s[2]))}))
+      cpx.ints.df <- rbind(cpx.ints.df, sizes)
+      cnv.ints <- which(cpx.ints.df[1, ] %in% cnv.type)
+      sum(sizes[cnv.ints])
+
+    }else{
+      0
+    }
+  })
+}

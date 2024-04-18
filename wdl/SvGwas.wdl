@@ -146,8 +146,7 @@ task ContigGwas {
 
     # Relocate custom script to execution directory if necessary
     if [ ~{defined(custom_gwas_script)} == "true" ]; then
-      mv ~{default="" custom_gwas_script} ./
-      gwas_script="./~{default='' custom_gwas_script}"
+      gwas_script="~{default='' custom_gwas_script}"
       chmod a+x $gwas_script
     else
       gwas_script="/opt/ped_germline_SV/analysis/association/sv_gwas.R"

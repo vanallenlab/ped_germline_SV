@@ -114,6 +114,48 @@ make.hwe.mat <- function(bed, prefix=NULL){
   HWE.mat[complete.cases(HWE.mat), ]
 }
 
+# Gather data for large rare SV summary table
+get.large.sv.summary.data <- function(bed, ad, meta, cancers){
+  # Get data for plotting
+  plot.df <- do.call("rbind", lapply(c("DEL", "MONO", "DUP", "POLY", "CPX", "INV", "CTX"), function(svtype){
+    if(svtype %in% c("MONO", "POLY")){
+      sid.with.aneu <- rownames(meta)[which(meta$any_aneuploidy)]
+      auto.ad <- compress.ad.matrix(apply(meta[, paste("chr", 1:22, "_CopyNumber", sep="")], 1, round) - 2, action="any")
+      auto.ad[which(!names(auto.ad) %in% sid.with.aneu)] <- 0
+      allo.ad <- apply(meta[, paste("chr", c("X", "Y"), "_CopyNumber", sep="")], 1, function(v){round(sum(v))}) - 2
+      allo.ad[which(!names(allo.ad) %in% sid.with.aneu)] <- 0
+      if(svtype == "MONO"){
+        auto.ad <- abs(sapply(auto.ad, function(v){min(c(v, 0))}))
+        allo.ad <- abs(sapply(allo.ad, function(v){min(c(v, 0))}))
+      }else{
+        auto.ad <- abs(sapply(auto.ad, function(v){max(c(v, 0))}))
+        allo.ad <- abs(sapply(allo.ad, function(v){max(c(v, 0))}))
+      }
+      n.auto <- sum(auto.ad)
+      n.allo <- sum(allo.ad)
+      n.all <- n.auto + n.allo
+      carriers <- auto.ad + allo.ad
+    }else{
+      lr.bed <- filter.bed(bed, query=paste(svtype, "large.rare", sep="."))
+      n.all <- nrow(lr.bed)
+      n.allo <- length(which(lr.bed$chrom %in% c("chrX", "chrY")))
+      n.auto <- n.all - n.allo
+      carriers <- query.ad.from.sv.bed(ad, lr.bed, action="any")
+    }
+    counts <- as.vector(sapply(cancers, function(pheno){
+      sids <- rownames(meta)[which(metadata.cancer.label.map[meta$disease] == pheno)]
+      sids <- intersect(names(carriers), sids)
+      n.carriers <- sum(carriers[sids], na.rm=T)
+      c(length(sids), n.carriers, n.carriers / length(sids))
+    }))
+    c(svtype, n.all, n.auto, n.allo, counts)
+  }))
+  plot.df <- as.data.frame(plot.df)
+  colnames(plot.df) <- c("svtype", "n.all", "n.auto", "n.allo",
+                         sapply(cancers, function(pheno){paste(pheno, c("all", "carriers", "freq"), sep=".")}))
+  return(plot.df)
+}
+
 
 ######################
 # Plotting functions #
@@ -248,14 +290,91 @@ plot.HWE <- function(bed, pop=NULL, title=NULL, full.legend=F, lab.cex=1,
                                     " SVs", sep=""))
 }
 
+# Plot a summary table graphic of large, rare SVs
+plot.large.sv.summary <- function(bed, ad, meta, schematic.wex=12, count.wex=2,
+                                  freq.wex=3, svtype.x.adj=0.5, w.buffer=0.25,
+                                  title.cex=5/6, content.cex=4/6){
+  # Get data for plotting
+  cancers <- intersect(names(cancer.colors), metadata.cancer.label.map[meta$disease])
+  plot.df <- get.large.sv.summary.data(bed, ad, meta, cancers)
+
+  # Set plot parameters
+  n.rows <- nrow(plot.df)
+  n.cancers <- length(cancers)
+  x.breaks <- c(0, schematic.wex,
+                schematic.wex + (count.wex * 1:3),
+                schematic.wex + (3 * count.wex) + (freq.wex * 1:n.cancers))
+
+  # Prepare plot area
+  prep.plot.area(xlims=range(x.breaks), ylims=c(n.rows, 0),
+                 parmar=c(0.1, 0.1, 2.1, 0.1))
+
+  # Shade relevant columns for each disease
+  sapply(1:n.cancers, function(i){
+    rect(xleft=x.breaks[4+i]+w.buffer, xright=x.breaks[5+i]-w.buffer,
+         ybottom=par("usr")[3], ytop=par("usr")[4], bty="n", border=NA,
+         col=cancer.palettes[[cancers[i]]]["light3"])
+  })
+
+  # Add row lines in light grey
+  segments(x0=x.breaks[1]+w.buffer, x1=x.breaks[length(x.breaks)]-w.buffer,
+           y0=1:n.rows, y1=1:n.rows, col="gray95")
+
+  # Add column headers
+  clean.axis(3, at=x.breaks[1:2] + (c(-1, 1) * w.buffer),
+             tck=0, labels=NA, label.line=-0.9, cex.axis=1)
+  text(x=0-svtype.x.adj, y=-0.5, xpd=T, pos=4, labels="SV type", cex=title.cex)
+  clean.axis(3, tck=0, labels=c(NA, "Total", "Auto.", "Allo.", NA),
+             label.line=-0.9, cex.axis=content.cex,
+             at=c(x.breaks[2]+w.buffer,
+                     sapply(2:4, function(x){mean(x.breaks[c(x, x+1)])}),
+                  x.breaks[5]-w.buffer))
+  axis(3, at=mean(x.breaks[c(2, 5)]), labels="Rare SVs >1Mb", tick=F, cex.axis=title.cex)
+  clean.axis(3, tck=0, labels=c(NA, cancer.names.vshort[cancers], NA),
+             label.line=-0.9, cex.axis=content.cex,
+             at=c(x.breaks[5]+w.buffer,
+                  sapply(5:(length(x.breaks)-1), function(x){mean(x.breaks[c(x, x+1)])}),
+                  x.breaks[length(x.breaks)]-w.buffer))
+  axis(3, at=mean(x.breaks[c(5, length(x.breaks))]), labels="Carrier rate",
+       tick=F, cex.axis=title.cex)
+
+  # Add content for each row
+  sapply(1:n.rows, function(i){
+    if(plot.df$svtype[i] == "MONO"){
+      sv.label <- "Monosomy"
+    }else if(plot.df$svtype[i] == "POLY"){
+      sv.label <- "Polysomy"
+    }else{
+      sv.label <- sv.names[plot.df$svtype[i]]
+    }
+    text(x=x.breaks[1]-svtype.x.adj, y=i-0.5, pos=4, labels=sv.label, cex=5/6)
+    text(x=sapply(2:4, function(x){mean(x.breaks[c(x, x+1)])}),
+         y=i-0.5, labels=plot.df[i, 2:4], cex=content.cex)
+    freq.labels <- sapply(cancers, function(cancer){
+      paste(round(100 * as.numeric(plot.df[i, paste(cancer, "freq", sep=".")]), 2), "%", sep="")
+    #         "%\n(",
+    #     prettyNum(plot.df[i, paste(cancer, "carriers", sep=".")], big.mark=","),
+    #         ")", sep="")
+    })
+    text(x=sapply(5:(length(x.breaks)-1), function(x){mean(x.breaks[c(x, x+1)])}),
+         y=i-0.5, cex=content.cex, labels=freq.labels)
+  })
+}
+
 
 ###########
 # RScript #
 ###########
 # Parse command line arguments and options
 parser <- ArgumentParser(description="Plot SV counts and sizes")
-parser$add_argument("bed", metavar=".tsv", type="character",
+parser$add_argument("--bed", metavar=".tsv", type="character", required=TRUE,
                     help="SV sites .bed")
+parser$add_argument("--ad-matrix", metavar=".tsv", type="character", required=TRUE,
+                    help="Allele dosage .bed.")
+parser$add_argument("--metadata", metavar=".tsv", type="character",
+                    help="sample metadata .tsv", required=TRUE)
+parser$add_argument("--subset-samples", metavar=".tsv", type="character",
+                    help="list of samples to subset [default: use all samples]")
 parser$add_argument("--cohort-prefix", default="", metavar="string", type="character",
                     help="String prefix to append to frequency columns")
 parser$add_argument("--af-field", default="AF", metavar="string", type="character",
@@ -269,26 +388,21 @@ parser$add_argument("--out-prefix", metavar="path", type="character", required=T
 args <- parser$parse_args()
 
 # # DEV:
-# args <- list("bed" = "~/scratch/PedSV.v2.2.full_cohort_w_relatives_1000G.sites.bed.gz",
+# args <- list("bed" = "~/scratch/PedSV.v2.5.3.full_cohort.analysis_samples.sites.bed.gz",
+#              "ad_matrix" = "~/scratch/PedSV.v2.5.3.full_cohort.analysis_samples.allele_dosages.bed.gz",
+#              "metadata" = "~/scratch/PedSV.v2.5.3.cohort_metadata.w_control_assignments.tsv.gz",
+#              "subset_samples" = "~/scratch/PedSV.v2.5.3.final_analysis_cohort.samples.list",
 #              "cohort_prefix" = "full_cohort",
 #              "af_field" = "POPMAX_AF",
 #              "ac_field" = "AC",
-#              "out_prefix" = "~/scratch/PedSV.v2.2.dev.full_cohort")
-# args <- list("bed" = "~/scratch/PedSV.v2.2.1.case_control_cohort.analysis_samples.sites.bed.gz",
-#              "cohort_prefix" = "case_control",
-#              "af_field" = "POPMAX_AF",
-#              "ac_field" = "AC",
-#              "out_prefix" = "~/scratch/PedSV.v2.2.1.dev.case_control")
-# args <- list("bed" = "~/scratch/PedSV.v2.1.trio_cohort.analysis_samples.sites.bed.gz",
-#              "cohort_prefix" = "trio",
-#              "af_field" = "POPMAX_AF",
-#              "ac_field" = "AC",
-#              "out_prefix" = "~/scratch/PedSV.v2.1.dev.trio")
+#              "out_prefix" = "~/scratch/PedSV.v2.5.3.dev.full_cohort")
 # args <- list("bed" = "~/scratch/YL-gatsv-v1-allBatches.annotated.samples_excluded.bed.gz",
+#              "metadata" = "/Users/ryan/Desktop/Collins/VanAllen/jackie_younglung/younglung_metadata/YL.SV.v1.1.analysis_metadata.tsv.gz",
+#              "subset_samples" = "/Users/ryan/Desktop/Collins/VanAllen/jackie_younglung/YL_analysis/YL.analysis_samples.list",
 #              "cohort_prefix" = "",
 #              "af_field" = "POPMAX_AF",
 #              "ac_field" = "AC",
-#              "out_prefix" = "~/scratch/YL.v1")
+#              "out_prefix" = "~/scratch/YL.v1.1")
 
 # Infer frequency columns to use
 if(is.null(args$af_field)){
@@ -311,15 +425,23 @@ if(args$cohort_prefix == "trio"
 bed <- PedSV::load.sv.bed(args$bed, drop.cohort.frequencies=drop.cohort.freqs,
                           keep.all.pop.frequencies=TRUE)
 
+# Load metadata
+keepers <- NULL
+if(!is.null(args$subset_samples)){
+  keepers <- read.table(args$subset_samples, header=F)[, 1]
+}
+meta <- load.sample.metadata(args$metadata, keep.samples=keepers,
+                             reassign.parents=FALSE)
+
 # Plot stacked bar colored by frequency and type
 pdf(paste(args$out_prefix, "sv_site_counts.pdf", sep="."),
-    height=1.7, width=2)
+    height=1.7, width=2.1)
 plot.count.bars(bed, args$af_field, args$ac_field)
 dev.off()
 
 # Ridgeplot of SV sizes
 pdf(paste(args$out_prefix, "sv_size_distribs.pdf", sep="."),
-    height=1.85, width=2.2)
+    height=1.7, width=2.2)
 ridgeplot(get.svlen.densities(bed), xlims=log10(c(10, 5000000)), x.axis=FALSE,
           fill=hex2grey(DEL.colors[["light2"]]),
           border=hex2grey(DEL.colors[["dark1"]]), border.lwd=1.25,
@@ -327,7 +449,7 @@ ridgeplot(get.svlen.densities(bed), xlims=log10(c(10, 5000000)), x.axis=FALSE,
 clean.axis(1, at=log10(logscale.major.bp),
            labels=logscale.major.bp.labels[seq(1, length(logscale.major.bp), 2)],
            labels.at=log10(logscale.major.bp)[seq(1, length(logscale.major.bp), 2)],
-           label.line=-0.9, title.line=0.2, title=bquote("SV Size" ~ (log[10])))
+           label.line=-0.9, title.line=0.2, title=bquote("SV size" ~ (log[10])))
 dev.off()
 
 # Table of SV counts by type and frequency
@@ -350,9 +472,16 @@ for(pop in intersect(names(pop.colors), pops.in.bed)){
   }
   if(paste(col.prefix, "AF", sep="_") %in% colnames(bed)){
     cat(paste("HWE for ", pop, ":\n", sep=""))
-    png(paste(args$out_prefix, pop, "HWE.png", sep="."),
-        height=1000, width=1000, res=400)
+    tiff(paste(args$out_prefix, pop, "HWE.tiff", sep="."),
+         height=1300, width=1300, res=400)
     plot.HWE(bed, pop=col.prefix, title=pop.names.short[pop], full.legend=T)
     dev.off()
   }
 }
+
+# Table of very large (>1Mb) SVs
+pdf(paste(args$out_prefix, "large_rare_SV_table.pdf", sep="."), height=2.5, width=4.3)
+plot.large.sv.summary(bed, args$ad_matrix, meta)
+dev.off()
+
+

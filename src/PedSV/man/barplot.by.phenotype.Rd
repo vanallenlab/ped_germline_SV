@@ -17,6 +17,7 @@
   legend.on.bars = FALSE,
   case.label = "Case",
   control.label = "Control",
+  add.pvals = TRUE,
   parmar = c(0.2, 4.1, 2.1, 4)
 )
 }
@@ -38,6 +39,8 @@ numeric) or "percent" [default: NULL]}
 
 \item{title}{Custom title for top axis}
 
+\item{orient.cases}{Should casees be plotted on the \code{top} or \code{bottom} of controls? [default: "top"]}
+
 \item{custom.pheno.labels}{Custom phenotype labels for the groups on the
 Y axis, if desired.}
 
@@ -49,6 +52,9 @@ largest bars? [default: FALSE]}
 
 \item{control.label}{Label for "control" bars if \code{legend.on.bars} is
 \code{TRUE} [default: "Control"]}
+
+\item{add.pvals}{Should P values be annotated on the opposite margin?
+[default: TRUE]}
 
 \item{parmar}{Value of \code{mar} passed to \code{par()}}
 }

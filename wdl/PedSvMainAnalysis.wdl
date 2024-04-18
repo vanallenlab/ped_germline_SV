@@ -15,7 +15,6 @@
 version 1.0
 
 
-# import "https://raw.githubusercontent.com/vanallenlab/ped_germline_SV/main/wdl/SvGwas.wdl" as Gwas
 import "https://raw.githubusercontent.com/vanallenlab/ped_germline_SV/main/wdl/SvGenicRvas.wdl" as Rvas
 
 
@@ -23,6 +22,7 @@ workflow PedSvMainAnalysis {
 	input {
 		File sample_metadata_tsv
     File ref_fai
+    File autosomes_fai
     File gtf
     String study_prefix
 
@@ -57,18 +57,30 @@ workflow PedSvMainAnalysis {
     # String full_cohort_gwas_bcftools_query_options = ""
 
     # Note: the below inputs should contain ALL individuals in study, including relatives
+    File full_cohort_w_relatives_dense_vcf
+    File full_cohort_w_relatives_dense_vcf_idx
     File full_cohort_w_relatives_bed
     File full_cohort_w_relatives_bed_idx
     File full_cohort_w_relatives_ad_matrix
     File full_cohort_w_relatives_ad_matrix_idx
     File full_cohort_w_relatives_samples_list
 
+    File case_control_nbl_noncoding_cwas_stats
+    File trio_nbl_noncoding_cwas_stats
+
     Array[File]? gene_lists
     Array[String]? gene_list_names
+
     File? genomic_disorder_bed
     Float genomic_disorder_recip_frac = 0.5
-    File? rvas_exclude_regions
+
+    Int? sliding_window_bin_size
+    Int? sliding_window_step_size
+    Int? sliding_window_min_sv_size
+    
+    File? locus_assoc_exclude_regions
     Float? rvas_exclusion_frac_overlap
+    Float? sliding_window_exclusion_frac_overlap
 
     String pedsv_docker
     String pedsv_r_docker
@@ -76,6 +88,7 @@ workflow PedSvMainAnalysis {
 	}
 
   Array[Array[String]] contiglist = read_tsv(ref_fai)
+  Array[Array[String]] autosomes_list = read_tsv(autosomes_fai)
 
   call ConcatTextFiles as ConcatSampleLists {
     input:
@@ -95,49 +108,6 @@ workflow PedSvMainAnalysis {
     }
   }
   File? sv_exclusion_list = ConcatVariantExclusionLists.outfile
-
-  call StudyWideSummaryPlots {
-    input:
-      sample_metadata_tsv = sample_metadata_tsv,
-      samples_list = full_cohort_samples_list,
-      prefix = study_prefix,
-      docker = pedsv_r_docker
-  }
-
-  # call Gwas.SvGwas as StudyWideGwas {
-  #   input:
-  #     dense_vcf = full_cohort_dense_vcf,
-  #     dense_vcf_idx = full_cohort_dense_vcf_idx,
-  #     ad_matrix = full_cohort_ad_matrix,
-  #     ad_matrix_idx = full_cohort_ad_matrix_idx,
-  #     sample_metadata_tsv = sample_metadata_tsv,
-  #     samples_list = all_samples_list,
-  #     ref_fai = ref_fai,
-  #     prefix = study_prefix,
-  #     bcftools_query_options = full_cohort_gwas_bcftools_query_options,
-  #     gwas_mem_gb = 31,
-  #     pedsv_docker = pedsv_docker,
-  #     pedsv_r_docker = pedsv_r_docker
-  # }
-
-  call Rvas.SvGenicRvas as StudyWideRvas {
-    input:
-      gtf = gtf,
-      sites_bed = full_cohort_bed,
-      sites_bed_idx = full_cohort_bed_idx,
-      ad_matrix = full_cohort_ad_matrix,
-      ad_matrix_idx = full_cohort_ad_matrix_idx,
-      sample_metadata_tsv = sample_metadata_tsv,
-      samples_list = all_samples_list,
-      ref_fai = ref_fai,
-      prefix = study_prefix,
-      exclude_regions = rvas_exclude_regions,
-      exclusion_frac_overlap = rvas_exclusion_frac_overlap,
-      pedsv_docker = pedsv_docker,
-      pedsv_r_docker = pedsv_r_docker
-  }
-
-  # TODO: plot RVAS meta-analysis
 
   scatter ( contig_info in contiglist ) {
     String contig = contig_info[0]
@@ -178,6 +148,77 @@ workflow PedSvMainAnalysis {
     }
   }
 
+  scatter ( contig_info in autosomes_list ) {
+    String autosome = contig_info[0]
+    Int contig_len = contig_info[1]
+
+    call PrecomputePerSampleBurdens {
+      input:
+        vcf = full_cohort_w_relatives_dense_vcf,
+        vcf_idx = full_cohort_w_relatives_dense_vcf_idx,
+        contig = autosome,
+        prefix = study_prefix + ".full_cohort_w_relatives",
+        docker = pedsv_docker
+    }
+
+    call SlidingWindowTest as FullCohortSlidingWindowTest {
+      input:
+        sv_bed = full_cohort_bed,
+        sv_bed_idx = full_cohort_bed_idx,
+        ad_matrix = full_cohort_ad_matrix,
+        ad_matrix_idx = full_cohort_ad_matrix_idx,
+        contig = autosome,
+        contig_len = contig_len,
+        exclude_regions = locus_assoc_exclude_regions,
+        exclusion_frac_overlap = sliding_window_exclusion_frac_overlap,
+        sample_metadata_tsv = sample_metadata_tsv,
+        samples_list = all_samples_list,
+        bin_size = sliding_window_bin_size,
+        step_size = sliding_window_step_size,
+        min_sv_size = sliding_window_min_sv_size,
+        prefix = study_prefix + ".full_cohort." + autosome,
+        docker = pedsv_r_docker
+    }
+
+    call SlidingWindowTest as TrioCohortSlidingWindowTest {
+      input:
+        sv_bed = trio_bed,
+        sv_bed_idx = trio_bed_idx,
+        ad_matrix = trio_ad_matrix,
+        ad_matrix_idx = trio_ad_matrix_idx,
+        contig = autosome,
+        contig_len = contig_len,
+        exclude_regions = locus_assoc_exclude_regions,
+        exclusion_frac_overlap = sliding_window_exclusion_frac_overlap,
+        sample_metadata_tsv = sample_metadata_tsv,
+        samples_list = trio_samples_list,
+        bin_size = sliding_window_bin_size,
+        step_size = sliding_window_step_size,
+        min_sv_size = sliding_window_min_sv_size,
+        prefix = study_prefix + ".trio_cohort." + autosome,
+        docker = pedsv_r_docker
+    }
+
+    call SlidingWindowTest as CaseControlCohortSlidingWindowTest {
+      input:
+        sv_bed = case_control_bed,
+        sv_bed_idx = case_control_bed_idx,
+        ad_matrix = case_control_ad_matrix,
+        ad_matrix_idx = case_control_ad_matrix_idx,
+        contig = autosome,
+        contig_len = contig_len,
+        exclude_regions = locus_assoc_exclude_regions,
+        exclusion_frac_overlap = sliding_window_exclusion_frac_overlap,
+        sample_metadata_tsv = sample_metadata_tsv,
+        samples_list = case_control_samples_list,
+        bin_size = sliding_window_bin_size,
+        step_size = sliding_window_step_size,
+        min_sv_size = sliding_window_min_sv_size,
+        prefix = study_prefix + ".case_control_cohort." + autosome,
+        docker = pedsv_r_docker
+    }
+  }
+
   call MergeSVsPerSample as MergeFullCohortSVsPerSample {
     input:
       tarballs = GetFullCohortSVsPerSample.per_sample_tarball,
@@ -202,10 +243,27 @@ workflow PedSvMainAnalysis {
       docker = ubuntu_docker
   }
 
+  call CombinePerSampleBurdens {
+    input:
+      rare_sv_count_tsvs = PrecomputePerSampleBurdens.rare_sv_counts,
+      vrare_sv_count_tsvs = PrecomputePerSampleBurdens.vrare_sv_counts,
+      singleton_sv_count_tsvs = PrecomputePerSampleBurdens.singleton_sv_counts,
+      rare_del_imbalance_tsvs = PrecomputePerSampleBurdens.rare_del_imbalance,
+      vrare_del_imbalance_tsvs = PrecomputePerSampleBurdens.vrare_del_imbalance,
+      singleton_del_imbalance_tsvs = PrecomputePerSampleBurdens.singleton_del_imbalance,
+      rare_dup_imbalance_tsvs = PrecomputePerSampleBurdens.rare_dup_imbalance,
+      vrare_dup_imbalance_tsvs = PrecomputePerSampleBurdens.vrare_dup_imbalance,
+      singleton_dup_imbalance_tsvs = PrecomputePerSampleBurdens.singleton_dup_imbalance,
+      prefix = study_prefix + ".full_cohort_w_relatives",
+      docker = pedsv_docker
+  }
+
   call CohortSummaryPlots as FullCohortSummaryPlots {
     input:
       bed = full_cohort_w_relatives_bed,
       bed_idx = full_cohort_w_relatives_bed_idx,
+      ad_matrix = full_cohort_w_relatives_ad_matrix,
+      ad_matrix_idx = full_cohort_w_relatives_ad_matrix_idx,
       prefix = study_prefix + ".full_cohort_w_relatives",
       sample_metadata_tsv = sample_metadata_tsv,
       sample_list = full_cohort_w_relatives_samples_list,
@@ -219,6 +277,8 @@ workflow PedSvMainAnalysis {
     input:
       bed = full_cohort_bed,
       bed_idx = full_cohort_bed_idx,
+      ad_matrix = full_cohort_ad_matrix,
+      ad_matrix_idx = full_cohort_ad_matrix_idx,
       prefix = study_prefix + ".full_cohort",
       sample_metadata_tsv = sample_metadata_tsv,
       sample_list = full_cohort_samples_list,
@@ -232,6 +292,8 @@ workflow PedSvMainAnalysis {
     input:
       bed = trio_bed,
       bed_idx = trio_bed_idx,
+      ad_matrix = trio_ad_matrix,
+      ad_matrix_idx = trio_ad_matrix_idx,
       prefix = study_prefix + ".trio_cohort",
       sample_metadata_tsv = sample_metadata_tsv,
       sample_list = trio_samples_list,
@@ -245,6 +307,8 @@ workflow PedSvMainAnalysis {
     input:
       bed = case_control_bed,
       bed_idx = case_control_bed_idx,
+      ad_matrix = case_control_ad_matrix,
+      ad_matrix_idx = case_control_ad_matrix_idx,
       sample_metadata_tsv = sample_metadata_tsv,
       sample_list = case_control_samples_list,
       per_sample_tarball = MergeCaseControlSVsPerSample.per_sample_tarball,
@@ -254,19 +318,20 @@ workflow PedSvMainAnalysis {
 
   call BurdenTests as StudyWideBurdenTests {
     input:
-      beds = [trio_bed, case_control_bed],
-      bed_idxs = [trio_bed_idx, case_control_bed_idx],
-      ad_matrixes = [trio_ad_matrix, case_control_ad_matrix],
-      ad_matrix_idxs = [trio_ad_matrix_idx, case_control_ad_matrix_idx],
+      beds = [full_cohort_bed],
+      bed_idxs = [full_cohort_bed_idx],
+      ad_matrixes = [full_cohort_ad_matrix],
+      ad_matrix_idxs = [full_cohort_ad_matrix_idx],
       sample_metadata_tsv = sample_metadata_tsv,
       samples_list = all_samples_list,
-      af_fields = ["POPMAX_AF", "POPMAX_AF"],
-      ac_fields = ["AC", "AC"],
+      af_fields = ["POPMAX_AF"],
+      ac_fields = ["AC"],
       variant_exclusion_list = sv_exclusion_list,
       gene_lists = gene_lists,
       gene_list_names = gene_list_names,
       genomic_disorder_bed = genomic_disorder_bed,
       genomic_disorder_recip_frac = genomic_disorder_recip_frac,
+      precomputed_burden_stats = CombinePerSampleBurdens.precomputed_burden_stats_tsv,
       prefix = study_prefix,
       docker = pedsv_r_docker
   }
@@ -286,6 +351,7 @@ workflow PedSvMainAnalysis {
       gene_list_names = gene_list_names,
       genomic_disorder_bed = genomic_disorder_bed,
       genomic_disorder_recip_frac = genomic_disorder_recip_frac,
+      precomputed_burden_stats = CombinePerSampleBurdens.precomputed_burden_stats_tsv,
       prefix = study_prefix + ".trio_cohort",
       docker = pedsv_r_docker
   }
@@ -305,39 +371,97 @@ workflow PedSvMainAnalysis {
       gene_list_names = gene_list_names,
       genomic_disorder_bed = genomic_disorder_bed,
       genomic_disorder_recip_frac = genomic_disorder_recip_frac,
+      precomputed_burden_stats = CombinePerSampleBurdens.precomputed_burden_stats_tsv,
       prefix = study_prefix + ".case_control_cohort",
       docker = pedsv_r_docker
   }
 
-  # call Gwas.SvGwas as TrioCohortGwas {
+  call PlotSlidingWindowTests as PlotFullCohortSlidingWindows {
+    input:
+      stats = FullCohortSlidingWindowTest.bin_stats,
+      prefix = study_prefix,
+      docker = pedsv_r_docker
+  }
+
+  call PlotSlidingWindowTests as PlotTrioCohortSlidingWindows {
+    input:
+      stats = TrioCohortSlidingWindowTest.bin_stats,
+      prefix = study_prefix + ".trio_cohort",
+      docker = pedsv_r_docker
+  }
+
+  call PlotSlidingWindowTests as PlotCaseControlCohortSlidingWindows {
+    input:
+      stats = CaseControlCohortSlidingWindowTest.bin_stats,
+      prefix = study_prefix + ".case_control_cohort",
+      docker = pedsv_r_docker
+  }
+
+  call PlotSlidingWindowTests as PlotFullCohortSlidingWindows_MALE {
+    input:
+      stats = FullCohortSlidingWindowTest.male_bin_stats,
+      prefix = study_prefix + ".MALE_only",
+      docker = pedsv_r_docker
+  }
+
+  # call PlotSlidingWindowTests as PlotTrioCohortSlidingWindows_MALE {
   #   input:
-  #     dense_vcf = trio_dense_vcf,
-  #     dense_vcf_idx = trio_dense_vcf_idx,
-  #     ad_matrix = trio_ad_matrix,
-  #     ad_matrix_idx = trio_ad_matrix_idx,
-  #     sample_metadata_tsv = sample_metadata_tsv,
-  #     samples_list = trio_samples_list,
-  #     ref_fai = ref_fai,
-  #     prefix = study_prefix + ".trio_cohort",
-  #     bcftools_query_options = trio_gwas_bcftools_query_options,
-  #     pedsv_docker = pedsv_docker,
-  #     pedsv_r_docker = pedsv_r_docker
+  #     stats = TrioCohortSlidingWindowTest.male_bin_stats,
+  #     prefix = study_prefix + ".trio_cohort.MALE_only",
+  #     docker = pedsv_r_docker
   # }
 
-  # call Gwas.SvGwas as CaseControlCohortGwas {
+  # call PlotSlidingWindowTests as PlotCaseControlCohortSlidingWindows_MALE {
   #   input:
-  #     dense_vcf = case_control_dense_vcf,
-  #     dense_vcf_idx = case_control_dense_vcf_idx,
-  #     ad_matrix = case_control_ad_matrix,
-  #     ad_matrix_idx = case_control_ad_matrix_idx,
-  #     sample_metadata_tsv = sample_metadata_tsv,
-  #     samples_list = case_control_samples_list,
-  #     ref_fai = ref_fai,
-  #     prefix = study_prefix + ".case_control_cohort",
-  #     bcftools_query_options = case_control_gwas_bcftools_query_options,
-  #     pedsv_docker = pedsv_docker,
-  #     pedsv_r_docker = pedsv_r_docker
+  #     stats = CaseControlCohortSlidingWindowTest.male_bin_stats,
+  #     prefix = study_prefix + ".case_control_cohort.MALE_only",
+  #     docker = pedsv_r_docker
   # }
+
+  call PlotSlidingWindowTests as PlotFullCohortSlidingWindows_FEMALE {
+    input:
+      stats = FullCohortSlidingWindowTest.female_bin_stats,
+      prefix = study_prefix + ".FEMALE_only",
+      docker = pedsv_r_docker
+  }
+
+  # call PlotSlidingWindowTests as PlotTrioCohortSlidingWindows_FEMALE {
+  #   input:
+  #     stats = TrioCohortSlidingWindowTest.female_bin_stats,
+  #     prefix = study_prefix + ".trio_cohort.FEMALE_only",
+  #     docker = pedsv_r_docker
+  # }
+
+  # call PlotSlidingWindowTests as PlotCaseControlCohortSlidingWindows_FEMALE {
+  #   input:
+  #     stats = CaseControlCohortSlidingWindowTest.female_bin_stats,
+  #     prefix = study_prefix + ".case_control_cohort.FEMALE_only",
+  #     docker = pedsv_r_docker
+  # }
+
+  call Rvas.SvGenicRvas as StudyWideRvas {
+    input:
+      gtf = gtf,
+      sites_bed = full_cohort_bed,
+      sites_bed_idx = full_cohort_bed_idx,
+      ad_matrix = full_cohort_ad_matrix,
+      ad_matrix_idx = full_cohort_ad_matrix_idx,
+      sample_metadata_tsv = sample_metadata_tsv,
+      samples_list = all_samples_list,
+      ref_fai = autosomes_fai,
+      prefix = study_prefix,
+      exclude_regions = locus_assoc_exclude_regions,
+      exclusion_frac_overlap = rvas_exclusion_frac_overlap,
+      pedsv_docker = pedsv_docker,
+      pedsv_r_docker = pedsv_r_docker
+  }
+
+  call PlotRvas as PlotStudyWideRvas {
+    input:
+      stats = StudyWideRvas.rvas_sumstats,
+      prefix = study_prefix,
+      docker = pedsv_r_docker
+  }
 
   call Rvas.SvGenicRvas as TrioCohortRvas {
     input:
@@ -348,15 +472,20 @@ workflow PedSvMainAnalysis {
       ad_matrix_idx = trio_ad_matrix_idx,
       sample_metadata_tsv = sample_metadata_tsv,
       samples_list = trio_samples_list,
-      ref_fai = ref_fai,
+      ref_fai = autosomes_fai,
       prefix = study_prefix + ".trio_cohort",
-      exclude_regions = rvas_exclude_regions,
+      exclude_regions = locus_assoc_exclude_regions,
       exclusion_frac_overlap = rvas_exclusion_frac_overlap,
       pedsv_docker = pedsv_docker,
       pedsv_r_docker = pedsv_r_docker
   }
 
-  # TODO: plot trio RVAS
+  # call PlotRvas as PlotTrioCohortRvas {
+  #   input:
+  #     stats = TrioCohortRvas.rvas_sumstats,
+  #     prefix = study_prefix + ".trio_cohort",
+  #     docker = pedsv_r_docker
+  # }
 
   call Rvas.SvGenicRvas as CaseControlCohortRvas {
     input:
@@ -367,25 +496,49 @@ workflow PedSvMainAnalysis {
       ad_matrix_idx = case_control_ad_matrix_idx,
       sample_metadata_tsv = sample_metadata_tsv,
       samples_list = case_control_samples_list,
-      ref_fai = ref_fai,
+      ref_fai = autosomes_fai,
       prefix = study_prefix + ".case_control_cohort",
-      exclude_regions = rvas_exclude_regions,
+      exclude_regions = locus_assoc_exclude_regions,
       exclusion_frac_overlap = rvas_exclusion_frac_overlap,
       pedsv_docker = pedsv_docker,
       pedsv_r_docker = pedsv_r_docker
   }
 
-  # TODO: plot case/control cohort RVAS
+  # call PlotRvas as PlotCaseControlCohortRvas {
+  #   input:
+  #     stats = CaseControlCohortRvas.rvas_sumstats,
+  #     prefix = study_prefix + ".case_control_cohort",
+  #     docker = pedsv_r_docker
+  # }
+
+  call Pseudoreplication as Pseudorep {
+    input:
+      case_control_cohort_burden_stats = CaseControlCohortBurdenTests.burden_stats,
+      trio_cohort_burden_stats = TrioCohortBurdenTests.burden_stats,
+      sample_metadata_tsv = sample_metadata_tsv,
+      case_control_nbl_noncoding_cwas_stats = case_control_nbl_noncoding_cwas_stats,
+      trio_nbl_noncoding_cwas_stats = trio_nbl_noncoding_cwas_stats,
+      samples_list = all_samples_list,
+      prefix = study_prefix,
+      docker = pedsv_r_docker
+  }
 
   call UnifyOutputs {
     input:
-      tarballs = [StudyWideSummaryPlots.plots_tarball,
-                  FullCohortSummaryPlots.plots_tarball,
+      tarballs = [FullCohortSummaryPlots.plots_tarball,
+                  AnalysisCohortSummaryPlots.plots_tarball,
                   StudyWideBurdenTests.plots_tarball,
                   TrioCohortSummaryPlots.plots_tarball,
                   CaseControlCohortSummaryPlots.plots_tarball,
                   TrioCohortBurdenTests.plots_tarball,
-                  CaseControlCohortBurdenTests.plots_tarball],
+                  CaseControlCohortBurdenTests.plots_tarball,
+                  PlotFullCohortSlidingWindows.results_tarball,
+                  PlotTrioCohortSlidingWindows.results_tarball,
+                  PlotCaseControlCohortSlidingWindows.results_tarball,
+                  PlotFullCohortSlidingWindows_MALE.results_tarball,
+                  PlotFullCohortSlidingWindows_FEMALE.results_tarball,
+                  PlotStudyWideRvas.results_tarball,
+                  Pseudorep.results_tarball],
       prefix = study_prefix + "_analysis_outputs",
       docker = ubuntu_docker,
       relocate_stats = true
@@ -427,51 +580,6 @@ task ConcatTextFiles {
 }
 
 
-# Basic study-wide summary plots
-task StudyWideSummaryPlots {
-  input {
-    File sample_metadata_tsv
-    File samples_list
-    String prefix
-    String docker
-  }
-
-  Int disk_gb = ceil(2 * size([sample_metadata_tsv], "GB")) + 10
-
-  command <<<
-    set -eu -o pipefail
-
-    # Prep output directory
-    mkdir StudyWideSummaryPlots
-    for subdir in pca; do
-      mkdir StudyWideSummaryPlots/$subdir
-    done
-
-    # Plot PCs colored by ancestry
-    /opt/ped_germline_SV/analysis/cohort_summaries/plot_pcs.R \
-      --subset-samples ~{samples_list} \
-      --out-prefix StudyWideSummaryPlots/pca/~{prefix} \
-      ~{sample_metadata_tsv}
-    gzip -f StudyWideSummaryPlots/pca/*.tsv
-
-    # Compress output
-    tar -czvf StudyWideSummaryPlots.tar.gz StudyWideSummaryPlots
-  >>>
-
-  output {
-    File plots_tarball = "StudyWideSummaryPlots.tar.gz"
-  }
-
-  runtime {
-    docker: docker
-    memory: "15.5 GB"
-    cpu: 4
-    disks: "local-disk " + disk_gb + " HDD"
-    preemptible: 3
-  }
-}
-
-
 # Conduct standard global burden tests
 task BurdenTests {
   input {
@@ -489,6 +597,7 @@ task BurdenTests {
     Array[String]? gene_list_names
     File? genomic_disorder_bed
     Float genomic_disorder_recip_frac = 0.5
+    File? precomputed_burden_stats
     
     String prefix
     String docker
@@ -524,6 +633,9 @@ task BurdenTests {
     if [ ~{defined(variant_exclusion_list)} == "true" ]; then
       cmd="$cmd --exclude-variants ~{variant_exclusion_list}"
     fi
+    if [ ~{defined(precomputed_burden_stats)} == "true" ]; then
+      cmd="$cmd --precomputed-burden-stats ~{precomputed_burden_stats}"
+    fi
     cmd="$cmd --out-prefix ~{prefix}.BurdenTests/~{prefix}"
 
     # Prep list of SVs to evaluate for genomic disorder analyses, if optioned
@@ -532,10 +644,20 @@ task BurdenTests {
         bedtools intersect \
           -r -wa -wb -f ~{genomic_disorder_recip_frac} \
           -a $bed -b ~{select_first([genomic_disorder_bed])} \
-        | awk '{ if ($5==$NF) print $4 }'
+        | awk -v OFS="\t" '{ if ($5==$NF) print $4, $(NF-1) }'
       done < ~{write_lines(beds)} \
-      | sort -V | uniq > gd_hits.vids.list
+      | sort -V | uniq > gd_hits.pairs.tsv
+      cut -f1 gd_hits.pairs.tsv | sort -V | uniq > gd_hits.vids.list
       cmd="$cmd --genomic-disorder-hits gd_hits.vids.list"
+
+      # If GD BED provided, also collect rates per disease per GD and run association tests per GD
+      gd_cmd="/opt/ped_germline_SV/analysis/association/gd_assoc.R"
+      gd_cmd="$gd_cmd $( awk -v OFS=" " -v ORS=" " '{ print "--bed", $1 }' ~{write_lines(beds)} )"
+      gd_cmd="$gd_cmd $( awk -v OFS=" " -v ORS=" " '{ print "--ad", $1 }' ~{write_lines(ad_matrixes)} )"
+      gd_cmd="$gd_cmd --metadata ~{sample_metadata_tsv} --subset-samples ~{samples_list}"
+      gd_cmd="$gd_cmd --genomic-disorder-hits gd_hits.pairs.tsv --outfile ~{prefix}.BurdenTests/~{prefix}.gd_association_stats.tsv"
+      echo -e "\n\nNow running genomic disorder association tests with the following command:\n$gd_cmd\n"
+      eval $gd_cmd
     fi
 
     # Run burden tests
@@ -549,11 +671,13 @@ task BurdenTests {
       "~{prefix}.BurdenTests/~{prefix}"
 
     # Compress output
+    cp ~{prefix}.BurdenTests/~{prefix}.global_burden_tests.tsv.gz ./
     tar -czvf ~{prefix}.BurdenTests.tar.gz ~{prefix}.BurdenTests
   >>>
 
   output {
     File plots_tarball = "~{prefix}.BurdenTests.tar.gz"
+    File burden_stats = "~{prefix}.global_burden_tests.tsv.gz"
   }
 
   runtime {
@@ -616,6 +740,147 @@ task GetSVsPerSample {
 }
 
 
+# Run a sliding window CNV burden test for a single chromosome
+task SlidingWindowTest {
+  input {
+    File sv_bed
+    File sv_bed_idx
+    File ad_matrix
+    File ad_matrix_idx
+    String contig
+    Int contig_len
+    File? exclude_regions
+    Float exclusion_frac_overlap = 0.5
+    File sample_metadata_tsv
+    File samples_list
+    Int bin_size = 1000000
+    Int step_size = 250000
+    Int min_sv_size = 50000
+    String prefix
+    String docker
+
+    Float mem_gb = 3.75
+    Int n_cpu = 2
+    Int? disk_gb
+  }
+
+  Int default_disk_gb = ceil(3 * size([sv_bed, ad_matrix], "GB")) + 20
+
+  command <<<
+    set -eu -o pipefail
+
+    # Make genomic bins
+    paste \
+      <( seq 0 ~{step_size} ~{contig_len} ) \
+      <( seq ~{bin_size} ~{step_size} $(( ~{contig_len} + ~{bin_size} )) ) \
+    | awk -v contig="~{contig}" -v OFS="\t" '{ print contig, $1, $2 }' \
+    | awk -v bin_size=~{bin_size} -v last_end=$(( ~{contig_len} + ~{step_size} )) \
+      '{ if ($3-$2 <= bin_size && $3 <= last_end) print }' \
+    | bgzip -c \
+    > ~{contig}.bins.pre_mask.bed.gz
+    if [ ~{defined(exclude_regions)} == "true" ]; then
+      bedtools coverage \
+        -a ~{contig}.bins.pre_mask.bed.gz \
+        -b ~{select_first([exclude_regions])} \
+      | awk -v OFS="\t" -v frac=~{exclusion_frac_overlap} \
+        '{ if ($NF < frac) print $1, $2, $3 }' \
+      | bgzip -c \
+      > ~{contig}.bins.bed.gz
+    else
+      cp ~{contig}.bins.pre_mask.bed.gz ~{contig}.bins.bed.gz
+    fi
+    tabix -p bed -f ~{contig}.bins.bed.gz
+
+    # Filter SV data to contig of interest & CNVs greater than min_sv_size
+    tabix -h ~{sv_bed} ~{contig} | bgzip -c > ~{contig}.all_svs.bed.gz
+    tabix -p bed -f ~{contig}.all_svs.bed.gz
+    /opt/ped_germline_SV/analysis/landscape/filter_cnvs_for_sliding_window_test.R \
+      --bed-in ~{contig}.all_svs.bed.gz \
+      --minimum-size ~{min_sv_size} \
+      --bed-out ~{contig}.large_rare_cnvs.bed
+    while read chrom start end vid cnv intervals; do
+      if [ $cnv == "CPX" ]; then
+        echo $intervals | sed -e 's/,/\n/g' -e 's/[_:-]/\t/g' \
+        | awk -v min_size=~{min_sv_size} -v OFS="\t" -v vid=$vid \
+          '{ if ($1 ~ /DEL|DUP/ && $3-$2 >= min_size) print $2, $3, $4, vid, $1 }'
+      else
+        echo -e "$chrom\t$start\t$end\t$vid\t$cnv"
+      fi
+    done < <( grep -ve '^#' ~{contig}.large_rare_cnvs.bed ) \
+    | sort -Vk1,1 -k2,2n -k3,3n -k4,4V -k5,5V \
+    | cat <( head -n1 ~{contig}.large_rare_cnvs.bed ) - \
+    | bgzip -c \
+    > ~{contig}.large_rare_cnvs.bed.gz
+    tabix -p bed -f ~{contig}.large_rare_cnvs.bed.gz
+
+    # Preprocess AD matrix to reduce memory requirement downstream
+    tabix ~{ad_matrix} ~{contig} \
+    | fgrep -wf <( zcat ~{contig}.large_rare_cnvs.bed.gz | cut -f4 | sed '1d' ) \
+    | cat <( tabix -H ~{ad_matrix} ) - \
+    | bgzip -c \
+    > ~{contig}.large_rare_cnvs.ad.bed.gz
+    tabix -p bed -f ~{contig}.large_rare_cnvs.ad.bed.gz
+
+    # Find overlap between SVs and bins
+    for CNV in DEL DUP; do
+      zcat ~{contig}.large_rare_cnvs.bed.gz \
+      | awk -v cnv=$CNV '{ if ($NF==cnv) print }' \
+      > ~{contig}.large_rare_cnvs.$CNV.bed
+      if [ $( cat ~{contig}.large_rare_cnvs.$CNV.bed | wc -l ) -gt 0 ]; then
+        bedtools map \
+          -a ~{contig}.bins.bed.gz \
+          -b ~{contig}.large_rare_cnvs.$CNV.bed \
+          -c 4 \
+          -o distinct \
+          -f $( echo -e "~{min_sv_size}\t~{bin_size}" \
+                | awk '{ printf "%.6f\n", $1 / $2 }' ) \
+        | cut -f4 \
+        | awk '{ if ($1==".") print "NA"; else print $1 }' \
+        > ~{contig}.hits.$CNV.txt
+      else
+        zcat ~{contig}.bins.bed.gz \
+        | awk '{ print "NA" }' \
+        > ~{contig}.hits.$CNV.txt
+      fi
+    done
+    zcat ~{contig}.bins.bed.gz \
+    | paste \
+      - \
+      ~{contig}.hits.DEL.txt \
+      ~{contig}.hits.DUP.txt \
+    | cat \
+      <( echo -e "#chrom\tstart\tend\tDELs\tDUPs" ) - \
+    | bgzip -c \
+    > ~{contig}.counts.bed.gz
+
+    # Compute test statistics for each bin
+    /opt/ped_germline_SV/analysis/association/sliding_window_test.R \
+      --bed ~{contig}.counts.bed.gz \
+      --ad ~{contig}.large_rare_cnvs.ad.bed.gz \
+      --metadata ~{sample_metadata_tsv} \
+      --subset-samples ~{samples_list} \
+      --out-prefix ~{prefix}.sliding_window_stats
+    bgzip -f ~{prefix}.sliding_window_stats.bed
+    bgzip -f ~{prefix}.sliding_window_stats.MALE_only.bed
+    bgzip -f ~{prefix}.sliding_window_stats.FEMALE_only.bed
+  >>>
+
+  output {
+    File bin_stats = "~{prefix}.sliding_window_stats.bed.gz"
+    File male_bin_stats = "~{prefix}.sliding_window_stats.MALE_only.bed.gz"
+    File female_bin_stats = "~{prefix}.sliding_window_stats.FEMALE_only.bed.gz"
+  }
+
+  runtime {
+    docker: docker
+    memory: mem_gb + " GB"
+    cpu: n_cpu
+    disks: "local-disk " + select_first([disk_gb, default_disk_gb]) + " HDD"
+    preemptible: 3
+  }
+}
+
+
 # Merge outputs of GetSVsPerSample across multiple chromosomes
 task MergeSVsPerSample {
   input {
@@ -659,11 +924,293 @@ task MergeSVsPerSample {
 }
 
 
+# Precompute per-sample genome-wide burden statistics that are too 
+# memory intensive to do efficiently in R
+task PrecomputePerSampleBurdens {
+  input {
+    File vcf
+    File vcf_idx
+    String contig
+    String prefix
+    String docker
+
+    Float mem_gb = 7.5
+    Int? disk_gb
+  }
+
+  Int default_disk_gb = ceil(3 * size([vcf], "GB")) + 20
+
+  command <<<
+    set -eu -o pipefail
+
+    # Subset to chromosome of interest
+    tabix -h ~{vcf} ~{contig} | bgzip -c > ~{contig}.vcf.gz
+
+    # Get dummy list of samples in VCF with zero counts for filling missing samples
+    bcftools query -l ~{contig}.vcf.gz | awk -v OFS="\t" '{ print $1, "0" }' \
+    > zeroes.tsv
+
+    # Filter VCF to isolate rare SVs
+    bcftools view \
+      --include 'INFO/gnomad_v3.1_sv_POPMAX_AF < 0.01 & AF < 0.01 & FILTER == "PASS"' \
+      -Oz -o rare.vcf.gz \
+      ~{contig}.vcf.gz
+    tabix -p vcf -f rare.vcf.gz
+
+    # Count rare SVs per sample
+    bcftools query \
+      --include 'GT="alt"' \
+      --format '[%SAMPLE\t1\n]' \
+      rare.vcf.gz \
+    | cat - zeroes.tsv \
+    | /opt/ped_germline_SV/analysis/utilities/sum_values_per_sample.py \
+    | cat <( echo -e "#sample\trare_sv_count" ) - \
+    | gzip -c \
+    > ~{prefix}.rare_sv_per_sample.~{contig}.tsv.gz
+
+    # Count very rare SVs per sample
+    bcftools query \
+      --include 'GT="alt" & AF < 0.001' \
+      --format '[%SAMPLE\t1\n]' \
+      rare.vcf.gz \
+    | cat - zeroes.tsv \
+    | /opt/ped_germline_SV/analysis/utilities/sum_values_per_sample.py \
+    | cat <( echo -e "#sample\tvrare_sv_count" ) - \
+    | gzip -c \
+    > ~{prefix}.vrare_sv_per_sample.~{contig}.tsv.gz
+
+    # Count singleton SVs per sample
+    bcftools query \
+      --include 'INFO/AC == 1 & GT="alt"' \
+      --format '[%SAMPLE\t1\n]' \
+      rare.vcf.gz \
+    | cat - zeroes.tsv \
+    | /opt/ped_germline_SV/analysis/utilities/sum_values_per_sample.py \
+    | cat <( echo -e "#sample\tsingleton_sv_count" ) - \
+    | gzip -c \
+    > ~{prefix}.singleton_sv_per_sample.~{contig}.tsv.gz
+
+    # Prepare for dosage imbalance-based calculations
+    /opt/ped_germline_SV/analysis/landscape/prep_dosage_imbalance_vcf.py \
+      --vcf-out rare.imbalance.vcf.gz \
+      rare.vcf.gz
+
+    # Collect CNV type-specific genomic imbalance per frequency tranche
+    for CNV in DEL DUP; do
+      case $CNV in
+        DEL)
+          info=DEL_IMBALANCE
+          ;;
+        DUP)
+          info=DUP_IMBALANCE
+          ;;
+      esac
+
+      # Sum rare imbalance per sample
+      bcftools query \
+        --include "GT=\"alt\" & INFO/$info > 0" \
+        --format "[%SAMPLE\t%INFO/$info\n]" \
+        rare.imbalance.vcf.gz \
+      | cat - zeroes.tsv \
+      | /opt/ped_germline_SV/analysis/utilities/sum_values_per_sample.py \
+      | cat <( echo -e "#sample\trare_imbalance_$CNV" ) - \
+      | gzip -c \
+      > ~{prefix}.rare_imbalance_per_sample.$CNV.~{contig}.tsv.gz
+
+      # Sum very rare imbalance per sample
+      bcftools query \
+        --include "GT=\"alt\" & INFO/AF < 0.001 & INFO/$info > 0" \
+        --format "[%SAMPLE\t%INFO/$info\n]" \
+        rare.imbalance.vcf.gz \
+      | cat - zeroes.tsv \
+      | /opt/ped_germline_SV/analysis/utilities/sum_values_per_sample.py \
+      | cat <( echo -e "#sample\tvrare_imbalance_$CNV" ) - \
+      | gzip -c \
+      > ~{prefix}.vrare_imbalance_per_sample.$CNV.~{contig}.tsv.gz
+
+      # Sum singleton imbalance per sample
+      bcftools query \
+        --include "GT=\"alt\" & INFO/AC == 1 & INFO/$info > 0" \
+        --format "[%SAMPLE\t%INFO/$info\n]" \
+        rare.imbalance.vcf.gz \
+      | cat - zeroes.tsv \
+      | /opt/ped_germline_SV/analysis/utilities/sum_values_per_sample.py \
+      | cat <( echo -e "#sample\tsingleton_imbalance_$CNV" ) - \
+      | gzip -c \
+      > ~{prefix}.singleton_imbalance_per_sample.$CNV.~{contig}.tsv.gz
+
+    done
+
+  >>>
+
+  output {
+    File rare_sv_counts = "~{prefix}.rare_sv_per_sample.~{contig}.tsv.gz"
+    File vrare_sv_counts = "~{prefix}.vrare_sv_per_sample.~{contig}.tsv.gz"
+    File singleton_sv_counts = "~{prefix}.singleton_sv_per_sample.~{contig}.tsv.gz"
+    File rare_del_imbalance = "~{prefix}.rare_imbalance_per_sample.DEL.~{contig}.tsv.gz"
+    File vrare_del_imbalance = "~{prefix}.vrare_imbalance_per_sample.DEL.~{contig}.tsv.gz"
+    File singleton_del_imbalance = "~{prefix}.singleton_imbalance_per_sample.DEL.~{contig}.tsv.gz"
+    File rare_dup_imbalance = "~{prefix}.rare_imbalance_per_sample.DUP.~{contig}.tsv.gz"
+    File vrare_dup_imbalance = "~{prefix}.vrare_imbalance_per_sample.DUP.~{contig}.tsv.gz"
+    File singleton_dup_imbalance = "~{prefix}.singleton_imbalance_per_sample.DUP.~{contig}.tsv.gz"
+  }
+
+  runtime {
+    docker: docker
+    memory: mem_gb + " GB"
+    disks: "local-disk " + select_first([disk_gb, default_disk_gb]) + " HDD"
+    preemptible: 3
+  }
+}
+
+
+# Combine outputs generated by PrecomputePerSampleBurdens
+task CombinePerSampleBurdens {
+  input {
+    Array[File] rare_sv_count_tsvs
+    Array[File] vrare_sv_count_tsvs
+    Array[File] singleton_sv_count_tsvs
+    Array[File] rare_del_imbalance_tsvs
+    Array[File] vrare_del_imbalance_tsvs
+    Array[File] singleton_del_imbalance_tsvs
+    Array[File] rare_dup_imbalance_tsvs
+    Array[File] vrare_dup_imbalance_tsvs
+    Array[File] singleton_dup_imbalance_tsvs
+    String prefix
+    String docker
+
+    Float mem_gb = 3.5
+    Int n_cpu = 2
+    Int? disk_gb
+  }
+
+  Int default_disk_gb = ceil(2 * size(flatten([rare_sv_count_tsvs, singleton_sv_count_tsvs]), "GB")) + 20
+
+  command <<<
+    set -eu -o pipefail
+
+    # Merge rare SV count data
+    zcat ~{sep=" " rare_sv_count_tsvs} \
+    | fgrep -v "#" \
+    | /opt/ped_germline_SV/analysis/utilities/sum_values_per_sample.py \
+    | cat <( echo -e "#sample\trare_sv_count" ) - \
+    | gzip -c \
+    > ~{prefix}.rare_sv_per_sample.tsv.gz
+
+    # Merge vrare SV count data
+    zcat ~{sep=" " vrare_sv_count_tsvs} \
+    | fgrep -v "#" \
+    | /opt/ped_germline_SV/analysis/utilities/sum_values_per_sample.py \
+    | cat <( echo -e "#sample\tvrare_sv_count" ) - \
+    | gzip -c \
+    > ~{prefix}.vrare_sv_per_sample.tsv.gz
+
+    # Merge singleton SV count data
+    zcat ~{sep=" " singleton_sv_count_tsvs} \
+    | fgrep -v "#" \
+    | /opt/ped_germline_SV/analysis/utilities/sum_values_per_sample.py \
+    | cat <( echo -e "#sample\tsingleton_sv_count" ) - \
+    | gzip -c \
+    > ~{prefix}.singleton_sv_per_sample.tsv.gz
+
+    # Merge rare DEL imbalance data
+    zcat ~{sep=" " rare_del_imbalance_tsvs} \
+    | fgrep -v "#" \
+    | /opt/ped_germline_SV/analysis/utilities/sum_values_per_sample.py \
+    | cat <( echo -e "#sample\trare_imbalance_DEL" ) - \
+    | gzip -c \
+    > ~{prefix}.rare_del_imbalance_per_sample.tsv.gz
+
+    # Merge vrare DEL imbalance data
+    zcat ~{sep=" " vrare_del_imbalance_tsvs} \
+    | fgrep -v "#" \
+    | /opt/ped_germline_SV/analysis/utilities/sum_values_per_sample.py \
+    | cat <( echo -e "#sample\tvrare_imbalance_DEL" ) - \
+    | gzip -c \
+    > ~{prefix}.vrare_del_imbalance_per_sample.tsv.gz
+
+    # Merge singleton DEL imbalance data
+    zcat ~{sep=" " singleton_del_imbalance_tsvs} \
+    | fgrep -v "#" \
+    | /opt/ped_germline_SV/analysis/utilities/sum_values_per_sample.py \
+    | cat <( echo -e "#sample\tsingleton_imbalance_DEL" ) - \
+    | gzip -c \
+    > ~{prefix}.singleton_del_imbalance_per_sample.tsv.gz
+
+    # Merge rare DUP imbalance data
+    zcat ~{sep=" " rare_dup_imbalance_tsvs} \
+    | fgrep -v "#" \
+    | /opt/ped_germline_SV/analysis/utilities/sum_values_per_sample.py \
+    | cat <( echo -e "#sample\trare_imbalance_DUP" ) - \
+    | gzip -c \
+    > ~{prefix}.rare_dup_imbalance_per_sample.tsv.gz
+
+    # Merge vrare DUP imbalance data
+    zcat ~{sep=" " vrare_dup_imbalance_tsvs} \
+    | fgrep -v "#" \
+    | /opt/ped_germline_SV/analysis/utilities/sum_values_per_sample.py \
+    | cat <( echo -e "#sample\tvrare_imbalance_DUP" ) - \
+    | gzip -c \
+    > ~{prefix}.vrare_dup_imbalance_per_sample.tsv.gz
+
+    # Merge singleton DUP imbalance data
+    zcat ~{sep=" " singleton_dup_imbalance_tsvs} \
+    | fgrep -v "#" \
+    | /opt/ped_germline_SV/analysis/utilities/sum_values_per_sample.py \
+    | cat <( echo -e "#sample\tsingleton_imbalance_DUP" ) - \
+    | gzip -c \
+    > ~{prefix}.singleton_dup_imbalance_per_sample.tsv.gz
+
+    # Sum imbalance data across DEL and DUP within a frequency tranche
+    for freq in rare vrare singleton; do
+      zcat \
+        ~{prefix}.${freq}_del_imbalance_per_sample.tsv.gz \
+        ~{prefix}.${freq}_dup_imbalance_per_sample.tsv.gz \
+      | fgrep -v "#" \
+      | /opt/ped_germline_SV/analysis/utilities/sum_values_per_sample.py \
+      | cat <( echo -e "#sample\t${freq}_imbalance_CNV" ) - \
+      | gzip -c \
+      > ~{prefix}.${freq}_cnv_imbalance_per_sample.tsv.gz
+    done
+
+    # Column-wise merge of all files above
+    /opt/ped_germline_SV/analysis/utilities/join_on_first_column.py \
+      --join outer \
+      --tsv-out ~{prefix}.precomputed_burden_stats.tsv.gz \
+      ~{prefix}.rare_sv_per_sample.tsv.gz \
+      ~{prefix}.vrare_sv_per_sample.tsv.gz \
+      ~{prefix}.singleton_sv_per_sample.tsv.gz \
+      ~{prefix}.rare_del_imbalance_per_sample.tsv.gz \
+      ~{prefix}.vrare_del_imbalance_per_sample.tsv.gz \
+      ~{prefix}.singleton_del_imbalance_per_sample.tsv.gz \
+      ~{prefix}.rare_dup_imbalance_per_sample.tsv.gz \
+      ~{prefix}.vrare_dup_imbalance_per_sample.tsv.gz \
+      ~{prefix}.singleton_dup_imbalance_per_sample.tsv.gz \
+      ~{prefix}.rare_cnv_imbalance_per_sample.tsv.gz \
+      ~{prefix}.vrare_cnv_imbalance_per_sample.tsv.gz \
+      ~{prefix}.singleton_cnv_imbalance_per_sample.tsv.gz
+  >>>
+
+  output {
+    File precomputed_burden_stats_tsv = "~{prefix}.precomputed_burden_stats.tsv.gz"
+  }
+
+  runtime {
+    docker: docker
+    memory: mem_gb + " GB"
+    disks: "local-disk " + select_first([disk_gb, default_disk_gb]) + " HDD"
+    preemptible: 3
+  }
+}
+
+
 # Basic summary plots for a single cohort
 task CohortSummaryPlots {
   input {
     File bed
     File bed_idx
+    File ad_matrix
+    File ad_matrix_idx
     File sample_metadata_tsv
     File sample_list
     File? per_sample_tarball
@@ -675,7 +1222,7 @@ task CohortSummaryPlots {
     String docker
   }
 
-  Int disk_gb = ceil(2 * size([bed], "GB")) + 10
+  Int disk_gb = ceil(2 * size([bed, sample_metadata_tsv], "GB")) + 10
 
   command <<<
     set -eu -o pipefail
@@ -683,10 +1230,36 @@ task CohortSummaryPlots {
     # Prep output directory
     mkdir ~{prefix}.SummaryPlots
 
+    # Plot PCs colored by ancestry
+    /opt/ped_germline_SV/analysis/cohort_summaries/plot_pcs.R \
+      --subset-samples ~{sample_list} \
+      --out-prefix ~{prefix}.SummaryPlots/~{prefix} \
+      ~{sample_metadata_tsv}
+
+    # Plot sex ploidy colored by sex assignment
+    /opt/ped_germline_SV/analysis/cohort_summaries/plot_sex_ploidy.R \
+      --subset-samples ~{sample_list} \
+      --out-prefix ~{prefix}.SummaryPlots/~{prefix} \
+      ~{sample_metadata_tsv}
+
+    # Plot selected sample metrics
+    /opt/ped_germline_SV/analysis/cohort_summaries/plot_sample_metrics.R \
+      --subset-samples ~{sample_list} \
+      --out-prefix ~{prefix}.SummaryPlots/~{prefix} \
+      ~{sample_metadata_tsv}
+
     # Plot SV counts and sizes
     /opt/ped_germline_SV/analysis/landscape/plot_sv_site_summary.R \
+      --bed ~{bed} \
+      --ad-matrix ~{ad_matrix} \
+      --metadata ~{sample_metadata_tsv} \
+      --subset-samples ~{sample_list} \
       --af-field ~{af_field} \
       --ac-field ~{ac_field} \
+      --out-prefix ~{prefix}.SummaryPlots/~{prefix} \
+
+    # Plot AF correlations vs. gnomAD v4 SVs
+    /opt/ped_germline_SV/analysis/landscape/gnomad_af_comparison.R \
       --out-prefix ~{prefix}.SummaryPlots/~{prefix} \
       ~{bed}
 
@@ -732,6 +1305,145 @@ task CohortSummaryPlots {
 }
 
 
+# Merge & plot sliding window test statistics
+task PlotSlidingWindowTests {
+  input {
+    Array[File] stats
+    String prefix
+    String docker
+  }
+
+  Int disk_gb = ceil(2 * size(stats, "GB")) + 10
+
+  command <<<
+    set -eu -o pipefail
+
+    mkdir ~{prefix}.SlidingWindowResults
+
+    # Merge stats
+    zcat ~{sep=" " stats} | grep -ve '^#' \
+    | sort -Vk1,1 -k2,2n -k3,3n \
+    | cat <( zcat ~{stats[0]} | sed -n '1p' ) - \
+    | bgzip -c \
+    > ~{prefix}.SlidingWindowResults/~{prefix}.sliding_window_stats.bed.gz
+    tabix -p bed -f \
+      ~{prefix}.SlidingWindowResults/~{prefix}.sliding_window_stats.bed.gz
+
+    # Compute multiple test correction
+    bin_size=$( zcat ~{prefix}.SlidingWindowResults/~{prefix}.sliding_window_stats.bed.gz \
+                | sed '1d' | awk '{ print $3-$2 }' | sed -n '1p' )
+    echo -e "\nDetected $bin_size bp bins\n"
+    gw_sig=$( zcat ~{prefix}.SlidingWindowResults/~{prefix}.sliding_window_stats.bed.gz \
+              | sed '1d' | cut -f1-3 | sort -Vk1,1 -k2,2n -k3,3n | bedtools merge -i - \
+              | awk -v bin_size="$bin_size" '{ SUM+=$3-$2 }END{ print (bin_size*0.05)/SUM }' )
+    echo -e "\nGenome-wide significance threshold: $gw_sig\n"
+    echo "$gw_sig" > gw_sig.txt
+
+    # Visualize
+    /opt/ped_germline_SV/analysis/association/plot_sliding_window_results.R \
+      --stats ~{prefix}.SlidingWindowResults/~{prefix}.sliding_window_stats.bed.gz \
+      --gw-sig "$gw_sig" \
+      --out-prefix ~{prefix}.SlidingWindowResults/~{prefix}
+
+    # Compress output
+    tar -czvf ~{prefix}.SlidingWindowResults.tar.gz ~{prefix}.SlidingWindowResults
+  >>>
+
+  output {
+    File results_tarball = "~{prefix}.SlidingWindowResults.tar.gz"
+    Float gw_sig_cutoff = read_float("gw_sig.txt")
+  }
+
+  runtime {
+    docker: docker
+    memory: "3.5 GB"
+    cpu: 2
+    disks: "local-disk " + disk_gb + " HDD"
+    preemptible: 3
+  }
+}
+
+
+# Plot RVAS results and format as tarball for unification
+task PlotRvas {
+  input {
+    File stats
+    String prefix
+    String docker
+  }
+
+  command <<<
+    set -eu -o pipefail
+
+    mkdir ~{prefix}.RvasResults
+
+    /opt/ped_germline_SV/analysis/association/plot_rvas_results.R \
+      --stats ~{stats} \
+      --out-prefix ~{prefix}.RvasResults/~{prefix}
+
+    cp ~{stats} ~{prefix}.RvasResults/
+
+    tar -czvf ~{prefix}.RvasResults.tar.gz ~{prefix}.RvasResults
+  >>>
+
+  output {
+    File results_tarball = "~{prefix}.RvasResults.tar.gz"
+  }
+
+  runtime {
+    docker: docker
+    memory: "3.5 GB"
+    cpu: 2
+    disks: "local-disk 25 HDD"
+    preemptible: 3
+  }
+}
+
+
+# Plot pseudoreplication of trio & case-control cohorts
+task Pseudoreplication {
+  input {
+    File case_control_cohort_burden_stats
+    File trio_cohort_burden_stats
+    File sample_metadata_tsv
+    File case_control_nbl_noncoding_cwas_stats
+    File trio_nbl_noncoding_cwas_stats
+    File samples_list
+    String prefix
+    String docker
+  }
+
+  command <<<
+    set -eu -o pipefail
+
+    mkdir ~{prefix}.Pseudoreplication
+
+    /opt/ped_germline_SV/analysis/landscape/plot_pseudoreplication.R \
+      --case-control-stats ~{case_control_cohort_burden_stats} \
+      --trio-stats ~{trio_cohort_burden_stats} \
+      --case-control-nbl-noncoding-cwas ~{case_control_nbl_noncoding_cwas_stats} \
+      --trio-nbl-noncoding-cwas ~{trio_nbl_noncoding_cwas_stats} \
+      --metadata ~{sample_metadata_tsv} \
+      --subset-samples ~{samples_list} \
+      --out-prefix ~{prefix}.Pseudoreplication/~{prefix}
+
+    tar -czvf ~{prefix}.Pseudoreplication.tar.gz ~{prefix}.Pseudoreplication
+  >>>
+
+  output {
+    File results_tarball = "~{prefix}.Pseudoreplication.tar.gz"
+  }
+
+  runtime {
+    docker: docker
+    memory: "3.5 GB"
+    cpu: 2
+    disks: "local-disk 25 HDD"
+    preemptible: 3
+  }
+}
+
+
 # Merge multiple tarballs
 task UnifyOutputs {
   input {
@@ -759,6 +1471,7 @@ task UnifyOutputs {
     if [ ~{relocate_stats} == "true" ]; then
       mkdir ~{prefix}/stats
       find ~{prefix}/ -name "*.tsv.gz" | xargs -I {} mv {} ~{prefix}/stats/
+      find ~{prefix}/ -name "*.bed.gz" | xargs -I {} mv {} ~{prefix}/stats/
     fi
 
     # Compress output directory

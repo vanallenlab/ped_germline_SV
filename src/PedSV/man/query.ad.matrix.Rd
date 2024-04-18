@@ -59,6 +59,7 @@ for each sample
 \item \code{"count"} : return the count of non-reference variants per sample
 irrespective of genotype
 \item \code{"sum"} : return the sum of allele dosages for all query rows per sample
+\item \code{"max"} : return the maximum value for all query rows per sample
 }
 }
 \seealso{

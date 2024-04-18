@@ -99,7 +99,7 @@ gwas.res <- as.data.frame(do.call("rbind", lapply(rownames(ad), function(vid){
 cancer.cols <- as.character(sapply(cancers, function(cancer){
   paste(cancer, c("n_case", "case_nonref", "case_mean",
                   "n_control", "control_nonref", "control_mean",
-                  "beta", "beta_se", "test_stat", "neglog10_p", "model"), sep=".")
+                  "beta", "beta_se", "zscore", "neglog10_p", "model"), sep=".")
 }))
 colnames(gwas.res) <- c("#variant_id", cancer.cols)
 

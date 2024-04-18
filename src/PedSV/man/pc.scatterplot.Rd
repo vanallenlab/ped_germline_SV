@@ -10,10 +10,14 @@ pc.scatterplot(
   pc.Y,
   colors,
   title = NULL,
+  x.label.line = NULL,
   x.title = NULL,
   x.title.line = 0.5,
+  xlims = NULL,
+  y.label.line = NULL,
   y.title = NULL,
   y.title.line = 0.5,
+  ylims = NULL,
   legend.vals = NULL,
   legend.labels = NULL,
   cex = 0.3,
@@ -31,13 +35,21 @@ pc.scatterplot(
 
 \item{title}{Main title for plot [default: NULL]}
 
+\item{x.label.line}{Line for X-axis labels (\code{label.line} parameter for \link{clean.axis})}
+
 \item{x.title}{Title for X-axis}
 
 \item{x.title.line}{Line for X-axis title (\code{title.line} parameter for \link{clean.axis})}
 
+\item{xlims}{Limits for X-axis}
+
+\item{y.label.line}{Line for X-axis labels (\code{label.line} parameter for \link{clean.axis})}
+
 \item{y.title}{Title for Y-axis}
 
 \item{y.title.line}{Line for axis titles (\code{title.line} parameter for \link{clean.axis})}
+
+\item{ylims}{Limits for Y-axis}
 
 \item{legend.vals}{Named vector mapping category names to colors [default: NULL]}
 

@@ -18,8 +18,11 @@ Suggests:
     Hmisc
 Imports:
     bedr,
+    beeswarm,
     logistf,
-    survival
+    survival,
+    vioplot,
+    viridis
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)

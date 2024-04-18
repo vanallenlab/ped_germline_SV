@@ -47,10 +47,12 @@ prep.plot.area <- function(xlims, ylims, parmar, xaxs="i", yaxs="i"){
 #' @param label.units Specify custom units for the axis label. Default of `NULL`
 #' will display numeric values. Options currently include "percent" for percentages.
 #' Can be overridden by supplying `labels` directly.
+#' @param parse.labels Should `labels` be parsed as R expressions? \[default: FALSE\]
 #' @param max.ticks Maximum number of axis ticks. Will be overridden by `at` \[default: 6\]
 #' @param title Axis title
 #' @param tck Value passed to `axis()`. See `?axis` for details. \[default: -0.025\]
 #' @param cex.axis Value passed to `axis()`. See `?axis` for details. \[default: 5/6\]
+#' @param axis.line `line` parameter for overall axis \[default: 0\]
 #' @param label.line `line` parameter for axis labels \[default: -0.65\]
 #' @param title.line `line` parameter for axis title \[default: 0.5\]
 #' @param infinite Indicator for the axis to be extended infinitely (without ticks) \[default: FALSE\]
@@ -64,10 +66,10 @@ prep.plot.area <- function(xlims, ylims, parmar, xaxs="i", yaxs="i"){
 #' @export clean.axis
 #' @export
 clean.axis <- function(side, at=NULL, labels=NULL, labels.at=NULL, label.units=NULL,
-                       max.ticks=6, title=NULL, tck=-0.025, cex.axis=5/6,
-                       label.line=-0.65, title.line=0.5,
+                       parse.labels=FALSE, max.ticks=6, title=NULL, tck=-0.025,
+                       cex.axis=5/6, line=0, label.line=-0.65, title.line=0.5,
                        infinite=FALSE, infinite.positive=FALSE, infinite.negative=FALSE){
-  if(infinite){axis(side, at=c(-10e10, 10e10), tck=0, labels=NA)}
+  if(infinite){axis(side, at=c(-10e10, 10e10), tck=0, labels=NA, line=line)}
   if(is.null(at)){
     at <- axTicks(side)
     if(length(at) > max.ticks){
@@ -92,18 +94,20 @@ clean.axis <- function(side, at=NULL, labels=NULL, labels.at=NULL, label.units=N
     las <- 2
     title.at <- mean(par("usr")[3:4])
   }
-  axis(side, at=at, labels=NA, tck=tck)
+  axis(side, at=at, labels=NA, tck=tck, line=line)
   sapply(1:length(labels.at), function(i){
-    if(is.numeric(labels[i])){
+    if(parse.labels){
+      label <- parse(text=labels[i])
+    }else if(is.numeric(labels[i])){
       label <- prettyNum(labels[i], big.mark=",")
     }else{
       label <- labels[i]
     }
     axis(side, at=labels.at[i], labels=label, tick=F, cex.axis=cex.axis,
-         las=las, line=label.line)
+         las=las, line=line+label.line)
   })
   if(!is.null(title)){
-    axis(side, at=title.at, tick=F, labels=title, line=title.line, xpd=T)
+    axis(side, at=title.at, tick=F, labels=title, line=line+title.line, xpd=T)
   }
 }
 
@@ -166,3 +170,219 @@ format.pval <- function(p, nsmall=2, max.decimal=3, equality="=", min.neg.log10.
   }
 }
 
+
+#' Color points by density
+#'
+#' Generate colors for XY scatterplot based on point density
+#'
+#' @param x independent variable vector
+#' @param y dependent variable vector
+#' @param palette 256-color palette to be applied based on density \[default: viridis()\]
+#' @param bandwidth `bandwidth` parameter passed to [densCols()]
+#'
+#' @details Inspired by heatscatter.R from Colby Chiang:
+#'  https://github.com/cc2qe/voir/blob/master/bin/heatscatter.R
+#'
+#' @return dataframe of values to be plotted with density and colors
+#'
+#' @seealso [viridis()], [densCols()]
+#'
+#' @export
+color.points.by.density <- function(x, y, palette=NULL, bandwidth=1){
+  # Based on heatscatter.R from Colby Chiang
+  # (https://github.com/cc2qe/voir/blob/master/bin/heatscatter.R)
+  plot.df <- data.frame("x"=x, "y"=y)
+  plot.df <- plot.df[which(!is.infinite(plot.df$x) & !is.infinite(plot.df$y)
+                           & !is.na(plot.df$x) & !is.na(plot.df$y)), ]
+  dens <- densCols(plot.df$x, plot.df$y, bandwidth=bandwidth,
+                   colramp=colorRampPalette(c("black", "white")))
+  plot.df$dens <- col2rgb(dens)[1, ] + 1L
+  if(is.null(palette)){
+    require(viridis, quietly=TRUE)
+    palette <- viridis(256)
+  }
+  plot.df$col <- palette[plot.df$dens]
+  plot.df[order(plot.df$dens), ]
+}
+
+
+#' Add phenotype barplots
+#'
+#' Add stacked barplots by phenotype to an existing plot
+#'
+#' @param plot.df Plotting dataframe. See [barplot.by.phenotype()].
+#' @param bar.mids Midpoints for all bars (controls first)
+#' @param bar.hex Bar width \[default: 0.5\]
+#' @param control.sep Separation constant between cases & controls \[default: 0.1875\]
+#' @param horiz Should the bars be plotted horizontally? \[default: TRUE\]
+#' @param color.by.sig Should the case bars be shaded by significance? \[default: TRUE\]
+#' @param legend.on.bars Should a legend be written on the bars? \[default: FALSE\]
+#' @param case.label Label for case bars if `legend.on.bars` is `TRUE` \[default: "Case"\]
+#' @param control.label Label for control bars if `legend.on.bars` is `TRUE` \[default: "Control"\]
+#' @param add.pvals Should P values be annotated on the opposite margin?
+#' \[default: TRUE\]
+#' @param cancer.types.override Specify order of cancer types in `plot.df`
+#' \[default: infer from `rownames(plot.df)` \]
+#'
+#' @seealso [barplot.by.phenotype()]
+#'
+#' @export add.pheno.bars
+#' @export
+add.pheno.bars <- function(plot.df, bar.mids, bar.hex=0.5, control.sep=0.1875,
+                           horiz=TRUE, color.by.sig=TRUE, legend.on.bars=FALSE,
+                           case.label="Case", control.label="Control",
+                           add.pvals=FALSE, cancer.types.override=NULL){
+  # Infer positional parameters
+  n.pheno <- nrow(plot.df)
+  # if(!horiz){plot.df <- plot.df[n.pheno:1, ]}
+  control.idx <- 1:n.pheno
+  case.idx <- control.idx + n.pheno
+  staggered.bar.mids <- c(bar.mids+control.sep, bar.mids-control.sep)
+  bar.width.min <- staggered.bar.mids - (bar.hex/2)
+  bar.width.max <- staggered.bar.mids + (bar.hex/2)
+  bar.val.min <- rep(0, 2*n.pheno)
+  bar.val.max <- as.numeric(c(plot.df[, 4], plot.df[, 1]))
+  ci.min <- as.numeric(c(plot.df[, 5], plot.df[, 2]))
+  ci.max <- as.numeric(c(plot.df[, 6], plot.df[, 3]))
+  longest.control <- head(which(plot.df[, 4] == max(plot.df[, 4], na.rm=T)), 1)
+  longest.case <- head(which(plot.df[, 1] == max(plot.df[, 1], na.rm=T)), 1) + n.pheno
+
+  # Set X and Y values according to value of horiz
+  if(horiz){
+    bar.x.left <- bar.val.min
+    bar.x.right <- bar.val.max
+    bar.y.bottom <- bar.width.min
+    bar.y.top <- bar.width.max
+    ci.x0 <- ci.min
+    ci.x1 <- ci.max
+    ci.y0 <- staggered.bar.mids
+    ci.y1 <- staggered.bar.mids
+    legend.text.x <- rep(0-(0.05*diff(par("usr")[1:2])), 2)
+    legend.text.y <- c(staggered.bar.mids[longest.control]+(bar.hex/5),
+                       staggered.bar.mids[longest.case]+(bar.hex/10))
+    pval.axis <- 4
+  }else{
+    bar.x.left <- bar.width.min
+    bar.x.right <- bar.width.max
+    bar.y.bottom <- bar.val.min
+    bar.y.top <- bar.val.max
+    ci.x0 <- staggered.bar.mids
+    ci.x1 <- staggered.bar.mids
+    ci.y0 <- ci.min
+    ci.y1 <- ci.max
+    legend.text.x <- c(staggered.bar.mids[longest.control]+(bar.hex/5),
+                       staggered.bar.mids[longest.case]+(bar.hex/10))
+    legend.text.y <- rep(0-(0.05*diff(par("usr")[3:4])), 2)
+    pval.axis <- 3
+  }
+
+  # Set coloring for case bars based on cancer type and value of color.by.sig
+  sig.idx <- which(plot.df[, 7] < 0.05)
+  ctypes <- if(!is.null(cancer.types.override)){cancer.types.override}else{rownames(plot.df)}
+  bar.pals <- lapply(ctypes, function(pheno){
+    if(pheno %in% names(cancer.palettes)){
+      cancer.palettes[[pheno]]
+    }else{
+      cancer.palettes[["pancan"]]
+    }
+  })
+  bar.cols <- sapply(bar.pals, function(pal){pal["light1"]})
+  ci.cols <- sapply(bar.pals, function(pal){pal["main"]})
+  if(color.by.sig){
+    for(i in sig.idx){
+      bar.cols[i] <- bar.pals[[i]]["main"]
+      ci.cols[i] <- bar.pals[[i]]["dark1"]
+    }
+  }
+
+  # Add control bars
+  rect(xleft=bar.x.left[control.idx], xright=bar.x.right[control.idx],
+       ybottom=bar.y.bottom[control.idx], ytop=bar.y.top[control.idx],
+       col=control.colors[["main"]], border=NA, bty="n")
+  segments(x0=ci.x0[control.idx], x1=ci.x1[control.idx],
+           y0=ci.y0[control.idx], y1=ci.y1[control.idx],
+           lwd=2, lend="butt", col=cancer.palettes[["control"]]["dark1"])
+  if(legend.on.bars){
+    text(x=legend.text.x[1], y=legend.text.y[1],
+         pos=4, label=control.label, cex=4/6, col=control.colors[["dark2"]])
+  }
+  rect(xleft=bar.x.left[control.idx], xright=bar.x.right[control.idx],
+       ybottom=bar.y.bottom[control.idx], ytop=bar.y.top[control.idx],
+       col=NA, xpd=T)
+
+  # Add case bars
+  rect(xleft=bar.x.left[case.idx], xright=bar.x.right[case.idx],
+       ybottom=bar.y.bottom[case.idx], ytop=bar.y.top[case.idx],
+       col=bar.cols, border=NA, bty="n")
+  segments(x0=ci.x0[case.idx], x1=ci.x1[case.idx],
+           y0=ci.y0[case.idx], y1=ci.y1[case.idx],
+           lwd=2, lend="butt", col=ci.cols)
+  if(legend.on.bars){
+    text(x=legend.text.x[2], y=legend.text.y[2], pos=4, label=case.label,
+         cex=4/6, col=bar.pals[[longest.case-n.pheno]][["dark2"]])
+  }
+  rect(xleft=bar.x.left[case.idx], xright=bar.x.right[case.idx],
+       ybottom=bar.y.bottom[case.idx], ytop=bar.y.top[case.idx],
+       col=NA, xpd=T)
+
+  # Add P values, if optioned
+  if(add.pvals){
+    sapply(1:nrow(plot.df), function(i){
+      pval <- as.numeric(plot.df[i, 7])
+      if(color.by.sig){
+        p.col <- if(!is.na(pval) & pval < 0.05){"black"}else{control.colors[["main"]]}
+      }else{
+        p.col <- "black"
+      }
+      p.label <- if(is.na(pval)){"NA"}else{PedSV::format.pval(pval, nsmall=0)}
+      axis(pval.axis, at=bar.mids[i], tick=F, line=-0.9, las=2, cex.axis=5/6,
+           labels=p.label, col.axis=p.col)
+    })
+  }
+}
+
+
+#' Convert landscape test stats to barplot-compliant data.frame
+#'
+#' Transform the association summary statistics from a single landscape
+#' case:control burden test into a format expected by [barplot.by.phenotype()]
+#'
+#' @param stats data.frame with test statistics as output by [pedsv.glm()]
+#' @param ci.mode mode for confidence interval calculation \[choices: `binomial`, `normal`; default: `normal`\]
+#' @param order.by.cancer order the results by study-wide convention \[default: TRUE\]
+#'
+#' @seealso [barplot.by.phenotype()], [pedsv.glm()]
+#'
+#' @return data.frame
+#'
+#' @export stats2barplotdf
+#' @export
+stats2barplotdf <- function(stats, ci.mode="normal", order.by.cancer=TRUE){
+  n.phenos <- nrow(stats)
+  values <- as.numeric(c(stats$case.mean, stats$control.mean))
+  ns <- as.numeric(c(stats$n.case, stats$n.control))
+  if(ci.mode == "normal"){
+    stdevs <- as.numeric(c(stats$case.stdev, stats$control.stdev))
+    ci.margins <- stdevs / sqrt(ns) * qnorm(0.975)
+    ci.lowers <- values - ci.margins
+    ci.uppers <- values + ci.margins
+  }else if(ci.mode == "binomial"){
+    require(Hmisc, quietly=TRUE)
+    cis <- Hmisc::binconf(x=round(values * ns), n=ns)
+    ci.lowers <- cis[, "Lower"]
+    ci.uppers <- cis[, "Upper"]
+  }
+  pvals <- as.numeric(stats$P.value)
+  plot.df <- data.frame("case.value" = values[1:n.phenos],
+                        "case.ci.lower" = ci.lowers[1:n.phenos],
+                        "case.ci.upper" = ci.uppers[1:n.phenos],
+                        "control.value" = values[(1:n.phenos) + n.phenos],
+                        "control.ci.lower" = ci.lowers[(1:n.phenos) + n.phenos],
+                        "control.ci.upper" = ci.uppers[(1:n.phenos) + n.phenos],
+                        "p" = pvals)
+  if(order.by.cancer){
+    rownames(plot.df) <- stats$disease
+    plot.df <- plot.df[intersect(names(cancer.colors[1:4]), rownames(plot.df)), ]
+  }
+  return(plot.df)
+}
