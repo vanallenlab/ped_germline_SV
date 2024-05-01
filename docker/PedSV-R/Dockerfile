@@ -64,6 +64,11 @@ RUN apt-get clean && \
 ARG DEBIAN_FRONTEND=noninteractive
 RUN /opt/ped_germline_SV/config/install_gcloud.sh
 
+# Copy & install RLCtools (source must be in build context)
+ARG RLCTOOLS_VERSION=0.1
+ADD RLCtools_$RLCTOOLS_VERSION.tar.gz /opt/
+RUN Rscript -e "install.packages('/opt/RLCtools_${RLCTOOLS_VERSION}.tar.gz', type='source', repos=NULL)"
+
 # Install PedSV R package
 ARG PEDSV_VERSION=0.0.2
 RUN Rscript -e "install.packages('/opt/ped_germline_SV/src/PedSV_${PEDSV_VERSION}.tar.gz', type='source', repos=NULL)"
