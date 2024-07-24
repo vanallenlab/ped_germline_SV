@@ -44,6 +44,13 @@ cd $BUILD_DIR && \
 git clone git@github.com:broadinstitute/gatk-sv.git && \
 cd $EXEC_DIR
 
+# Clone RLCtools source into build context
+export rlctools_version=0.1
+cd $BUILD_DIR && \
+git clone git@github.com:RCollins13/RLCtools.git && \
+mv "RLCtools/RLCtools_$rlctools_version.tar.gz" ./ && \
+cd $EXEC_DIR
+
 # Copy ped SV repo into build context
 cp -r $SCRIPT_DIR/../../ped_germline_SV $BUILD_DIR/
 
@@ -65,6 +72,7 @@ if [ $( echo $IMAGES | sed 's/,/\n/g' | awk '{ if ($1=="pedsv-r") print }' | wc 
     -f $SCRIPT_DIR/PedSV-R/Dockerfile \
     --platform linux/x86_64 \
     --progress plain \
+    --build-arg="RLCTOOLS_VERSION=$rlctools_version" \
     --tag vanallenlab/pedsv-r:$TAG \
     $BUILD_DIR
 fi

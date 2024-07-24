@@ -37,6 +37,10 @@ args <- parser$parse_args()
 # args <- list("stats" = "~/scratch/PedSV.v2.5.3.sv_rvas.sumstats.bed.gz",
 #              "out_prefix" = "~/scratch/PedSV.v2.5.3.sv_rvas")
 
+# # YL DEV:
+# args <- list("stats" = "~/scratch/renamed.adjusted.sumstats.bed.gz",
+#              "out_prefix" = "~/scratch/YL.SV.v1.1.sv_rvas")
+
 # Load summary statistics
 stats <- read.table(args$stats, header=T, sep="\t", comment.char="")
 

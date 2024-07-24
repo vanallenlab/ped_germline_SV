@@ -14,7 +14,7 @@ dependencies:
   - bwidget=1.9.14=ha770c72_1
   - bzip2=1.0.8=h7f98852_4
   - c-ares=1.18.1=h7f98852_0
-  - ca-certificates=2023.7.22=hbcca054_0
+  - ca-certificates=2024.2.2=hbcca054_0
   - cairo=1.16.0=ha61ee94_1014
   - curl=7.87.0=h6312ad2_0
   - expat=2.5.0=hcb278e6_1
@@ -80,7 +80,7 @@ dependencies:
   - ncurses=6.3=h27087fc_1
   - nlopt=2.7.1=py39h863de18_3
   - numpy=1.24.3=py39h6183b62_0
-  - openssl=1.1.1u=hd590300_0
+  - openssl=1.1.1w=hd590300_0
   - pandas=2.0.1=py39h40cae4c_0
   - pandoc=2.19.2=h32600fe_2
   - pango=1.50.14=hd33c08f_0
@@ -130,6 +130,7 @@ dependencies:
   - r-digest=0.6.31=r42h38f115c_0
   - r-dplyr=1.1.2=r42ha503ecb_0
   - r-ellipsis=0.3.2=r42h06615bd_1
+  - r-eql=1.0_1=r42h6115d3f_0
   - r-evaluate=0.20=r42hc72bb7e_0
   - r-fansi=1.0.4=r42h133d619_0
   - r-farver=2.1.1=r42h7525677_1
@@ -230,6 +231,7 @@ dependencies:
   - r-tidyselect=1.2.0=r42hc72bb7e_0
   - r-tinytex=0.45=r42hc72bb7e_0
   - r-truncnorm=1.0_9=r42h133d619_0
+  - r-ttutils=1.0_1.1=r42h142f84f_0
   - r-tzdb=0.3.0=r42h7525677_1
   - r-ucminf=1.1_4.1=r42h8da6f51_1
   - r-utf8=1.2.3=r42h133d619_0

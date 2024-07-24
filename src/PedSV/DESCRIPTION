@@ -20,6 +20,7 @@ Imports:
     bedr,
     beeswarm,
     logistf,
+    RLCtools,
     survival,
     vioplot,
     viridis

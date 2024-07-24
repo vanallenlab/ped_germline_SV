@@ -1474,6 +1474,11 @@ task UnifyOutputs {
       find ~{prefix}/ -name "*.bed.gz" | xargs -I {} mv {} ~{prefix}/stats/
     fi
 
+    # Format Table S2
+    /opt/ped_germline_SV/analysis/misc/format_table_s2.R \
+      ~{prefix}/stats/~{prefix}.global_burden_tests.tsv.gz \
+      ~{prefix}/stats/~{prefix}.table_s2.tsv
+
     # Compress output directory
     tar -czvf ~{prefix}.tar.gz ~{prefix}
   >>>
