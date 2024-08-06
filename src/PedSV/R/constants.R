@@ -153,6 +153,10 @@ load.constants <- function(subset, envir=.GlobalEnv){
                  "BND" = BND.colors[["main"]],
                  "CTX" = CTX.colors[["main"]],
                  "OTH" = OTH.colors[["main"]])
+  context.colors <- c("gene_disruptive" = "#EB671A",
+                      "other_coding" = "#EA8F61",
+                      "intronic" = "#EACBA0",
+                      "intergenic" = "gray80")
   colors <- list(
     "cancer.colors" = c("pancan" = pancan.colors[["main"]],
                         "EWS" = EWS.colors[["main"]],
@@ -209,6 +213,7 @@ load.constants <- function(subset, envir=.GlobalEnv){
                          "BND" = BND.colors,
                          "CTX" = CTX.colors,
                          "OTH" = OTH.colors),
+    "context.colors" = context.colors,
     "stage.colors" = c("0" = "white",
                        "1" = "#F8FAA7",
                        "2" = "#FFCC66",

@@ -74,6 +74,9 @@ any size-based filters
 \item \code{cg} : predicted CG consequence
 \item \code{ied} : predicted IED consequence
 \item \code{cg_and_ied} : predicted CG and/or IED
+\item \code{coding} : SVs with any exonic overlap, irrespective of predicted consequence
+\item \code{intronic} : SVs annotated within a gene's intron that are not \code{coding}
+\item \code{intergenic} : SVs that are not predicted to overlap any genes
 }
 
 If \code{query} is provided as a vector, it should contain any of the above terms.

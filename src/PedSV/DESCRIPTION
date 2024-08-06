@@ -15,7 +15,8 @@ License: GNU GPL v2.0
 URL: https://github.com/vanallenlab/ped_germline_SV
 Suggests: 
     HardyWeinberg,
-    Hmisc
+    Hmisc,
+    DescTools
 Imports:
     bedr,
     beeswarm,

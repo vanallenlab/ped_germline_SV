@@ -54,6 +54,9 @@
 #' * `cg` : predicted CG consequence
 #' * `ied` : predicted IED consequence
 #' * `cg_and_ied` : predicted CG and/or IED
+#' * `coding` : SVs with any exonic overlap, irrespective of predicted consequence
+#' * `intronic` : SVs annotated within a gene's intron that are not `coding`
+#' * `intergenic` : SVs that are not predicted to overlap any genes
 #'
 #' If `query` is provided as a vector, it should contain any of the above terms.
 #' If it is provided as a single character string, it must be period-delimited.
@@ -147,6 +150,13 @@ filter.bed <- function(bed, query, af.field="POPMAX_AF", ac.field="AC",
   if("quasi-balanced" %in% query.parts){
     keep.idx <- intersect(keep.idx, which(calc.genomic.imbalance(bed) < 1000))
   }
+  coding.suffixes <- c("BREAKEND_EXONIC", "COPY_GAIN", "DUP_PARTIAL",
+                       "INTRAGENIC_EXON_DUP", "INV_SPAN", "LOF",
+                       "MSV_EXON_OVERLAP", "PARTIAL_EXON_DUP", "TSS_DUP", "UTR")
+  any.coding.count <- apply(bed[, paste("PREDICTED", coding.suffixes, sep="_")], 1, function(cvals){sum(sapply(cvals, length))})
+  if("coding" %in% query.parts){
+    keep.idx <- intersect(keep.idx, which(any.coding.count > 0))
+  }
   lof.count <- sapply(bed$PREDICTED_LOF, length) + sapply(bed$PREDICTED_PARTIAL_EXON_DUP, length)
   cg.count <- sapply(bed$PREDICTED_COPY_GAIN, length)
   ied.count <- sapply(bed$PREDICTED_INTRAGENIC_EXON_DUP, length)
@@ -171,6 +181,13 @@ filter.bed <- function(bed, query, af.field="POPMAX_AF", ac.field="AC",
   }
   if("cg_and_ied" %in% query.parts){
     keep.idx <- intersect(keep.idx, which(cg.count > 0 | ied.count > 0))
+  }
+  intron.count <- sapply(bed$PREDICTED_INTRONIC, length)
+  if("intronic" %in% query.parts){
+    keep.idx <- intersect(keep.idx, which(intron.count > 0 & any.coding.count == 0))
+  }
+  if("intergenic" %in% query.parts){
+    keep.idx <- setdiff(keep.idx, which(any.coding.count + intron.count > 0))
   }
 
   # Revert SVLEN if necessary
