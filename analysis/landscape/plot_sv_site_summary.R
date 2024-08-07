@@ -161,18 +161,15 @@ get.large.sv.summary.data <- function(bed, ad, meta, cancers){
 # Plotting functions #
 ######################
 # Plot a horizontal stacked barplot of SVs colored by frequency bin
-plot.count.bars <- function(bed, af.field="AF", ac.field="AC", greyscale=TRUE,
-                            bar.buffer=0.15, count.label.xadj=0.075){
-  # Get counts matrix
-  counts <- get.counts.table(bed, af.field, ac.field)
-
+plot.count.bars <- function(counts, greyscale=TRUE, parmar=c(0.25, 5.25, 0.1, 2.5),
+                            bar.buffer=0.15, count.label.xadj=0.05){
   # Get plot dimensions
   xlims <- c(0, max(apply(counts, 2, sum)))
-  ylims <- c(-2, ncol(counts))
+  ylims <- c(0, ncol(counts))
   label.xadj <- count.label.xadj * diff(xlims)
 
   # Prep plot area
-  PedSV::prep.plot.area(xlims, ylims, parmar=c(0.25, 3.5, 0.1, 2.5), xaxs="i", yaxs="i")
+  prep.plot.area(xlims, ylims, parmar=parmar, xaxs="i", yaxs="i")
   segments(x0=xlims[1], x1=xlims[1], y0=0, y1=ylims[2], col="gray85", xpd=T)
 
   # Add bars & cap labels
@@ -184,8 +181,8 @@ plot.count.bars <- function(bed, af.field="AF", ac.field="AC", greyscale=TRUE,
     }
     rect(xleft=x.stops[-length(x.stops)], xright=x.stops[-c(1)],
          ybottom=i-1+bar.buffer, ytop=i-bar.buffer,
-         col=bar.pal[c("dark2", "main", "light2")],
-         border=bar.pal[c("dark2", "main", "light2")])
+         col=rev(bar.pal[c("dark2", "main", "light2")]),
+         border=rev(bar.pal[c("dark2", "main", "light2")]))
     n.total <- x.stops[length(x.stops)]
     rect(xleft=0, xright=n.total, ybottom=i-1+bar.buffer, ytop=i-bar.buffer,
          col=NA, xpd=T)
@@ -200,15 +197,15 @@ plot.count.bars <- function(bed, af.field="AF", ac.field="AC", greyscale=TRUE,
 
   # Add left axis
   axis(2, at=(1:ncol(counts))-0.5, las=2, tick=F, line=-0.8,
-       labels=sv.abbreviations[colnames(counts)])
+       labels=sv.names[colnames(counts)])
 
   # Add legend
-  legend.x.at <- c(-0.4, 0.85, -0.4)*diff(xlims)
-  legend.y.at <- c(-0.5, -0.5, -1.5)-0.2
+  legend.x.at <- rep(0.7, 3)*diff(xlims)
+  legend.y.at <- c(0.05, 0.15, 0.25)*diff(ylims)
   points(x=legend.x.at, y=legend.y.at, xpd=T, pch=15, cex=1.3,
          col=hex2grey(DEL.colors[c("dark2", "main", "light2")]))
-  text(x=legend.x.at, y=legend.y.at, pos=4, xpd=T,
-       labels=c("Common", "Rare", "Singleton"))
+  text(x=legend.x.at, y=legend.y.at-(0.01*diff(ylims)), pos=4, xpd=T,
+       labels=rev(c("Common", "Rare", "Singleton")))
 }
 
 # Hardy-Weinberg ternary plot
@@ -434,9 +431,10 @@ meta <- load.sample.metadata(args$metadata, keep.samples=keepers,
                              reassign.parents=FALSE)
 
 # Plot stacked bar colored by frequency and type
+counts.by.freq <- get.counts.table(bed, args$af_field, args$ac_field)
 pdf(paste(args$out_prefix, "sv_site_counts.pdf", sep="."),
-    height=1.7, width=2.1)
-plot.count.bars(bed, args$af_field, args$ac_field)
+    height=1.5, width=2.7)
+plot.count.bars(counts.by.freq)
 dev.off()
 
 # Ridgeplot of SV sizes

@@ -327,7 +327,7 @@ size.data <- lapply(freq.idxs, function(idxs){
   log10(bed[setdiff(idxs, which(bed$SVTYPE %in% c("INS", "CTX"))), "SVLEN"])
 })
 pdf(paste(args$out_prefix, "de_novo.sizes.pdf", sep="."),
-    height=1.9, width=2.5)
+    height=1.7, width=2.3)
 ridgeplot(lapply(rev(size.data), density, adjust=0.75),
           names=rev(c("", "Singleton", "Rare", "Common")), xlims=log10(c(10, 25000000)),
           fill=rev(c("black", hex2grey(DEL.colors[c("dark2", "main", "light2")]))),
@@ -350,7 +350,7 @@ RLCtools::format.pval(chisq.test(t(freq.by.context.counts[c("denovo", "singleton
 RLCtools::format.pval(chisq.test(t(freq.by.context.counts[c("denovo", "rare"), ]))$p.value)
 RLCtools::format.pval(chisq.test(t(freq.by.context.counts[c("denovo", "common"), ]))$p.value)
 pdf(paste(args$out_prefix, "de_novo.contexts.pdf", sep="."),
-    height=1.9, width=2.4)
+    height=1.7, width=2.3)
 plot.context.by.freq(freq.by.context.counts,
                      group.names=c("", "Singleton", "Rare", "Common"),
                      parmar=c(0, 3.75, 2, 0.5))
