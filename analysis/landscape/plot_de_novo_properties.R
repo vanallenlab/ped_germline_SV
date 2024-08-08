@@ -175,7 +175,7 @@ plot.denovo.rates <- function(denovos, control.rates, gnomad.rates,
 # Plot a horizontal stacked barplot of coding contexts per frequency bin
 plot.context.by.freq <- function(counts, group.names=NULL,
                                  bar.buffer=0.15, count.label.xadj=0.04,
-                                 parmar=c(0.25, 3.5, 2.5, 0.25)){
+                                 parmar=c(0.3, 3.5, 2.5, 0.25)){
   # Reorder counts matrix
   counts <- counts[nrow(counts):1, ]
 
@@ -184,7 +184,7 @@ plot.context.by.freq <- function(counts, group.names=NULL,
 
   # Get plot dimensions & other properties
   xlims <- c(0, max(apply(props, 1, sum)))
-  ylims <- c(-2, nrow(props))
+  ylims <- c(-1.5, nrow(props))
   label.xadj <- count.label.xadj * diff(xlims)
   if(!is.null(group.names)){
     group.names <- rev(group.names)
@@ -207,7 +207,7 @@ plot.context.by.freq <- function(counts, group.names=NULL,
     n.total <- x.stops[length(x.stops)]
     rect(xleft=0, xright=n.total, ybottom=i-1+bar.buffer, ytop=i-bar.buffer,
          col=NA, xpd=T)
-    text(x=x.stops[length(x.stops)-1]-label.xadj, y=i-0.5, pos=4, cex=5/6, xpd=T,
+    text(x=x.stops[length(x.stops)-1]-label.xadj, y=i-0.5-(0.01*diff(ylims)), pos=4, cex=5/6, xpd=T,
          labels=paste(round(100 * x.stops[length(x.stops)-1], 0), "%", sep=""))
   })
 
@@ -217,10 +217,10 @@ plot.context.by.freq <- function(counts, group.names=NULL,
              title.line=0, label.line=-0.8, infinite.positive=TRUE)
 
   # Add legend
-  legend.x.at <- c(0, 0, 0)*diff(xlims)
-  legend.y.at <- c(-0.3, -0.9, -1.5)-0.2
-  points(x=legend.x.at, y=legend.y.at, xpd=T, pch=15, cex=1.3, col=bar.pal)
-  text(x=legend.x.at, y=legend.y.at, pos=4, xpd=T,
+  legend.x.at <- c(-0.1, -0.1, 0.9)*diff(xlims)
+  legend.y.at <- c(-0.3, -1, -0.65)-0.2
+  points(x=legend.x.at, y=legend.y.at+(0.01*diff(ylims)), xpd=T, pch=15, cex=1.3, col=bar.pal)
+  text(x=legend.x.at-(0.01*diff(xlims)), y=legend.y.at, pos=4, xpd=T,
        labels=c("Gene-disruptive", "Other coding", "Intronic"))
 }
 
@@ -350,10 +350,10 @@ RLCtools::format.pval(chisq.test(t(freq.by.context.counts[c("denovo", "singleton
 RLCtools::format.pval(chisq.test(t(freq.by.context.counts[c("denovo", "rare"), ]))$p.value)
 RLCtools::format.pval(chisq.test(t(freq.by.context.counts[c("denovo", "common"), ]))$p.value)
 pdf(paste(args$out_prefix, "de_novo.contexts.pdf", sep="."),
-    height=1.7, width=2.3)
+    height=1.8, width=2.8)
 plot.context.by.freq(freq.by.context.counts,
                      group.names=c("", "Singleton", "Rare", "Common"),
-                     parmar=c(0, 3.75, 2, 0.5))
+                     parmar=c(0, 3.75, 2, 3))
 axis(2, at=3.5, labels=bquote(italic("De novo")), tick=F, las=2, line=-0.8)
 dev.off()
 

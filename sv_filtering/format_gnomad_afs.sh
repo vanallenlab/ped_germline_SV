@@ -31,13 +31,15 @@ echo -e "#chrom\tstart\tend\tname\tsvtype\tSVTYPE\tSVLEN\tAF\tMALE_AF\tFEMALE_AF
 # Use bcftools query to extract fields necessary for external AF annotation
 bcftools query \
   -i 'INFO/SVTYPE != "CNV"' \
-  -f '%CHROM\t%POS\t%END\t%ID\t%INFO/SVTYPE\t%INFO/SVLEN\t%INFO/AF_controls_and_biobanks\t%INFO/AF_XY\t%INFO/AF_XX\t%INFO/AF_controls_and_biobanks_afr\t%INFO/AF_controls_and_biobanks_ami\t%INFO/AF_controls_and_biobanks_amr\t%INFO/AF_controls_and_biobanks_asj\t%INFO/AF_controls_and_biobanks_eas\t%INFO/AF_controls_and_biobanks_fin\t%INFO/AF_controls_and_biobanks_mid\t%INFO/AF_controls_and_biobanks_nfe\t%INFO/AF_controls_and_biobanks_rmi\t%INFO/AF_controls_and_biobanks_sas\n' \
+  -f '%CHROM\t%POS\t%END\t%ID\t%ALT[0]\t%INFO/SVTYPE\t%INFO/SVLEN\t%INFO/AF_controls_and_biobanks\t%INFO/AF_XY\t%INFO/AF_XX\t%INFO/AF_controls_and_biobanks_afr\t%INFO/AF_controls_and_biobanks_ami\t%INFO/AF_controls_and_biobanks_amr\t%INFO/AF_controls_and_biobanks_asj\t%INFO/AF_controls_and_biobanks_eas\t%INFO/AF_controls_and_biobanks_fin\t%INFO/AF_controls_and_biobanks_mid\t%INFO/AF_controls_and_biobanks_nfe\t%INFO/AF_controls_and_biobanks_rmi\t%INFO/AF_controls_and_biobanks_sas\n' \
   gs://gcp-public-data--gnomad/release/4.1/genome_sv/gnomad.v4.1.sv.non_neuro_controls.sites.vcf.gz \
+| tr -d '<>' \
 > $WRKDIR/gnomad_v4.1_sv.sites.records.bed
 bcftools query \
   -i 'INFO/SVTYPE == "CNV"' \
-  -f '%CHROM\t%POS\t%END\t%ID\t%INFO/SVTYPE\t%INFO/SVLEN\t%INFO/CN_NONREF_FREQ_controls_and_biobanks\t%INFO/CN_NONREF_FREQ_XY\t%INFO/CN_NONREF_FREQ_XX\t%INFO/CN_NONREF_FREQ_controls_and_biobanks_afr\t%INFO/CN_NONREF_FREQ_controls_and_biobanks_ami\t%INFO/CN_NONREF_FREQ_controls_and_biobanks_amr\t%INFO/CN_NONREF_FREQ_controls_and_biobanks_asj\t%INFO/CN_NONREF_FREQ_controls_and_biobanks_eas\t%INFO/CN_NONREF_FREQ_controls_and_biobanks_fin\t%INFO/CN_NONREF_FREQ_controls_and_biobanks_mid\t%INFO/CN_NONREF_FREQ_controls_and_biobanks_nfe\t%INFO/CN_NONREF_FREQ_controls_and_biobanks_rmi\t%INFO/CN_NONREF_FREQ_controls_and_biobanks_sas\n' \
+  -f '%CHROM\t%POS\t%END\t%ID\t%ALT[0]\t%INFO/SVTYPE\t%INFO/SVLEN\t%INFO/CN_NONREF_FREQ_controls_and_biobanks\t%INFO/CN_NONREF_FREQ_XY\t%INFO/CN_NONREF_FREQ_XX\t%INFO/CN_NONREF_FREQ_controls_and_biobanks_afr\t%INFO/CN_NONREF_FREQ_controls_and_biobanks_ami\t%INFO/CN_NONREF_FREQ_controls_and_biobanks_amr\t%INFO/CN_NONREF_FREQ_controls_and_biobanks_asj\t%INFO/CN_NONREF_FREQ_controls_and_biobanks_eas\t%INFO/CN_NONREF_FREQ_controls_and_biobanks_fin\t%INFO/CN_NONREF_FREQ_controls_and_biobanks_mid\t%INFO/CN_NONREF_FREQ_controls_and_biobanks_nfe\t%INFO/CN_NONREF_FREQ_controls_and_biobanks_rmi\t%INFO/CN_NONREF_FREQ_controls_and_biobanks_sas\n' \
   gs://gcp-public-data--gnomad/release/4.1/genome_sv/gnomad.v4.1.sv.non_neuro_controls.sites.vcf.gz \
+| tr -d '<>' \
 >> $WRKDIR/gnomad_v4.1_sv.sites.records.bed
 sort -Vk1,1 -k2,2n -k3,3n -k4,4V $WRKDIR/gnomad_v4.1_sv.sites.records.bed \
 | cat $WRKDIR/gnomad_v4.1_sv.sites.header.bed - \
