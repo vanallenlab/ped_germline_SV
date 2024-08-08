@@ -38,7 +38,7 @@ RUN mamba install conda-pack && \
 FROM ubuntu:focal-20230301 AS runtime
 MAINTAINER "Ryan Collins <Ryan_Collins@dfci.harvard.edu>"
 
-# Copy /venv, git repo, and GATK-SV from the build stage
+# Copy /venv, git repo, and PedSV repo from the build stage
 COPY --from=build /venv /venv
 COPY --from=build /opt/ped_germline_SV /opt/ped_germline_SV
 
@@ -66,8 +66,8 @@ RUN /opt/ped_germline_SV/config/install_gcloud.sh
 
 # Copy & install RLCtools (source must be in build context)
 ARG RLCTOOLS_VERSION=0.1
-ADD RLCtools_$RLCTOOLS_VERSION.tar.gz /opt/
-RUN Rscript -e "install.packages('/opt/RLCtools_${RLCTOOLS_VERSION}.tar.gz', type='source', repos=NULL)"
+ADD RLCtools /opt/RLCtools
+RUN Rscript -e "install.packages('/opt/RLCtools/RLCtools_${RLCTOOLS_VERSION}.tar.gz', type='source', repos=NULL)"
 
 # Install PedSV R package
 ARG PEDSV_VERSION=0.0.2

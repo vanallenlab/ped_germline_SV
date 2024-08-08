@@ -79,9 +79,9 @@ workflow PedSvMainAnalysis {
     File? genomic_disorder_bed
     Float genomic_disorder_recip_frac = 0.5
 
-    Int? sliding_window_bin_size
-    Int? sliding_window_step_size
-    Int? sliding_window_min_sv_size
+    Int sliding_window_bin_size = 1000000
+    Int sliding_window_step_size = 250000
+    Int sliding_window_min_sv_size = 50000
     
     File? locus_assoc_exclude_regions
     Float? rvas_exclusion_frac_overlap
@@ -798,9 +798,9 @@ task SlidingWindowTest {
     Float exclusion_frac_overlap = 0.5
     File sample_metadata_tsv
     File samples_list
-    Int bin_size = 1000000
-    Int step_size = 250000
-    Int min_sv_size = 50000
+    Int bin_size
+    Int step_size
+    Int min_sv_size
     String prefix
     String docker
 
