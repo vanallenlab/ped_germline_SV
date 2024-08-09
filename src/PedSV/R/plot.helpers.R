@@ -141,7 +141,7 @@ add.pheno.bars <- function(plot.df, bar.mids, bar.hex=0.5, control.sep=0.1875,
       }else{
         p.col <- "black"
       }
-      p.label <- if(is.na(pval)){"NA"}else{PedSV::format.pval(pval, nsmall=0)}
+      p.label <- if(is.na(pval)){"NA"}else{RLCtools::format.pval(pval, nsmall=0)}
       axis(pval.axis, at=bar.mids[i], tick=F, line=-0.9, las=2, cex.axis=5/6,
            labels=p.label, col.axis=p.col)
     })

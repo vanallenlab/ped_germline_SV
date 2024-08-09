@@ -1385,7 +1385,7 @@ task DeNovoAnalysis {
       --gnomad-rates ~{gnomad_rates} \
       --af-field ~{af_field} \
       --ac-field ~{ac_field} \
-      --out-prefix ~{prefix}.SummaryPlots/~{prefix} \
+      --out-prefix ~{prefix}.DeNovoPlots/~{prefix} \
 
     # Compress output
     find ~{prefix}.DeNovoPlots/ -name "*.tsv" | xargs -I {} gzip -f {}

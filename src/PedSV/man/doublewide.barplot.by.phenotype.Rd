@@ -44,7 +44,7 @@ numeric) or "percent" [default: NULL]}
 
 \item{title}{Custom title for left axis}
 
-\item{y.title.line}{\code{title.line} parameter passed to \code{\link[=clean.axis]{clean.axis()}}
+\item{y.title.line}{\code{title.line} parameter passed to \code{\link[RLCtools:clean.axis]{RLCtools::clean.axis()}}
 for left axis [default: 0.35]}
 
 \item{orient.cases}{Should cases be plotted to the \code{left} or \code{right} of controls? [default: "left"]}

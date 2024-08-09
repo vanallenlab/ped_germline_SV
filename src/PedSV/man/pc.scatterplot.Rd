@@ -35,19 +35,19 @@ pc.scatterplot(
 
 \item{title}{Main title for plot [default: NULL]}
 
-\item{x.label.line}{Line for X-axis labels (\code{label.line} parameter for \link{clean.axis})}
+\item{x.label.line}{Line for X-axis labels (\code{label.line} parameter for \link[RLCtools:clean.axis]{RLCtools::clean.axis})}
 
 \item{x.title}{Title for X-axis}
 
-\item{x.title.line}{Line for X-axis title (\code{title.line} parameter for \link{clean.axis})}
+\item{x.title.line}{Line for X-axis title (\code{title.line} parameter for \link[RLCtools:clean.axis]{RLCtools::clean.axis})}
 
 \item{xlims}{Limits for X-axis}
 
-\item{y.label.line}{Line for X-axis labels (\code{label.line} parameter for \link{clean.axis})}
+\item{y.label.line}{Line for X-axis labels (\code{label.line} parameter for \link[RLCtools:clean.axis]{RLCtools::clean.axis})}
 
 \item{y.title}{Title for Y-axis}
 
-\item{y.title.line}{Line for axis titles (\code{title.line} parameter for \link{clean.axis})}
+\item{y.title.line}{Line for axis titles (\code{title.line} parameter for \link[RLCtools:clean.axis]{RLCtools::clean.axis})}
 
 \item{ylims}{Limits for Y-axis}
 

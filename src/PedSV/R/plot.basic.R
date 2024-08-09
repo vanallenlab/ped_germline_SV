@@ -23,13 +23,13 @@
 #' @param pc.Y PC to be plotted on the Y-axis (see `Details`)
 #' @param colors Vector of colors. Must be supplied in the same order as rows in `pcs`
 #' @param title Main title for plot \[default: NULL\]
-#' @param x.label.line Line for X-axis labels (`label.line` parameter for [PedSV::clean.axis])
+#' @param x.label.line Line for X-axis labels (`label.line` parameter for [RLCtools::clean.axis])
 #' @param x.title Title for X-axis
-#' @param x.title.line Line for X-axis title (`title.line` parameter for [PedSV::clean.axis])
+#' @param x.title.line Line for X-axis title (`title.line` parameter for [RLCtools::clean.axis])
 #' @param xlims Limits for X-axis
-#' @param y.label.line Line for X-axis labels (`label.line` parameter for [PedSV::clean.axis])
+#' @param y.label.line Line for X-axis labels (`label.line` parameter for [RLCtools::clean.axis])
 #' @param y.title Title for Y-axis
-#' @param y.title.line Line for axis titles (`title.line` parameter for [PedSV::clean.axis])
+#' @param y.title.line Line for axis titles (`title.line` parameter for [RLCtools::clean.axis])
 #' @param ylims Limits for Y-axis
 #' @param legend.vals Named vector mapping category names to colors \[default: NULL\]
 #' @param legend.labels Optional vector to overwrite names of `legend.vals`
@@ -195,7 +195,7 @@ barplot.by.phenotype <- function(plot.df, bar.hex=0.5, case.control.sep=0.375,
 #' @param left.axis.units Specify units for left axis. Options are NULL (for
 #' numeric) or "percent" \[default: NULL\]
 #' @param title Custom title for left axis
-#' @param y.title.line `title.line` parameter passed to [PedSV::clean.axis()]
+#' @param y.title.line `title.line` parameter passed to [RLCtools::clean.axis()]
 #' for left axis \[default: 0.35\]
 #' @param orient.cases Should cases be plotted to the `left` or `right` of controls? \[default: "left"\]
 #' @param label.l Optional label for left set of bars.
@@ -298,7 +298,7 @@ doublewide.barplot.by.phenotype <-
 #' @param xlab.line Line parameter for `xlab` \[default: 1\]
 #' @param xlims (Optional) two-element vector of start and stop values for X-axis, in log10(SVLEN)
 #' @param ylab (Optional) Title for Y axis
-#' @param y.title.line Value for `title.line` passed to [PedSV::clean.axis()] \[default: 1\]
+#' @param y.title.line Value for `title.line` passed to [RLCtools::clean.axis()] \[default: 1\]
 #' @param y.axis.units Specify units for Y axis. Options are NULL (for
 #' numeric) or "percent" \[default: NULL\]
 #' @param ylims (Optional) two-element vector of start and stop values for Y-axis
@@ -363,10 +363,10 @@ svlen.line.plot <- function(x.svlen, y.value, colors, ci.lower=NULL, ci.upper=NU
         n.times <- length(x.svlen[[i]])
         if(n.times > 1){
           if(step){
-            x.bottom <- c(0, PedSV::stretch.vector(x.svlen[[i]], 2)[-2*n.times])
+            x.bottom <- c(0, RLCtools::stretch.vector(x.svlen[[i]], 2)[-2*n.times])
             x.top <- rev(x.bottom)
-            y.bottom <- c(1, 1, PedSV::stretch.vector(ci.lower[[i]], 2)[-c(2*n.times-c(0, 1))])
-            y.top <- rev(c(1, 1, PedSV::stretch.vector(ci.upper[[i]], 2)[-c(2*n.times-c(0, 1))]))
+            y.bottom <- c(1, 1, RLCtools::stretch.vector(ci.lower[[i]], 2)[-c(2*n.times-c(0, 1))])
+            y.top <- rev(c(1, 1, RLCtools::stretch.vector(ci.upper[[i]], 2)[-c(2*n.times-c(0, 1))]))
           }else{
             x.bottom <- x.svlen[[i]]
             x.top <- rev(x.svlen[[i]])
@@ -385,8 +385,8 @@ svlen.line.plot <- function(x.svlen, y.value, colors, ci.lower=NULL, ci.upper=NU
     n.times <- length(x.svlen[[i]])
     if(n.times > 0){
       if(step){
-        x <- c(0, PedSV::stretch.vector(x.svlen[[i]], 2))
-        y <- c(1, 1, PedSV::stretch.vector(y.value[[i]], 2))[1:length(x)]
+        x <- c(0, RLCtools::stretch.vector(x.svlen[[i]], 2))
+        y <- c(1, 1, RLCtools::stretch.vector(y.value[[i]], 2))[1:length(x)]
       }else{
         x <- x.svlen[[i]]
         y <- y.value[[i]]
