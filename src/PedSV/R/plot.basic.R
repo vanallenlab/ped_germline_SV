@@ -410,3 +410,191 @@ svlen.line.plot <- function(x.svlen, y.value, colors, ci.lower=NULL, ci.upper=NU
            col=rev(colors), bty="n", cex=5/6)
   }
 }
+
+
+#' Swarmplot of values per cancer type
+#'
+#' Generate a series of beeswarm plots for values per sample separated by cancer type
+#'
+#' @param plot.vals Values to plot. See `Details` for formatting.
+#' @param meta Sample metadata loaded using [load.sample.metadata()]
+#' @param title Custom title for top axis
+#' @param title.line Line for main title on top axis \[default: 0\]
+#' @param title.cex `cex` parameter for main title \[default: 1\]
+#' @param ylims Two-value vector of limits for Y axis. Individual values outside
+#' of these limits will be Winsorized. \[default: use full range of all values\]
+#' @param add.y.axis Should the Y \(left\) axis be added? \[default: TRUE\]
+#' @param y.axis.title Text title for Y \(left\) axis \[default: "Value"\]
+#' @param y.title.line Line for Y \(left\) axis \[default: 0.5\]
+#' @param y.ticks \(Optional\) custom tick positions for Y \(left\) axis
+#' @param y.tick.labels \(Optional\) custom tick labels for Y \(left\) axis
+#' @param parse.labels Value of `parse.labels` passed to [PedSV::clean.axis()] \[default: TRUE\]
+#' @param cancer.name.xadj Horizontal adjustment factor for cancer labels on X axis \[default: 0.1\]
+#' @param shorten.cancer.names Should cancer names be shortened as much as possible? \[default: FALSE\]
+#' @param add.sample.size Should sample size be added to cancer names? \[default: FALSE\]
+#' @param sample.size.mirror.buffer Space in user units that cancer label and sample size should be separated \[default: 0.2\]
+#' @param scale.swarms Should the width of each swarm be scaled proportional
+#' to the square root of its sample size? \[default: TRUE\]
+#' @param median.labels Should text labels for medians per group be plotted? \[default: FALSE\]
+#' @param gutter.width Relative width of gutter between swarms \[default: 0.1\]
+#' @param pt.cex Value of `cex` passed to [beeswarm::beeswarm()]
+#' @param shade Shade of phenotype color to use \[default: 'main'\]
+#' @param return.swarm.df Should swarm coordinates be returned? \[default: FALSE\]
+#' @param parmar Value of `mar` passed to `par()`
+#'
+#' @details `plot.vals` can be provided in one of two formats:
+#' 1. As a named numeric vector with vector names set to sample IDs
+#' 2. As a data.frame with row names set to sample IDs. If provided as a data.frame,
+#' only the first column will be plotted.
+#'
+#' @seealso [beeswarm::beeswarm()]
+#'
+#' @export swarmplot.by.phenotype
+#' @export
+swarmplot.by.phenotype <- function(plot.vals, meta, title=NULL, title.line=0,
+                                   title.cex=1, ylims=NULL, add.y.axis=TRUE,
+                                   y.axis.title="Value", y.title.line=0.5,
+                                   y.ticks=NULL, y.tick.labels=NULL, parse.labels=TRUE,
+                                   cancer.name.xadj=0.1, shorten.cancer.names=FALSE,
+                                   add.sample.size=FALSE, sample.size.mirror.buffer=0.2, scale.swarms=TRUE,
+                                   median.labels=FALSE, gutter.width=0.1, pt.cex=NULL,
+                                   shade="main", return.swarm.df=FALSE,
+                                   parmar=c(3, 2.5, 0.3, 0.3)){
+  # Ensure beeswarm & vioplot are loaded
+  require(beeswarm, quietly=T)
+  require(vioplot, quietly=T)
+
+  # Reformat input data to vector if needed
+  if(is.data.frame(plot.vals)){
+    orig.rnames <- rownames(plot.vals)
+    plot.vals <- as.numeric(as.vector(plot.vals[, 1]))
+    names(plot.vals) <- orig.rnames
+  }
+
+  # Get plot dimensions
+  if(is.null(ylims)){
+    ylims <- range(plot.vals, na.rm=T)
+  }else{
+    ylims <- sort(ylims)
+  }
+  plot.cancers <- intersect(names(cancer.names.short),
+                            metadata.cancer.label.map[unique(meta[names(plot.vals), "disease"])])
+  n.cancers <- length(plot.cancers)
+  xlims <- c(0, n.cancers + (gutter.width * (n.cancers-1)))
+
+  # Winsorize plot values as needed
+  too.low.idxs <- which(plot.vals < ylims[1])
+  if(length(too.low.idxs) > 0){
+    plot.vals[too.low.idxs] <- ylims[1]
+    y.lower.le <- TRUE
+  }else{
+    y.lower.le <- FALSE
+  }
+  too.high.idxs <- which(plot.vals > ylims[2])
+  if(length(too.high.idxs) > 0){
+    plot.vals[too.high.idxs] <- ylims[2]
+    y.upper.ge <- TRUE
+  }else{
+    y.upper.ge <- FALSE
+  }
+
+  # Split plot values into list per cancer type
+  vals.by.cancer <- lapply(plot.cancers, function(cancer){
+    if(cancer == "control"){
+      plot.vals[intersect(names(plot.vals), get.eligible.samples(meta, "pancan")$controls)]
+    }else{
+      plot.vals[intersect(names(plot.vals), get.eligible.samples(meta, cancer)$cases)]
+    }
+  })
+  names(vals.by.cancer) <- plot.cancers
+  cancer.meds <- sapply(vals.by.cancer, median, na.rm=T)
+
+  # Get more parameters
+  if(scale.swarms){
+    group.n <- sapply(vals.by.cancer, length)
+    swarm.width <- n.cancers * (sqrt(group.n) / sum(sqrt(group.n)))
+    swarm.at <- swarm.width[1] / 2
+    if(n.cancers > 1){
+      for(i in 2:n.cancers){
+        swarm.at <- c(swarm.at, swarm.at[i-1] + (swarm.width[i-1]/2) + gutter.width + (swarm.width[i]/2))
+      }
+    }
+  }else{
+    swarm.at <- (1:n.cancers) - 0.5 + (gutter.width * ((1:n.cancers)-1))
+    swarm.width <- seq(1, n.cancers)
+  }
+  tick.widths <- swarm.width / 6
+  if(is.null(pt.cex)){
+    pt.cex <- 7 / sqrt(unlist(length(plot.vals)))
+  }
+
+  # Prep plot area
+  prep.plot.area(xlims, ylims, parmar, xaxs="r", yaxs="r")
+
+  # Add one swarm per cancer type
+  swarm.collector <- list()
+  for(i in 1:n.cancers){
+    vioplot(vals.by.cancer[[i]], add=T, at=swarm.at[i],
+            lty=NA, border=NA, col=cancer.palettes[[plot.cancers[i]]]["light3"],
+            wex=swarm.width[i], drawRect=FALSE, pchMed=NA)
+    swarm.collector[[i]] <-
+      beeswarm(vals.by.cancer[[i]], add=T, at=swarm.at[i], corral="wrap",
+               corralWidth=swarm.width[i], cex=pt.cex, pch=19,
+               col=cancer.palettes[[plot.cancers[i]]][shade], xpd=T)
+    segments(x0=swarm.at[i] - tick.widths[i], x1=swarm.at[i] + tick.widths[i],
+             y0=cancer.meds[i], y1=cancer.meds[i], lwd=2, lend="round",
+             col=cancer.palettes[[plot.cancers[i]]]["dark2"])
+  }
+
+  # Annotate each swarm per cancer type
+  sapply(1:n.cancers, function(i){
+    if(shorten.cancer.names){
+      x.label <- cancer.names.vshort[plot.cancers[i]]
+    }else{
+      x.label <- cancer.names.short[plot.cancers[i]]
+    }
+    x.label.at <- swarm.at[i]+cancer.name.xadj
+    if(add.sample.size){
+      x.label.at <- swarm.at[i]+cancer.name.xadj-sample.size.mirror.buffer
+      ss.label <- paste("(N=",
+                        prettyNum(length(vals.by.cancer[[i]]), big.mark=","),
+                        ")", sep="")
+      text(x=swarm.at[i]+cancer.name.xadj+sample.size.mirror.buffer,
+           y=par("usr")[3]-(0.05*diff(par("usr")[3:4])),
+           labels=ss.label, xpd=T, srt=45, cex=5/6, adj=c(1, 0))
+    }
+    text(x=x.label.at, y=par("usr")[3]-(0.05*diff(par("usr")[3:4])),
+         labels=x.label, xpd=T, srt=45, cex=5/6, adj=c(1, 0))
+    if(median.labels){
+      text(x=swarm.at[i] + tick.widths[i] + (0.01*diff(par("usr")[1:2])),
+           y=cancer.meds[i], adj=c(0, 0.45),
+           labels=round(cancer.meds[i], 1), xpd=T, cex=5/6,
+           col=cancer.palettes[[plot.cancers[i]]]["dark2"])
+    }
+  })
+
+  # Add Y axis
+  if(is.null(y.ticks)){
+    y.ticks <- axTicks(2)
+  }
+  if(is.null(y.tick.labels)){
+    y.tick.labels <- y.ticks
+  }
+  if(is.null(y.ticks)){
+    if(y.lower.le){
+      y.ticks <- c(ylims[1], y.ticks[2:length(y.ticks)])
+      y.tick.labels <- c(paste("\"\" <=", ylims[1]), y.tick.labels[2:length(y.tick.labels)])
+    }
+    if(y.upper.ge){
+      y.ticks <- c(y.ticks[1:(length(y.ticks)-1)], ylims[2])
+      y.tick.labels <- c(y.tick.labels[1:(length(y.tick.labels)-1)], paste("\"\" >=", ylims[2]))
+    }
+  }
+  clean.axis(2, at=y.ticks, labels=y.tick.labels, parse.labels=parse.labels,
+             infinite=TRUE, title=y.axis.title, title.line=y.title.line)
+  mtext(3, text=title, line=title.line, cex=title.cex)
+
+  if(return.swarm.df){
+    do.call("rbind", swarm.collector)
+  }
+}
