@@ -17,6 +17,7 @@
 #########
 # Load necessary libraries and constants
 options(scipen=1000, stringsAsFactors=F)
+require(argparse, quietly=TRUE)
 require(PedSV, quietly=TRUE)
 require(DescTools, quietly=TRUE)
 PedSV::load.constants("all")
