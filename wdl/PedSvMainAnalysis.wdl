@@ -575,6 +575,7 @@ workflow PedSvMainAnalysis {
                   CaseControlCohortSummaryPlots.plots_tarball,
                   TrioCohortBurdenTests.plots_tarball,
                   CaseControlCohortBurdenTests.plots_tarball,
+                  DeNovoAnalysis.plots_tarball,
                   PlotFullCohortSlidingWindows.results_tarball,
                   PlotTrioCohortSlidingWindows.results_tarball,
                   PlotCaseControlCohortSlidingWindows.results_tarball,
@@ -585,7 +586,7 @@ workflow PedSvMainAnalysis {
                   PlotStudyWideRvas.results_tarball,
                   Pseudorep.results_tarball],
       prefix = study_prefix + "_analysis_outputs",
-      docker = ubuntu_docker,
+      docker = pedsv_r_docker,
       relocate_stats = true
   }
 
@@ -1575,10 +1576,11 @@ task UnifyOutputs {
       find ~{prefix}/ -name "*.bed.gz" | xargs -I {} mv {} ~{prefix}/stats/
     fi
 
-    # Format Table S2
-    /opt/ped_germline_SV/analysis/misc/format_table_s2.R \
-      ~{prefix}/stats/~{prefix}.global_burden_tests.tsv.gz \
-      ~{prefix}/stats/~{prefix}.table_s2.tsv
+    # TODO: debug why this script cant find its input .tsv
+    # # Format Table S2
+    # /opt/ped_germline_SV/analysis/misc/format_table_s2.R \
+    #   ~{prefix}/stats/~{prefix}.global_burden_tests.tsv.gz \
+    #   ~{prefix}/stats/~{prefix}.table_s2.tsv
 
     # Compress output directory
     tar -czvf ~{prefix}.tar.gz ~{prefix}

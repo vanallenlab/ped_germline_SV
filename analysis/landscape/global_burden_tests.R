@@ -308,17 +308,17 @@ args <- parser$parse_args()
 #              "af_field" = "POPMAX_AF",
 #              "ac_field" = "AC",
 #              "out_prefix" = "~/scratch/PedSV.v2.5.3.trio.dev")
-# args <- list("bed" = c("~/scratch/PedSV.v2.5.3.full_cohort.analysis_samples.sites.bed.gz"),
-#              "ad" = c("~/scratch/PedSV.v2.5.3.full_cohort.analysis_samples.allele_dosages.bed.gz"),
-#              "metadata" = "~/scratch/PedSV.v2.5.3.cohort_metadata.w_control_assignments.tsv.gz",
+# args <- list("bed" = c("~/scratch/PedSV.v2.5.4.full_cohort.analysis_samples.sites.bed.gz"),
+#              "ad" = c("~/scratch/PedSV.v2.5.4.full_cohort.analysis_samples.allele_dosages.bed.gz"),
+#              "metadata" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_v2_callset_generation/v2.5.4/PedSV.v2.5.4.cohort_metadata.w_control_assignments.tsv.gz",
 #              "gene_lists" = "~/scratch/PedSV.gene_lists.tsv",
 #              "genomic_disorder_hits" = NULL,
-#              "subset_samples" = "~/scratch/PedSV.v2.5.3.final_analysis_cohort.samples.list",
-#              "precomputed_burden_stats" = "~/scratch/PedSV.v2.5.3.full_cohort_w_relatives.precomputed_burden_stats.tsv.gz",
+#              "subset_samples" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_v2_callset_generation/v2.5.4/PedSV.v2.5.4.final_analysis_cohort.samples.list",
+#              "precomputed_burden_stats" = "~/scratch/PedSV.v2.5.4.full_cohort_w_relatives.precomputed_burden_stats.tsv.gz",
 #              "exclude_variants" = NULL,
 #              "af_field" = "POPMAX_AF",
 #              "ac_field" = "AC",
-#              "out_prefix" = "~/scratch/PedSV.v2.5.3.full_cohort.dev")
+#              "out_prefix" = "~/scratch/PedSV.v2.5.4.full_cohort.dev")
 
 # Load BEDs and pair AD paths with each
 data <- lapply(1:length(args$bed), function(i){

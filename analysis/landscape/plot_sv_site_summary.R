@@ -384,15 +384,16 @@ parser$add_argument("--out-prefix", metavar="path", type="character", required=T
                     help="Path/prefix for all output files")
 args <- parser$parse_args()
 
-# # DEV:
-# args <- list("bed" = "~/scratch/PedSV.v2.5.3.full_cohort.analysis_samples.sites.bed.gz",
-#              "ad_matrix" = "~/scratch/PedSV.v2.5.3.full_cohort.analysis_samples.allele_dosages.bed.gz",
-#              "metadata" = "~/scratch/PedSV.v2.5.3.cohort_metadata.w_control_assignments.tsv.gz",
-#              "subset_samples" = "~/scratch/PedSV.v2.5.3.final_analysis_cohort.samples.list",
-#              "cohort_prefix" = "full_cohort",
-#              "af_field" = "POPMAX_AF",
-#              "ac_field" = "AC",
-#              "out_prefix" = "~/scratch/PedSV.v2.5.3.dev.full_cohort")
+# DEV:
+args <- list("bed" = "~/scratch/PedSV.v2.5.4.full_cohort_w_relatives_1000G.sites.bed.gz",
+             "ad_matrix" = "~/scratch/PedSV.v2.5.4.full_cohort_w_relatives_1000G.allele_dosages.bed.gz",
+             "metadata" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_v2_callset_generation/v2.5.4/PedSV.v2.5.4.cohort_metadata.w_control_assignments.tsv.gz",
+             # "subset_samples" = "~/scratch/PedSV.v2.5.3.final_analysis_cohort.samples.list",
+             "subset_samples" = NULL,
+             "cohort_prefix" = "full_cohort",
+             "af_field" = "POPMAX_AF",
+             "ac_field" = "AC",
+             "out_prefix" = "~/scratch/PedSV.v2.5.4.full_cohort_w_relatives")
 # args <- list("bed" = "~/scratch/YL-gatsv-v1-allBatches.annotated.samples_excluded.bed.gz",
 #              "metadata" = "/Users/ryan/Desktop/Collins/VanAllen/jackie_younglung/younglung_metadata/YL.SV.v1.1.analysis_metadata.tsv.gz",
 #              "subset_samples" = "/Users/ryan/Desktop/Collins/VanAllen/jackie_younglung/YL_analysis/YL.analysis_samples.list",

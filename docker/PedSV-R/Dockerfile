@@ -69,9 +69,13 @@ ARG RLCTOOLS_VERSION=0.1
 ADD RLCtools /opt/RLCtools
 RUN Rscript -e "install.packages('/opt/RLCtools/RLCtools_${RLCTOOLS_VERSION}.tar.gz', type='source', repos=NULL)"
 
+# Install drcarlate R package (not available with conda)
+RUN Rscript -e "install.packages('drcarlate', repos='https://cloud.r-project.org/')"
+
 # Install PedSV R package
 ARG PEDSV_VERSION=0.0.2
 RUN Rscript -e "install.packages('/opt/ped_germline_SV/src/PedSV_${PEDSV_VERSION}.tar.gz', type='source', repos=NULL)"
+RUN rm -rf /opt/ped_germline_SV/src
 
 # Developer aliases, etc (for convenience)
 RUN echo 'alias l="ls -ltrha"' >> ~/.bashrc

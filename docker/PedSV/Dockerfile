@@ -41,6 +41,7 @@ MAINTAINER "Ryan Collins <Ryan_Collins@dfci.harvard.edu>"
 # Copy /venv, git repo, and GATK-SV from the build stage
 COPY --from=build /venv /venv
 COPY --from=build /opt/ped_germline_SV /opt/ped_germline_SV
+RUN rm -rf /opt/ped_germline_SV/src
 
 # Make bash default shell & load conda environment on container startup
 RUN rm /bin/sh && ln -s /bin/bash /bin/sh

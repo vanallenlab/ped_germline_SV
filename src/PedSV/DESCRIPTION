@@ -14,9 +14,12 @@ Description: This package contains various utility functions used in a
 License: GNU GPL v2.0
 URL: https://github.com/vanallenlab/ped_germline_SV
 Suggests: 
+    caret,
+    DescTools,
+    drcarlate,
+    glmnet,
     HardyWeinberg,
-    Hmisc,
-    DescTools
+    Hmisc
 Imports:
     bedr,
     beeswarm,

@@ -124,8 +124,8 @@ plot.or.by.freq <- function(plot.stats, title=NULL, connect.cancers=c(),
 args <- commandArgs(trailingOnly=T)
 
 # # DEV:
-# args <- c("/Users/ryan/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_MS/PedSV_figures/PedSV.v2.5.3_analysis_outputs/stats/PedSV.v2.5.3.global_burden_tests.tsv.gz",
-#           "~/scratch/PedSV.v.2.5.3.full_cohort.dev")
+# args <- c("/Users/ryan/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_MS/PedSV_figures/PedSV.v2.5.4_analysis_outputs/stats/PedSV.v2.5.4.global_burden_tests.tsv.gz",
+#           "~/scratch/PedSV.v.2.5.4.full_cohort.dev")
 
 
 # Load sumstats
