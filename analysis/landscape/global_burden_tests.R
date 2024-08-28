@@ -251,8 +251,8 @@ main.burden.wrapper <- function(data, query, meta, action, af.fields, ac.fields,
 plot.cnv.size.bins.supp <- function(ss, cnv, y.lims, title=NULL, bin.space=2,
                                     sex.space=0.15, parmar=c(2, 2.5, 1, 0.5)){
   # Get universal Y axis limits for both CNV types
-  ymax <- max(c(log(3), 1.25 * max(as.numeric(ss$coefficient))))
-  ymin <- min(c(log(0.5), 1.25 * min(as.numeric(ss$coefficient))))
+  ymax <- max(c(log(3), 1.15 * max(as.numeric(ss$coefficient))))
+  ymin <- min(c(log(0.5), 1.15 * min(as.numeric(ss$coefficient))))
   ylims <- c(ymin, ymax)
 
   # Reformat plot data
@@ -280,12 +280,13 @@ plot.cnv.size.bins.supp <- function(ss, cnv, y.lims, title=NULL, bin.space=2,
   xlims <- range(c(bin.starts, bin.ends))
 
   # Prep plot area
-  prep.plot.area(xlims, ylims, parmar=parmar, xaxs="r", yaxs="r")
+  prep.plot.area(xlims, ylims, parmar=parmar, xaxs="r")
+  abline(h=log(1), col="gray90", lty=5)
   mtext(3, line=0, text=title)
 
   # Add points
   sapply(1:n.bins, function(b){
-    sapply(1:2, function(s){
+    sapply(2:1, function(s){
       sex <- c("MALE", "FEMALE")[s]
       idxs <- grep(paste(size.bins[b], cnv, sex, sep="."), plot.df$hypothesis)
       sapply(1:length(idxs), function(k){
@@ -297,11 +298,11 @@ plot.cnv.size.bins.supp <- function(ss, cnv, y.lims, title=NULL, bin.space=2,
         cancer.k <- plot.df[idxs[k], "disease"]
         pch.k <- c(22, 21)[s]
         if(p.k <= 0.005){
-          fill.k <- col.k <-  cancer.colors[cancer.k]
+          fill.k <- col.k <- cancer.palettes[[cancer.k]][["dark1"]]
           border.k <- cancer.palettes[[cancer.k]][["dark2"]]
         }else if(p.k <= 0.05){
           fill.k <- col.k <-  cancer.palettes[[cancer.k]][["light2"]]
-          border.k <- cancer.palettes[[cancer.k]][["dark1"]]
+          border.k <- cancer.palettes[[cancer.k]][["light1"]]
         }else if(p.k > 0.05){
           border.k <-  cancer.palettes[[cancer.k]][["light2"]]
           col.k <-  cancer.palettes[[cancer.k]][["light3"]]
@@ -320,7 +321,7 @@ plot.cnv.size.bins.supp <- function(ss, cnv, y.lims, title=NULL, bin.space=2,
     avg <- as.numeric(plot.df[intersect(grep(sb, plot.df$hypothesis),
                                         which(plot.df$disease == "pancan")),
                               "control.mean"])
-    as.character(round(mean(avg), max(c(1, floor(-log10(avg))))))
+    as.character(round(mean(avg), max(c(1, ceiling(-log10(avg))))))
   })
   x.labels <- paste(bin.labels[size.bins], "\n(", sv.avg.labels, " / genome)", sep="")
   sapply(1:n.bins, function(x){
@@ -329,7 +330,6 @@ plot.cnv.size.bins.supp <- function(ss, cnv, y.lims, title=NULL, bin.space=2,
   })
 
   # Add Y axis
-  abline(h=log(1), col="gray90", lty=5)
   clean.axis(2, at=log(2^(-6:6)), labels=c(paste(2, -6:-3, sep="^"), 2^(-2:6)),
              parse.labels=TRUE, infinite=T, title="Odds ratio")
 }
