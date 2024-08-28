@@ -161,7 +161,7 @@ get.large.sv.summary.data <- function(bed, ad, meta, cancers){
 # Plotting functions #
 ######################
 # Plot a horizontal stacked barplot of SVs colored by frequency bin
-plot.count.bars <- function(counts, greyscale=TRUE, parmar=c(0.25, 5.25, 0.1, 2.5),
+plot.count.bars <- function(counts, greyscale=TRUE, parmar=c(0.25, 5.25, 0.1, 2.65),
                             bar.buffer=0.15, count.label.xadj=0.05){
   # Get plot dimensions
   xlims <- c(0, max(apply(counts, 2, sum)))
@@ -187,7 +187,7 @@ plot.count.bars <- function(counts, greyscale=TRUE, parmar=c(0.25, 5.25, 0.1, 2.
     rect(xleft=0, xright=n.total, ybottom=i-1+bar.buffer, ytop=i-bar.buffer,
          col=NA, xpd=T)
     if(n.total > 10000){
-      count.label <- paste(round(n.total/1000, 1), "k", sep="")
+      count.label <- paste(round(n.total/1000, 1), "k")
     }else{
       count.label <- prettyNum(n.total, big.mark=",")
     }
@@ -326,7 +326,7 @@ plot.large.sv.summary <- function(bed, ad, meta, schematic.wex=12, count.wex=2,
              at=c(x.breaks[2]+w.buffer,
                      sapply(2:4, function(x){mean(x.breaks[c(x, x+1)])}),
                   x.breaks[5]-w.buffer))
-  axis(3, at=mean(x.breaks[c(2, 5)]), labels="Rare SVs >1Mb", tick=F, cex.axis=title.cex)
+  axis(3, at=mean(x.breaks[c(2, 5)]), labels="Rare SVs >1 Mb", tick=F, cex.axis=title.cex)
   clean.axis(3, tck=0, labels=c(NA, cancer.names.vshort[cancers], NA),
              label.line=-0.9, cex.axis=content.cex,
              at=c(x.breaks[5]+w.buffer,

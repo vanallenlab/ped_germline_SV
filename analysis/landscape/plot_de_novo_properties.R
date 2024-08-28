@@ -149,9 +149,7 @@ plot.denovo.rates <- function(denovos, control.rates, gnomad.rates,
          col=cancer.colors[["control"]])
     axis(1, at=x-0.5, tick=F, line=-0.9, labels=sv.abbreviations[ews.rates$svtype][x])
   })
-
-  clean.axis(2, title=bquote("Rate of" ~ italic("se novo") ~ "SVs"),
-             title.line=0.8, infinite.positive=TRUE)
+  clean.axis(2, title="Rate of de novo SVs", title.line=0.8, infinite.positive=TRUE)
 
   # Add data for each group
   sapply(1:n.groups, function(i){
@@ -215,7 +213,7 @@ plot.context.by.freq <- function(counts, group.names=NULL,
   # Add left & vertical axes
   axis(2, at=(1:nrow(props))-0.5, las=2, tick=F, line=-0.8, labels=group.names)
   clean.axis(3, label.units="percent", title="Proportion of SVs",
-             title.line=0, label.line=-0.8, infinite.positive=TRUE)
+             title.line=0, label.line=-0.8, infinite.positive=TRUE, max.ticks=5)
 
   # Add legend
   legend.x.at <- c(-0.1, -0.1, 0.9)*diff(xlims)
@@ -330,12 +328,12 @@ size.data <- lapply(freq.idxs, function(idxs){
 pdf(paste(args$out_prefix, "de_novo.sizes.pdf", sep="."),
     height=1.7, width=2.3)
 ridgeplot(lapply(rev(size.data), density, adjust=0.75),
-          names=rev(c("", "Singleton", "Rare", "Common")), xlims=log10(c(10, 25000000)),
+          names=rev(c("De novo", "Singleton", "Rare", "Common")), xlims=log10(c(10, 25000000)),
           fill=rev(c("black", hex2grey(DEL.colors[c("dark2", "main", "light2")]))),
           border=rev(c("black", rep(hex2grey(DEL.colors[["dark1"]]), 3))),
           border.lwd=1.25, x.axis=FALSE, parmar=c(2.2, 3.75, 0.25, 0.5))
-axis(2, at=3.5, labels=bquote(italic("De novo")), tick=F, las=2, line=-0.8)
-clean.axis(1, at=log10(logscale.major.bp),
+axis(1, col="gray85", tck=-0.025, labels=NA)
+clean.axis(1, at=log10(logscale.major.bp)[seq(1, length(logscale.major.bp), 2)],
            labels=logscale.major.bp.labels[seq(1, length(logscale.major.bp), 2)],
            labels.at=log10(logscale.major.bp)[seq(1, length(logscale.major.bp), 2)],
            label.line=-0.9, title.line=0.2, title=bquote("SV size" ~ (log[10])))
@@ -353,10 +351,7 @@ RLCtools::format.pval(chisq.test(t(freq.by.context.counts[c("denovo", "common"),
 pdf(paste(args$out_prefix, "de_novo.contexts.pdf", sep="."),
     height=1.8, width=2.8)
 plot.context.by.freq(freq.by.context.counts,
-                     group.names=c("", "Singleton", "Rare", "Common"),
+                     group.names=c("De novo", "Singleton", "Rare", "Common"),
                      parmar=c(0, 3.75, 2, 3))
-axis(2, at=3.5, labels=bquote(italic("De novo")), tick=F, las=2, line=-0.8)
 dev.off()
-
-
 
