@@ -5,10 +5,12 @@ This folder serves as a place to document Jett Crowdis's analysis in the germlin
 ## Layout
 
 `data`: This folder contains files needed for these analyses, as well as the results of the analyses. 
-    * In some instances, we cannot give access to underlying data (for example for GMKF RNA files) because their access is controlled by other entities. In these instances, how to obtain the files is detailed in `data/files.txt`
-    * Large files are not directly committed to the repo. These can be found either as supplementary files or online.
-    * Some files point to online google bucket paths (for example, the SV files). These files can be obtained according to the manuscript's data access section.
+* In some instances, we cannot give access to underlying data (for example for GMKF RNA files) because their access is controlled by other entities. In these instances, how to obtain the files is detailed in `data/files.txt`
+* Large files are not directly committed to the repo. These can be found either as supplementary files or online.
+* Some files point to online google bucket paths (for example, the SV files). These files can be obtained according to the manuscript's data access section.
+    
 `figures`: Figures made by these analyses for use in the manuscript. `manuscript-figures` are figures compiled using illustrator.
+
 `scripts`: Helper scripts for various notebooks.
 
 ## Running the notebooks
