@@ -244,6 +244,97 @@ main.burden.wrapper <- function(data, query, meta, action, af.fields, ac.fields,
 }
 
 
+######################
+# Plotting functions #
+######################
+# Custom one-off plot function for case:control CNV burden by sex & size bin
+plot.cnv.size.bins.supp <- function(ss, cnv, y.lims, title=NULL, bin.space=2,
+                                    sex.space=0.15, parmar=c(2, 2.5, 1, 0.5)){
+  # Get universal Y axis limits for both CNV types
+  ymax <- max(c(log(3), 1.25 * max(as.numeric(ss$coefficient))))
+  ymin <- min(c(log(0.5), 1.25 * min(as.numeric(ss$coefficient))))
+  ylims <- c(ymin, ymax)
+
+  # Reformat plot data
+  plot.df <- ss[grepl(cnv, ss$hypothesis),
+                c("hypothesis", "disease", "control.mean", "control.stdev",
+                  "coefficient", "std.err", "P.value")]
+  plot.df[, c("coefficient", "std.err")] <- apply(plot.df[, c("coefficient", "std.err")], 2, as.numeric)
+  plot.df$lower_ci <- plot.df$coefficient + (qnorm(0.025) * plot.df$std.err)
+  plot.df$upper_ci <- plot.df$coefficient + (qnorm(0.975) * plot.df$std.err)
+  # plot.df[, c("coefficient", "std.err", "lower_ci", "upper_ci")] <-
+  #   apply(plot.df[, c("coefficient", "std.err", "lower_ci", "upper_ci")], 2, exp)
+
+  # Get other plot parameters
+  bonf.cutoff <- 0.05 / nrow(ss)
+  size.bins <- unique(sapply(strsplit(plot.df$hypothesis, split=".", fixed=T), function(p){p[2]}))
+  bin.labels <- c("large" = ">1 Mb",
+                  "100kb_to_1Mb" = "100 kb - 1 Mb",
+                  "10kb_to_100kb" = "10 - 100 kb",
+                  "1kb_to_10kb" = "1 - 10 kb")
+  n.bins <- length(size.bins)
+  n.cancers <- length(unique(plot.df$disease))
+  bin.ends <- seq(n.cancers + bin.space, (n.cancers + bin.space) * n.bins,
+                  by=n.cancers + bin.space) - bin.space
+  bin.starts <- bin.ends - n.cancers
+  xlims <- range(c(bin.starts, bin.ends))
+
+  # Prep plot area
+  prep.plot.area(xlims, ylims, parmar=parmar, xaxs="r", yaxs="r")
+  mtext(3, line=0, text=title)
+
+  # Add points
+  sapply(1:n.bins, function(b){
+    sapply(1:2, function(s){
+      sex <- c("MALE", "FEMALE")[s]
+      idxs <- grep(paste(size.bins[b], cnv, sex, sep="."), plot.df$hypothesis)
+      sapply(1:length(idxs), function(k){
+        x.k <- bin.starts[b] + (`^`(-1, s) * sex.space) + k - 1
+        y.k <- plot.df[idxs[k], "coefficient"]
+        lci.k <- plot.df[idxs[k], "lower_ci"]
+        uci.k <- plot.df[idxs[k], "upper_ci"]
+        p.k <- as.numeric(plot.df[idxs[k], "P.value"])
+        cancer.k <- plot.df[idxs[k], "disease"]
+        pch.k <- c(22, 21)[s]
+        if(p.k <= 0.005){
+          fill.k <- col.k <-  cancer.colors[cancer.k]
+          border.k <- cancer.palettes[[cancer.k]][["dark2"]]
+        }else if(p.k <= 0.05){
+          fill.k <- col.k <-  cancer.palettes[[cancer.k]][["light2"]]
+          border.k <- cancer.palettes[[cancer.k]][["dark1"]]
+        }else if(p.k > 0.05){
+          border.k <-  cancer.palettes[[cancer.k]][["light2"]]
+          col.k <-  cancer.palettes[[cancer.k]][["light3"]]
+          fill.k <- "white"
+        }
+        segments(x0=x.k, x1=x.k, y0=lci.k, y1=uci.k, lend="round", col=col.k)
+        points(x=x.k, y=y.k, pch=pch.k, col=border.k, bg=fill.k)
+      })
+    })
+  })
+
+  # Add bin labels and group bars
+  segments(x0=bin.starts, x1=bin.ends, y0=par("usr")[3], y1=par("usr")[3],
+           col="gray70", xpd=T)
+  sv.avg.labels <- sapply(size.bins, function(sb){
+    avg <- as.numeric(plot.df[intersect(grep(sb, plot.df$hypothesis),
+                                        which(plot.df$disease == "pancan")),
+                              "control.mean"])
+    as.character(round(mean(avg), max(c(1, floor(-log10(avg))))))
+  })
+  x.labels <- paste(bin.labels[size.bins], "\n(", sv.avg.labels, " / genome)", sep="")
+  sapply(1:n.bins, function(x){
+    axis(1, at=((bin.starts + bin.ends) / 2)[x], tick=F, line=-1.5,
+         labels=x.labels[x], padj=1, cex.axis=5/6)
+  })
+
+  # Add Y axis
+  abline(h=log(1), col="gray90", lty=5)
+  clean.axis(2, at=log(2^(-6:6)), labels=c(paste(2, -6:-3, sep="^"), 2^(-2:6)),
+             parse.labels=TRUE, infinite=T, title="Odds ratio")
+}
+
+
 ###########
 # RScript #
 ###########
@@ -755,6 +846,35 @@ for(freq in c("rare", "vrare", "singleton")){
 }
 
 
+# Focused analysis of singleton unbalanced SV burden by size range, sex, and SV type
+# Collect all data
+cnv.to.unbal.query.map <- c("DEL" = "copy_loss", "DUP" = "copy_gain")
+cnv.size.bins <- c("large", "100kb_to_1Mb", "10kb_to_100kb", "1kb_to_10kb")
+ss <- do.call("rbind", lapply(c("DEL", "DUP"), function(cnv){
+  # Collect data for copy gain & copy loss separately
+  do.call("rbind", lapply(cnv.size.bins, function(size){
+    query <- paste("singleton", size, cnv.to.unbal.query.map[cnv], sep=".")
+    ad.vals <- get.ad.values(data, query, action="count", af.fields=af.fields,
+                             ac.fields=ac.fields, autosomal=TRUE)
+    do.call("rbind", lapply(c("MALE", "FEMALE"), function(sex){
+      burden.test(data, paste(query, ".", sex, "_only", sep=""),
+                  meta[which(meta$inferred_sex == sex), ],
+                  ad.vals, family=binomial(), af.fields=af.fields,
+                  ac.field=ac.fields)
+    }))
+  }))
+}))
+all.stats <- rbind(all.stats, ss)
+# Plot data for each of gain/loss in separate panel, but with matching Y axis
+for(cnv in c("DEL", "DUP")){
+  title <- paste("Singleton ", tolower(sv.names[cnv]), "s", sep="")
+  pdf(paste(args$out_prefix, "singleton", cnv, "burden_by_size_range_and_sex",
+            "pdf", sep="."), height=2.15, width=4.6)
+  plot.cnv.size.bins.supp(ss, cnv.to.unbal.query.map[cnv], title=title)
+  dev.off()
+}
+
+
 # Sum total of autosomal genomic imbalance per genome by SV type
 if(!is.null(precomp.stats)){
   for(freq in c("rare", "vrare", "singleton")){
@@ -1131,7 +1251,7 @@ if(!is.null(args$gene_lists)){
                                      sv.subsets=NULL, all.stats=all.stats,
                                      keep.idx.list=all.idx.list,
                                      out.prefix=paste(args$out_prefix, paste(freq, "disruptive_sv_carrier_rate", sep="_"),
-                                           set.lower, "by_cancer", "no_COSMIC_no_CPG", sep="."),
+                                                      set.lower, "by_cancer", "no_COSMIC_no_CPG", sep="."),
                                      main.title=paste(freq.names[freq], set.name, "disruption"),
                                      barplot.height=barplot.height, barplot.width=barplot.width,
                                      barplot.units="percent")

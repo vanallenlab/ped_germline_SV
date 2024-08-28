@@ -153,9 +153,9 @@ load.constants <- function(subset, envir=.GlobalEnv){
                  "BND" = BND.colors[["main"]],
                  "CTX" = CTX.colors[["main"]],
                  "OTH" = OTH.colors[["main"]])
-  context.colors <- c("gene_disruptive" = "#1E5A1A",
-                      "other_coding" = "#2D8626",
-                      "intronic" = "#B9E3B6",
+  context.colors <- c("gene_disruptive" = "#315A2E",
+                      "other_coding" = "#45863F",
+                      "intronic" = "#C5E3C3",
                       "intergenic" = "#E3F4E2")
   colors <- list(
     "cancer.colors" = c("pancan" = pancan.colors[["main"]],
@@ -271,17 +271,17 @@ load.constants <- function(subset, envir=.GlobalEnv){
 
   # Define names
   all.names <- list(
-    "cancer.names.short" = c("pancan" = "All cases",
+    "cancer.names.short" = c("pancan" = "All patients",
                              "EWS" = "Ewing",
                              "NBL" = "Neuroblast.",
                              "OS" = "Osteosarc.",
                              "control" = "Control"),
-    "cancer.names.long" = c("pancan" = "All cases",
+    "cancer.names.long" = c("pancan" = "All patients",
                             "EWS" = "Ewing sarcoma",
                             "NBL" = "Neuroblastoma",
                             "OS" = "Osteosarcoma",
                             "control" = "Controls"),
-    "cancer.names.vshort" = c("pancan" = "All cases",
+    "cancer.names.vshort" = c("pancan" = "All patients",
                              "EWS" = "Ewing",
                              "NBL" = "Neuro.",
                              "OS" = "Osteo.",
