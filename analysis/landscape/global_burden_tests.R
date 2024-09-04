@@ -281,7 +281,7 @@ plot.cnv.size.bins.supp <- function(ss, cnv, y.lims, title=NULL, bin.space=2,
 
   # Prep plot area
   prep.plot.area(xlims, ylims, parmar=parmar, xaxs="r")
-  abline(h=log(1), col="gray90", lty=5)
+  abline(h=log(1), lty=5)
   mtext(3, line=0, text=title)
 
   # Add points
@@ -867,7 +867,7 @@ ss <- do.call("rbind", lapply(c("DEL", "DUP"), function(cnv){
 all.stats <- rbind(all.stats, ss)
 # Plot data for each of gain/loss in separate panel, but with matching Y axis
 for(cnv in c("DEL", "DUP")){
-  title <- paste("Singleton ", tolower(sv.names[cnv]), "s", sep="")
+  title <- paste("Autosomal singleton ", tolower(sv.names[cnv]), "s", sep="")
   pdf(paste(args$out_prefix, "singleton", cnv, "burden_by_size_range_and_sex",
             "pdf", sep="."), height=2.15, width=4.6)
   plot.cnv.size.bins.supp(ss, cnv.to.unbal.query.map[cnv], title=title)
