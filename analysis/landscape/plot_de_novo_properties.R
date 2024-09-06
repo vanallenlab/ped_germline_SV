@@ -78,15 +78,13 @@ all.case.control.comparisons <- function(denovos, meta, control.counts){
                                          case.k <- length(which(dn.sub$SVTYPE == svtype))
                                        }
                                      }
-                                     res <- fisher.test(matrix(c(control.n-control.k, case.n-case.k,
-                                                                 control.k, case.k),
-                                                               byrow=T, nrow=2))
-                                     c(cancer, svtype, case.k, control.k, as.numeric(unlist(res))[c(1, 4, 2:3)])
+                                     res <- poisson.test(x=c(control.k, case.k), T=c(control.n, case.n))
+                                     c(cancer, svtype, case.k, control.k, as.numeric(unlist(res))[c(3, 6, 4:5)])
                                    }))
                                  }))
   res <- as.data.frame(res)
   colnames(res) <- c("cancer", "svtype", "denovo.case", "denovo.control", "pvalue",
-                     "OR", "OR_lower", "OR_upper")
+                     "RR", "RR_lower", "RR_upper")
   res[order(res$pvalue), ]
 }
 
@@ -256,8 +254,8 @@ parser$add_argument("--out-prefix", metavar="path", type="character", required=T
 args <- parser$parse_args()
 
 # # DEV:
-# args <- list("bed" = "~/scratch/PedSV.v2.5.3.full_cohort.analysis_samples.sites.bed.gz",
-#              "metadata" = "~/scratch/PedSV.v2.5.3.cohort_metadata.w_control_assignments.tsv.gz",
+# args <- list("bed" = "~/scratch/PedSV.v2.5.4.full_cohort.analysis_samples.sites.bed.gz",
+#              "metadata" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_v2_callset_generation/v2.5.4/PedSV.v2.5.4.cohort_metadata.w_control_assignments.tsv.gz",
 #              "de_novos" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/de_novo_analysis/PedSV.v2.5.3.confirmed_de_novo_events.tsv",
 #              "include_families" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/de_novo_analysis/PedSV.v2.5.3.complete_trios.no_outliers.list",
 #              "control_counts" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/de_novo_analysis/refs/belyeu_denovo_counts.tsv",
@@ -265,7 +263,7 @@ args <- parser$parse_args()
 #              "cohort_prefix" = "",
 #              "af_field" = "POPMAX_AF",
 #              "ac_field" = "AC",
-#              "out_prefix" = "~/scratch/PedSV.v2.5.3.dev.complete_trios")
+#              "out_prefix" = "~/scratch/PedSV.v2.5.4.dev.complete_trios")
 
 # Infer frequency columns to use
 if(is.null(args$af_field)){
@@ -292,8 +290,9 @@ nbl.n <- length(which(meta$disease == "neuroblastoma" & meta$proband))
 nbl.dn <- length(which(denovos$disease == "neuroblastoma"))
 ews.n <- length(which(meta$disease == "ewing" & meta$proband))
 ews.dn <- length(which(denovos$disease == "ewing"))
-fisher.test(matrix(c(ews.n-ews.dn, nbl.n-nbl.dn, ews.dn, nbl.dn),
-                   byrow=T, nrow=2))
+# fisher.test(matrix(c(ews.n-ews.dn, nbl.n-nbl.dn, ews.dn, nbl.dn),
+#                    byrow=T, nrow=2))
+poisson.test(x=c(nbl.dn, ews.dn), T=c(nbl.n, ews.n))
 
 # Load published control rates
 control.data <- load.control.rates(args$control_counts)
