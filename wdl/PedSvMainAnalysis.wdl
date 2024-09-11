@@ -1323,13 +1323,13 @@ task CohortSummaryPlots {
         | paste <( echo $sample ) -
       done < ~{sample_list} \
       | cat <( echo -e "sample\tcount" ) - \
-      > ~{prefix}.SummaryPlots/sv_counts_per_sample.tsv
+      > ~{prefix}.SummaryPlots/~{prefix}.sv_counts_per_sample.tsv
 
       # Plot SVs per sample
       /opt/ped_germline_SV/analysis/landscape/plot_svs_per_sample.R \
         --metadata ~{sample_metadata_tsv} \
         --out-prefix ~{prefix}.SummaryPlots/~{prefix} \
-        ~{prefix}.SummaryPlots/sv_counts_per_sample.tsv
+        ~{prefix}.SummaryPlots/~{prefix}.sv_counts_per_sample.tsv
      fi
 
     # Compress output
