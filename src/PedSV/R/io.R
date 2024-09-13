@@ -362,25 +362,6 @@ load.sv.bed <- function(bed.in, keep.coords=TRUE, pass.only=TRUE,
 }
 
 
-#' Load gene list(s)
-#'
-#' Load one or more list(s) of gene symbols
-#'
-#' @param input.tsv Path to two-column .tsv of gene list prefix(es) and path to gene list(s)
-#'
-#' @returns list of gene symbol character vectors
-#'
-#' @export load.gene.lists
-#' @export
-load.gene.lists <- function(input.tsv){
-  info.df <- read.table(input.tsv, header=F, sep="\t")
-  set.names <- info.df[, 1]
-  sets <- lapply(info.df[, 2], function(path){sort(unique(read.table(path, header=F)[, 1]))})
-  names(sets) <- set.names
-  return(sets)
-}
-
-
 #' Load burden summary statistics
 #'
 #' Load global SV burden summary statistics

@@ -41,6 +41,10 @@
 #' * `rare` : AF < 1%
 #' * `vrare` : AF < 0.1%
 #' * `singleton` : AC = 1
+#' * `lt10kb` : SVLEN <= 10,000
+#' * `1kb_to_10kb` : SVLEN > 1,000 & <= 10,000
+#' * `10kb_to_100kb` : SVLEN > 10,000 & <= 100,000
+#' * `100kb_to_1Mb` : SVLEN > 100,000 & <= 1,000,000
 #' * `notsmall` : SVLEN > 50,000
 #' * `large` : SVLEN > 1,000,000
 #' * `karyotypic` : SVLEN > 5,000,000
@@ -48,12 +52,19 @@
 #' any size-based filters
 #' * `balanced` : less than 50bp of total genomic imbalance
 #' * `quasi-balanced` : less than 1kb of total genomic imbalance
+#' * `copy_loss` : replaces `SVLEN` with total copy loss before applying
+#' any size-based filters
+#' * `copy_gain` : replaces `SVLEN` with total copy gain before applying
+#' any size-based filters
 #' * `gene_disruptive` or `genes_disrupted` : any SV with predicted LoF, PED, CG, or IED
 #' * `single_gene_disruptive` : as above, but further restricting to SVs impacting just one gene
 #' * `lof` : predicted LoF and/or PED consequences
 #' * `cg` : predicted CG consequence
 #' * `ied` : predicted IED consequence
 #' * `cg_and_ied` : predicted CG and/or IED
+#' * `coding` : SVs with any exonic overlap, irrespective of predicted consequence
+#' * `intronic` : SVs annotated within a gene's intron that are not `coding`
+#' * `intergenic` : SVs that are not predicted to overlap any genes
 #'
 #' If `query` is provided as a vector, it should contain any of the above terms.
 #' If it is provided as a single character string, it must be period-delimited.
@@ -88,6 +99,12 @@ filter.bed <- function(bed, query, af.field="POPMAX_AF", ac.field="AC",
   if("unbalanced" %in% query.parts){
     old.svlen <- bed$SVLEN
     bed$SVLEN <- calc.genomic.imbalance(bed)
+  }else if("copy_loss" %in% query.parts){
+    old.svlen <- bed$SVLEN
+    bed$SVLEN <- calc.genomic.imbalance(bed, cnv.type="DEL")
+  }else if("copy_gain" %in% query.parts){
+    old.svlen <- bed$SVLEN
+    bed$SVLEN <- calc.genomic.imbalance(bed, cnv.type="DUP")
   }
 
   # Apply query-invariant filters
@@ -120,6 +137,18 @@ filter.bed <- function(bed, query, af.field="POPMAX_AF", ac.field="AC",
      & use.gnomad.freqs & has.gnomad){
       keep.idx <- intersect(keep.idx, which(bed[, gnomad.column] < 0.01))
   }
+  if("lt10kb" %in% query.parts){
+    keep.idx <- intersect(keep.idx, which(bed$SVLEN <= 10000))
+  }
+  if("1kb_to_10kb" %in% query.parts){
+    keep.idx <- intersect(keep.idx, which(bed$SVLEN > 1000 & bed$SVLEN <= 10000))
+  }
+  if("10kb_to_100kb" %in% query.parts){
+    keep.idx <- intersect(keep.idx, which(bed$SVLEN > 10000 & bed$SVLEN <= 100000))
+  }
+  if("100kb_to_1Mb" %in% query.parts){
+    keep.idx <- intersect(keep.idx, which(bed$SVLEN > 100000 & bed$SVLEN <= 1000000))
+  }
   if("notsmall" %in% query.parts){
     if("unbalanced" %in% query.parts){
       keep.idx <- intersect(keep.idx, which(bed$SVLEN > 50000))
@@ -147,6 +176,13 @@ filter.bed <- function(bed, query, af.field="POPMAX_AF", ac.field="AC",
   if("quasi-balanced" %in% query.parts){
     keep.idx <- intersect(keep.idx, which(calc.genomic.imbalance(bed) < 1000))
   }
+  coding.suffixes <- c("BREAKEND_EXONIC", "COPY_GAIN", "DUP_PARTIAL",
+                       "INTRAGENIC_EXON_DUP", "INV_SPAN", "LOF",
+                       "MSV_EXON_OVERLAP", "PARTIAL_EXON_DUP", "TSS_DUP", "UTR")
+  any.coding.count <- apply(bed[, paste("PREDICTED", coding.suffixes, sep="_")], 1, function(cvals){sum(sapply(cvals, length))})
+  if("coding" %in% query.parts){
+    keep.idx <- intersect(keep.idx, which(any.coding.count > 0))
+  }
   lof.count <- sapply(bed$PREDICTED_LOF, length) + sapply(bed$PREDICTED_PARTIAL_EXON_DUP, length)
   cg.count <- sapply(bed$PREDICTED_COPY_GAIN, length)
   ied.count <- sapply(bed$PREDICTED_INTRAGENIC_EXON_DUP, length)
@@ -171,6 +207,13 @@ filter.bed <- function(bed, query, af.field="POPMAX_AF", ac.field="AC",
   }
   if("cg_and_ied" %in% query.parts){
     keep.idx <- intersect(keep.idx, which(cg.count > 0 | ied.count > 0))
+  }
+  intron.count <- sapply(bed$PREDICTED_INTRONIC, length)
+  if("intronic" %in% query.parts){
+    keep.idx <- intersect(keep.idx, which(intron.count > 0 & any.coding.count == 0))
+  }
+  if("intergenic" %in% query.parts){
+    keep.idx <- setdiff(keep.idx, which(any.coding.count + intron.count > 0))
   }
 
   # Revert SVLEN if necessary
@@ -206,7 +249,7 @@ filter.bed <- function(bed, query, af.field="POPMAX_AF", ac.field="AC",
 calc.genomic.imbalance <- function(bed, cnv.type=c("DEL", "DUP")){
   sapply(1:nrow(bed), function(i){
     svtype <- bed$SVTYPE[i]
-    if(svtype %in% c("DEL", "DUP", "CNV")){
+    if(svtype %in% c(cnv.type, "CNV")){
       bed$SVLEN[i]
     }else if(svtype == "CPX"){
       cpx.intervals <- unlist(strsplit(bed$CPX_INTERVALS[i], split=","))

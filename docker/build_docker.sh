@@ -48,7 +48,6 @@ cd $EXEC_DIR
 export rlctools_version=0.1
 cd $BUILD_DIR && \
 git clone git@github.com:RCollins13/RLCtools.git && \
-mv "RLCtools/RLCtools_$rlctools_version.tar.gz" ./ && \
 cd $EXEC_DIR
 
 # Copy ped SV repo into build context

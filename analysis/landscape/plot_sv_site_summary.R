@@ -161,36 +161,33 @@ get.large.sv.summary.data <- function(bed, ad, meta, cancers){
 # Plotting functions #
 ######################
 # Plot a horizontal stacked barplot of SVs colored by frequency bin
-plot.count.bars <- function(bed, af.field="AF", ac.field="AC", greyscale=TRUE,
-                            bar.buffer=0.15, count.label.xadj=0.075){
-  # Get counts matrix
-  counts <- get.counts.table(bed, af.field, ac.field)
-
+plot.count.bars <- function(counts, greyscale=TRUE, parmar=c(0.25, 5.25, 0.1, 2.65),
+                            bar.buffer=0.15, count.label.xadj=0.05){
   # Get plot dimensions
   xlims <- c(0, max(apply(counts, 2, sum)))
-  ylims <- c(-2, ncol(counts))
+  ylims <- c(0, ncol(counts))
   label.xadj <- count.label.xadj * diff(xlims)
 
   # Prep plot area
-  PedSV::prep.plot.area(xlims, ylims, parmar=c(0.25, 3.5, 0.1, 2.5), xaxs="i", yaxs="i")
+  prep.plot.area(xlims, ylims, parmar=parmar, xaxs="i", yaxs="i")
   segments(x0=xlims[1], x1=xlims[1], y0=0, y1=ylims[2], col="gray85", xpd=T)
 
   # Add bars & cap labels
   sapply(1:ncol(counts), function(i){
     x.stops <- c(0, cumsum(counts[, i]))
-    bar.pal <- sv.palettes[[colnames(counts)[i]]]
+    bar.pal <- sv.palettes[["DEL"]] # Not matched to SV type here to ensure consistent greyscale for all SVs
     if(greyscale){
       bar.pal <- hex2grey(bar.pal)
     }
     rect(xleft=x.stops[-length(x.stops)], xright=x.stops[-c(1)],
          ybottom=i-1+bar.buffer, ytop=i-bar.buffer,
-         col=bar.pal[c("dark2", "main", "light2")],
-         border=bar.pal[c("dark2", "main", "light2")])
+         col=rev(bar.pal[c("dark2", "main", "light2")]),
+         border=rev(bar.pal[c("dark2", "main", "light2")]))
     n.total <- x.stops[length(x.stops)]
     rect(xleft=0, xright=n.total, ybottom=i-1+bar.buffer, ytop=i-bar.buffer,
          col=NA, xpd=T)
     if(n.total > 10000){
-      count.label <- paste(round(n.total/1000, 1), "k", sep="")
+      count.label <- paste(round(n.total/1000, 1), "k")
     }else{
       count.label <- prettyNum(n.total, big.mark=",")
     }
@@ -200,15 +197,15 @@ plot.count.bars <- function(bed, af.field="AF", ac.field="AC", greyscale=TRUE,
 
   # Add left axis
   axis(2, at=(1:ncol(counts))-0.5, las=2, tick=F, line=-0.8,
-       labels=sv.abbreviations[colnames(counts)])
+       labels=sv.names[colnames(counts)])
 
   # Add legend
-  legend.x.at <- c(-0.4, 0.85, -0.4)*diff(xlims)
-  legend.y.at <- c(-0.5, -0.5, -1.5)-0.2
+  legend.x.at <- rep(0.7, 3)*diff(xlims)
+  legend.y.at <- c(0.05, 0.15, 0.25)*diff(ylims)
   points(x=legend.x.at, y=legend.y.at, xpd=T, pch=15, cex=1.3,
          col=hex2grey(DEL.colors[c("dark2", "main", "light2")]))
-  text(x=legend.x.at, y=legend.y.at, pos=4, xpd=T,
-       labels=c("Common", "Rare", "Singleton"))
+  text(x=legend.x.at, y=legend.y.at-(0.01*diff(ylims)), pos=4, xpd=T,
+       labels=rev(c("Common", "Rare", "Singleton")))
 }
 
 # Hardy-Weinberg ternary plot
@@ -329,7 +326,7 @@ plot.large.sv.summary <- function(bed, ad, meta, schematic.wex=12, count.wex=2,
              at=c(x.breaks[2]+w.buffer,
                      sapply(2:4, function(x){mean(x.breaks[c(x, x+1)])}),
                   x.breaks[5]-w.buffer))
-  axis(3, at=mean(x.breaks[c(2, 5)]), labels="Rare SVs >1Mb", tick=F, cex.axis=title.cex)
+  axis(3, at=mean(x.breaks[c(2, 5)]), labels="Rare SVs >1 Mb", tick=F, cex.axis=title.cex)
   clean.axis(3, tck=0, labels=c(NA, cancer.names.vshort[cancers], NA),
              label.line=-0.9, cex.axis=content.cex,
              at=c(x.breaks[5]+w.buffer,
@@ -388,14 +385,15 @@ parser$add_argument("--out-prefix", metavar="path", type="character", required=T
 args <- parser$parse_args()
 
 # # DEV:
-# args <- list("bed" = "~/scratch/PedSV.v2.5.3.full_cohort.analysis_samples.sites.bed.gz",
-#              "ad_matrix" = "~/scratch/PedSV.v2.5.3.full_cohort.analysis_samples.allele_dosages.bed.gz",
-#              "metadata" = "~/scratch/PedSV.v2.5.3.cohort_metadata.w_control_assignments.tsv.gz",
-#              "subset_samples" = "~/scratch/PedSV.v2.5.3.final_analysis_cohort.samples.list",
+# args <- list("bed" = "~/scratch/PedSV.v2.5.4.full_cohort_w_relatives_1000G.sites.bed.gz",
+#              "ad_matrix" = "~/scratch/PedSV.v2.5.4.full_cohort_w_relatives_1000G.allele_dosages.bed.gz",
+#              "metadata" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_v2_callset_generation/v2.5.4/PedSV.v2.5.4.cohort_metadata.w_control_assignments.tsv.gz",
+#              # "subset_samples" = "~/scratch/PedSV.v2.5.3.final_analysis_cohort.samples.list",
+#              "subset_samples" = NULL,
 #              "cohort_prefix" = "full_cohort",
 #              "af_field" = "POPMAX_AF",
 #              "ac_field" = "AC",
-#              "out_prefix" = "~/scratch/PedSV.v2.5.3.dev.full_cohort")
+#              "out_prefix" = "~/scratch/PedSV.v2.5.4.full_cohort_w_relatives")
 # args <- list("bed" = "~/scratch/YL-gatsv-v1-allBatches.annotated.samples_excluded.bed.gz",
 #              "metadata" = "/Users/ryan/Desktop/Collins/VanAllen/jackie_younglung/younglung_metadata/YL.SV.v1.1.analysis_metadata.tsv.gz",
 #              "subset_samples" = "/Users/ryan/Desktop/Collins/VanAllen/jackie_younglung/YL_analysis/YL.analysis_samples.list",
@@ -434,9 +432,10 @@ meta <- load.sample.metadata(args$metadata, keep.samples=keepers,
                              reassign.parents=FALSE)
 
 # Plot stacked bar colored by frequency and type
+counts.by.freq <- get.counts.table(bed, args$af_field, args$ac_field)
 pdf(paste(args$out_prefix, "sv_site_counts.pdf", sep="."),
-    height=1.7, width=2.1)
-plot.count.bars(bed, args$af_field, args$ac_field)
+    height=1.5, width=2.7)
+plot.count.bars(counts.by.freq)
 dev.off()
 
 # Ridgeplot of SV sizes

@@ -244,6 +244,97 @@ main.burden.wrapper <- function(data, query, meta, action, af.fields, ac.fields,
 }
 
 
+######################
+# Plotting functions #
+######################
+# Custom one-off plot function for case:control CNV burden by sex & size bin
+plot.cnv.size.bins.supp <- function(ss, cnv, y.lims, title=NULL, bin.space=2,
+                                    sex.space=0.15, parmar=c(2, 2.5, 1, 0.5)){
+  # Get universal Y axis limits for both CNV types
+  ymax <- max(c(log(3), 1.15 * max(as.numeric(ss$coefficient))))
+  ymin <- min(c(log(0.5), 1.15 * min(as.numeric(ss$coefficient))))
+  ylims <- c(ymin, ymax)
+
+  # Reformat plot data
+  plot.df <- ss[grepl(cnv, ss$hypothesis),
+                c("hypothesis", "disease", "control.mean", "control.stdev",
+                  "coefficient", "std.err", "P.value")]
+  plot.df[, c("coefficient", "std.err")] <- apply(plot.df[, c("coefficient", "std.err")], 2, as.numeric)
+  plot.df$lower_ci <- plot.df$coefficient + (qnorm(0.025) * plot.df$std.err)
+  plot.df$upper_ci <- plot.df$coefficient + (qnorm(0.975) * plot.df$std.err)
+  # plot.df[, c("coefficient", "std.err", "lower_ci", "upper_ci")] <-
+  #   apply(plot.df[, c("coefficient", "std.err", "lower_ci", "upper_ci")], 2, exp)
+
+  # Get other plot parameters
+  bonf.cutoff <- 0.05 / nrow(ss)
+  size.bins <- unique(sapply(strsplit(plot.df$hypothesis, split=".", fixed=T), function(p){p[2]}))
+  bin.labels <- c("large" = ">1 Mb",
+                  "100kb_to_1Mb" = "100 kb - 1 Mb",
+                  "10kb_to_100kb" = "10 - 100 kb",
+                  "1kb_to_10kb" = "1 - 10 kb")
+  n.bins <- length(size.bins)
+  n.cancers <- length(unique(plot.df$disease))
+  bin.ends <- seq(n.cancers + bin.space, (n.cancers + bin.space) * n.bins,
+                  by=n.cancers + bin.space) - bin.space
+  bin.starts <- bin.ends - n.cancers
+  xlims <- range(c(bin.starts, bin.ends))
+
+  # Prep plot area
+  prep.plot.area(xlims, ylims, parmar=parmar, xaxs="r")
+  abline(h=log(1), lty=5)
+  mtext(3, line=0, text=title)
+
+  # Add points
+  sapply(1:n.bins, function(b){
+    sapply(2:1, function(s){
+      sex <- c("MALE", "FEMALE")[s]
+      idxs <- grep(paste(size.bins[b], cnv, sex, sep="."), plot.df$hypothesis)
+      sapply(1:length(idxs), function(k){
+        x.k <- bin.starts[b] + (`^`(-1, s) * sex.space) + k - 1
+        y.k <- plot.df[idxs[k], "coefficient"]
+        lci.k <- plot.df[idxs[k], "lower_ci"]
+        uci.k <- plot.df[idxs[k], "upper_ci"]
+        p.k <- as.numeric(plot.df[idxs[k], "P.value"])
+        cancer.k <- plot.df[idxs[k], "disease"]
+        pch.k <- c(22, 21)[s]
+        if(p.k <= 0.005){
+          fill.k <- col.k <- cancer.palettes[[cancer.k]][["dark1"]]
+          border.k <- cancer.palettes[[cancer.k]][["dark2"]]
+        }else if(p.k <= 0.05){
+          fill.k <- col.k <-  cancer.palettes[[cancer.k]][["light2"]]
+          border.k <- cancer.palettes[[cancer.k]][["light1"]]
+        }else if(p.k > 0.05){
+          border.k <-  cancer.palettes[[cancer.k]][["light2"]]
+          col.k <-  cancer.palettes[[cancer.k]][["light3"]]
+          fill.k <- "white"
+        }
+        segments(x0=x.k, x1=x.k, y0=lci.k, y1=uci.k, lend="round", col=col.k)
+        points(x=x.k, y=y.k, pch=pch.k, col=border.k, bg=fill.k)
+      })
+    })
+  })
+
+  # Add bin labels and group bars
+  segments(x0=bin.starts, x1=bin.ends, y0=par("usr")[3], y1=par("usr")[3],
+           col="gray70", xpd=T)
+  sv.avg.labels <- sapply(size.bins, function(sb){
+    avg <- as.numeric(plot.df[intersect(grep(sb, plot.df$hypothesis),
+                                        which(plot.df$disease == "pancan")),
+                              "control.mean"])
+    as.character(round(mean(avg), max(c(1, ceiling(-log10(avg))))))
+  })
+  x.labels <- paste(bin.labels[size.bins], "\n(", sv.avg.labels, " / genome)", sep="")
+  sapply(1:n.bins, function(x){
+    axis(1, at=((bin.starts + bin.ends) / 2)[x], tick=F, line=-1.5,
+         labels=x.labels[x], padj=1, cex.axis=5/6)
+  })
+
+  # Add Y axis
+  clean.axis(2, at=log(2^(-6:6)), labels=c(paste(2, -6:-3, sep="^"), 2^(-2:6)),
+             parse.labels=TRUE, infinite=T, title="Odds ratio")
+}
+
+
 ###########
 # RScript #
 ###########
@@ -308,17 +399,17 @@ args <- parser$parse_args()
 #              "af_field" = "POPMAX_AF",
 #              "ac_field" = "AC",
 #              "out_prefix" = "~/scratch/PedSV.v2.5.3.trio.dev")
-# args <- list("bed" = c("~/scratch/PedSV.v2.5.3.full_cohort.analysis_samples.sites.bed.gz"),
-#              "ad" = c("~/scratch/PedSV.v2.5.3.full_cohort.analysis_samples.allele_dosages.bed.gz"),
-#              "metadata" = "~/scratch/PedSV.v2.5.3.cohort_metadata.w_control_assignments.tsv.gz",
+# args <- list("bed" = c("~/scratch/PedSV.v2.5.4.full_cohort.analysis_samples.sites.bed.gz"),
+#              "ad" = c("~/scratch/PedSV.v2.5.4.full_cohort.analysis_samples.allele_dosages.bed.gz"),
+#              "metadata" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_v2_callset_generation/v2.5.4/PedSV.v2.5.4.cohort_metadata.w_control_assignments.tsv.gz",
 #              "gene_lists" = "~/scratch/PedSV.gene_lists.tsv",
 #              "genomic_disorder_hits" = NULL,
-#              "subset_samples" = "~/scratch/PedSV.v2.5.3.final_analysis_cohort.samples.list",
-#              "precomputed_burden_stats" = "~/scratch/PedSV.v2.5.3.full_cohort_w_relatives.precomputed_burden_stats.tsv.gz",
+#              "subset_samples" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_v2_callset_generation/v2.5.4/PedSV.v2.5.4.final_analysis_cohort.samples.list",
+#              "precomputed_burden_stats" = "~/scratch/PedSV.v2.5.4.full_cohort_w_relatives.precomputed_burden_stats.tsv.gz",
 #              "exclude_variants" = NULL,
 #              "af_field" = "POPMAX_AF",
 #              "ac_field" = "AC",
-#              "out_prefix" = "~/scratch/PedSV.v2.5.3.full_cohort.dev")
+#              "out_prefix" = "~/scratch/PedSV.v2.5.4.full_cohort.dev")
 
 # Load BEDs and pair AD paths with each
 data <- lapply(1:length(args$bed), function(i){
@@ -392,7 +483,7 @@ sv.subsets <- lapply(c("DEL", "DUP", "INV", "CPX"), function(svtype){
        as.character(unlist(sapply(data, function(info){
          rownames(info$bed)[which(info$bed$SVTYPE == svtype)]
        }))),
-       paste("Samples with", tolower(sv.abbreviations[svtype]), ">1Mb"))
+       paste("Samples with", tolower(sv.abbreviations[svtype]), ">1 Mb"))
 })
 sv.subsets <- c(sv.subsets,
                 list(list("CTX",
@@ -403,12 +494,12 @@ sv.subsets <- c(sv.subsets,
 all.stats <- main.burden.wrapper(data, query="large", meta, action="any",
                                  af.fields, ac.fields, sv.subsets=sv.subsets, all.stats,
                                  paste(args$out_prefix, "large_sv_per_genome.by_cancer", sep="."),
-                                 main.title="Samples with any SV >1Mb",
+                                 main.title="Samples with any SV >1 Mb",
                                  barplot.height=barplot.height, barplot.width=barplot.width,
                                  barplot.units="percent")
 
 
-# Carrier rate of rare/vrare/singleton large (1Mb) & notsmall (50kb) variants per genome by SV type
+# Carrier rate of rare/vrare/singleton large (1 Mb) & notsmall (50 kb) variants per genome by SV type
 for(freq in c("rare", "vrare", "singleton")){
   for(size in c("large", "notsmall")){
     sv.subsets <- lapply(c("DEL", "DUP", "INV", "CPX"), function(svtype){
@@ -417,13 +508,13 @@ for(freq in c("rare", "vrare", "singleton")){
              rownames(info$bed)[which(info$bed$SVTYPE == svtype)]
            }))),
            paste("Samples with", tolower(freq.names[freq]), tolower(sv.abbreviations[svtype]),
-                 if(svtype != "CTX"){if(size == "large"){">1Mb"}else{">100kb"}}))
+                 if(svtype != "CTX"){if(size == "large"){">1 Mb"}else{">100 kb"}}))
     })
     all.stats <- main.burden.wrapper(data, query=paste(size, freq, sep="."), meta, action="any",
                                      af.fields, ac.fields, sv.subsets=sv.subsets, all.stats,
                                      paste(args$out_prefix, paste(freq, size, "sv_per_genome.by_cancer", sep="_"), sep="."),
                                      main.title=paste("Samples with", tolower(freq.names[freq]), "SV",
-                                                      if(size == "large"){">1Mb"}else{">100kb"}),
+                                                      if(size == "large"){">1 Mb"}else{">100 kb"}),
                                      barplot.height=barplot.height, barplot.width=barplot.width,
                                      barplot.units="percent", autosomal=FALSE)
     # Add one separate test for all large *unbalanced* SVs
@@ -433,7 +524,7 @@ for(freq in c("rare", "vrare", "singleton")){
                                      paste(args$out_prefix, paste(freq, size, "unbalanced_sv_per_genome.by_cancer", sep="_"), sep="."),
                                      main.title=paste("Pct. w/", tolower(freq.names[freq]),
                                                       "unbalanced SV",
-                                                      if(size == "large"){">1Mb"}else{">100kb"}),
+                                                      if(size == "large"){">1 Mb"}else{">100 kb"}),
                                      barplot.height=barplot.height, barplot.width=barplot.width,
                                      barplot.units="percent", autosomal=FALSE)
     # Add one separate test for all large *unbalanced* SVs for each sex
@@ -447,7 +538,7 @@ for(freq in c("rare", "vrare", "singleton")){
                                              paste(sex, "only", sep="_"), sep="."),
                                        main.title=paste("Pct. w/", tolower(freq.names[freq]),
                                                         "unbalanced SV",
-                                                        if(size == "large"){">1Mb"}else{">100kb"}),
+                                                        if(size == "large"){">1 Mb"}else{">100 kb"}),
                                        barplot.height=barplot.height, barplot.width=barplot.width,
                                        barplot.units="percent", autosomal=FALSE)
     }
@@ -458,7 +549,7 @@ for(freq in c("rare", "vrare", "singleton")){
                                      paste(args$out_prefix, paste(freq, size, "unbalanced_sv_per_genome.by_cancer.autosomal_only", sep="_"), sep="."),
                                      main.title=paste("Pct. w/", tolower(freq.names[freq]),
                                                       "unbalanced SV",
-                                                      if(size == "large"){">1Mb"}else{">100kb"}),
+                                                      if(size == "large"){">1 Mb"}else{">100 kb"}),
                                      barplot.height=barplot.height, barplot.width=barplot.width,
                                      barplot.units="percent", autosomal=TRUE,
                                      custom.hypothesis=paste(size, freq, "unbalanced", "autosomal_only", sep="."))
@@ -473,7 +564,7 @@ for(freq in c("rare", "vrare", "singleton")){
                                              paste(sex, "only", sep="_"), sep="."),
                                        main.title=paste("Pct. w/", tolower(freq.names[freq]),
                                                         "unbalanced SV",
-                                                        if(size == "large"){">1Mb"}else{">100kb"}),
+                                                        if(size == "large"){">1 Mb"}else{">100 kb"}),
                                        barplot.height=barplot.height, barplot.width=barplot.width,
                                        barplot.units="percent", autosomal=TRUE,
                                        custom.hypothesis=paste(size, freq, "unbalanced", "autosomal_only",
@@ -487,7 +578,7 @@ for(freq in c("rare", "vrare", "singleton")){
                                      paste(args$out_prefix, paste(freq, size, "unbalanced_sv_per_genome.by_cancer.allosomal_only", sep="_"), sep="."),
                                      main.title=paste("Pct. w/", tolower(freq.names[freq]),
                                                       "unbalanced SV",
-                                                      if(size == "large"){">1Mb"}else{">100kb"}),
+                                                      if(size == "large"){">1 Mb"}else{">100 kb"}),
                                      barplot.height=barplot.height, barplot.width=barplot.width,
                                      barplot.units="percent", autosomal=FALSE,
                                      custom.hypothesis=paste(size, freq, "unbalanced", "allosomal_only", sep="."))
@@ -498,7 +589,7 @@ for(freq in c("rare", "vrare", "singleton")){
                                      paste(args$out_prefix, paste(freq, size, "balanced_sv_per_genome.by_cancer", sep="_"), sep="."),
                                      main.title=paste("Pct. w/", tolower(freq.names[freq]),
                                                       "balanced SV",
-                                                      if(size == "large"){">1Mb"}else{">100kb"}),
+                                                      if(size == "large"){">1 Mb"}else{">100 kb"}),
                                      barplot.height=barplot.height, barplot.width=barplot.width,
                                      barplot.units="percent", autosomal=FALSE)
   }
@@ -525,7 +616,7 @@ for(size in c("large")){
                                      paste(args$out_prefix, paste(freq, size, "unbalanced_sv_per_genome.by_cancer.autosomal_only.EUR_only", sep="_"), sep="."),
                                      main.title=paste("Pct. w/", tolower(freq.names[freq]),
                                                       "unbalanced SV",
-                                                      if(size == "large"){">1Mb"}else{">100kb"}),
+                                                      if(size == "large"){">1 Mb"}else{">100 kb"}),
                                      barplot.height=barplot.height, barplot.width=barplot.width,
                                      barplot.units="percent", autosomal=TRUE,
                                      custom.hypothesis=paste(size, freq, "unbalanced", "autosomal_only", "EUR_only", sep="."))
@@ -541,7 +632,7 @@ for(size in c("large")){
                                              paste(sex, "only", sep="_"), sep="."),
                                        main.title=paste("Pct. w/", tolower(freq.names[freq]),
                                                         "unbalanced SV",
-                                                        if(size == "large"){">1Mb"}else{">100kb"}),
+                                                        if(size == "large"){">1 Mb"}else{">100 kb"}),
                                        barplot.height=barplot.height, barplot.width=barplot.width,
                                        barplot.units="percent", autosomal=TRUE,
                                        custom.hypothesis=paste(size, freq, "unbalanced", "autosomal_only", "EUR_only",
@@ -578,7 +669,7 @@ if(!is.null(args$gene_lists)){
                                      paste(args$out_prefix, paste(freq, size, "unbalanced_sv_per_genome.by_cancer.autosomal_only.no_COSMIC_no_CPG", sep="_"), sep="."),
                                      main.title=paste("Pct. w/", tolower(freq.names[freq]),
                                                       "unbalanced SV",
-                                                      if(size == "large"){">1Mb"}else{">100kb"}),
+                                                      if(size == "large"){">1 Mb"}else{">100 kb"}),
                                      barplot.height=barplot.height, barplot.width=barplot.width,
                                      barplot.units="percent", autosomal=TRUE, aneuploidies=FALSE,
                                      custom.hypothesis=paste(size, freq, "unbalanced", "autosomal_only", "no_COSMIC_no_CPG", sep="."))
@@ -595,7 +686,7 @@ if(!is.null(args$gene_lists)){
                                              paste(sex, "only", sep="_"), sep="."),
                                        main.title=paste("Pct. w/", tolower(freq.names[freq]),
                                                         "unbalanced SV",
-                                                        if(size == "large"){">1Mb"}else{">100kb"}),
+                                                        if(size == "large"){">1 Mb"}else{">100 kb"}),
                                        barplot.height=barplot.height, barplot.width=barplot.width,
                                        barplot.units="percent", autosomal=TRUE, aneuploidies=FALSE,
                                        custom.hypothesis=paste(size, freq, "unbalanced", "autosomal_only", "no_COSMIC_no_CPG",
@@ -650,7 +741,7 @@ for(freq in c("rare", "vrare", "singleton")){
                     colors=cancer.colors[cancers.km.layer.ordered], ci.alpha=c(0, 0),
                     xlab=paste("Largest unbalanced\n", tolower(freq.names[freq]), "SV"),
                     xlab.line=1, ylab=km.y.title, xlim=log10(c(50000, 5000000)),
-                    lwds=c(3, 3), x.axis.labels=c("50kb", "500kb", "5Mb"),
+                    lwds=c(3, 3), x.axis.labels=c("50 kb", "500 kb", "5 Mb"),
                     ylims=ylims, y.axis.units="percent",
                     x.axis.labels.at=log10(c(50000, 500000, 5000000)),
                     parmar=c(3, 3, 0.25, 1))
@@ -658,7 +749,7 @@ for(freq in c("rare", "vrare", "singleton")){
          col=NA, lty=2, xpd=T)
     dev.off()
 
-    # Small inset plot starting at 500kb
+    # Small inset plot starting at 500 kb
     pdf(paste(args$out_prefix, freq, "genomic_imbalance_km.inset", sex.title,
               "pdf", sep="."),
         height=0.6*(12/5), width=0.65*(12/5))
@@ -670,7 +761,7 @@ for(freq in c("rare", "vrare", "singleton")){
                     xlab=NA, ylab=NA, xlim=log10(c(500000, 5000000)),
                     ylims=c(0, 0.05), y.axis.units="percent",
                     lwds=c(rep(2, length(cancers.km.layer.ordered)-2), 3, 3),
-                    x.axis.labels=c("1Mb", "5Mb"),
+                    x.axis.labels=c("1 Mb", "5Mb"),
                     x.axis.labels.at=log10(c(1000000, 5000000)), x.tck=-0.025,
                     parmar=c(1.15, 1.75, 0.4, 0.75))
     dev.off()
@@ -711,7 +802,7 @@ for(freq in c("rare", "vrare", "singleton")){
                         xlab=paste("Largest unbalanced\n", tolower(freq.names[freq]), "SV"),
                         xlab.line=1, ylab="Odds ratio", y.title.line=0.1,
                         xlim=log10(c(50000, 5000000)),
-                        lwds=c(3, 3), x.axis.labels=c("50kb", "500kb", "5Mb"),
+                        lwds=c(3, 3), x.axis.labels=c("50 kb", "500 kb", "5 Mb"),
                         ylims=c(min(c(0.8, min(size.burden.y.smooth))),
                                 max(c(1.2, 1.1*size.burden.y.smooth))),
                         x.axis.labels.at=log10(c(50000, 500000, 5000000)),
@@ -743,7 +834,7 @@ for(freq in c("rare", "vrare", "singleton")){
                       xlab=paste("Largest unbalanced\n", tolower(freq.names[freq]), "SV"),
                       xlab.line=1, ylab="Odds ratio", y.title.line=0.1,
                       xlim=log10(c(50000, 5000000)),
-                      lwds=c(3, 3, 3), x.axis.labels=c("50kb", "500kb", "5Mb"),
+                      lwds=c(3, 3, 3), x.axis.labels=c("50 kb", "500 kb", "5 Mb"),
                       ylims=c(min(c(0.8, unlist(smooth.or.collection$or))),
                               max(c(1.2, 1.1*unlist(smooth.or.collection$or)))),
                       x.axis.labels.at=log10(c(50000, 500000, 5000000)),
@@ -752,6 +843,35 @@ for(freq in c("rare", "vrare", "singleton")){
     },
     error=function(e){}
   )
+}
+
+
+# Focused analysis of singleton unbalanced SV burden by size range, sex, and SV type
+# Collect all data
+cnv.to.unbal.query.map <- c("DEL" = "copy_loss", "DUP" = "copy_gain")
+cnv.size.bins <- c("large", "100kb_to_1Mb", "10kb_to_100kb", "1kb_to_10kb")
+ss <- do.call("rbind", lapply(c("DEL", "DUP"), function(cnv){
+  # Collect data for copy gain & copy loss separately
+  do.call("rbind", lapply(cnv.size.bins, function(size){
+    query <- paste("singleton", size, cnv.to.unbal.query.map[cnv], sep=".")
+    ad.vals <- get.ad.values(data, query, action="count", af.fields=af.fields,
+                             ac.fields=ac.fields, autosomal=TRUE)
+    do.call("rbind", lapply(c("MALE", "FEMALE"), function(sex){
+      burden.test(data, paste(query, ".", sex, "_only", sep=""),
+                  meta[which(meta$inferred_sex == sex), ],
+                  ad.vals, family=binomial(), af.fields=af.fields,
+                  ac.field=ac.fields)
+    }))
+  }))
+}))
+all.stats <- rbind(all.stats, ss)
+# Plot data for each of gain/loss in separate panel, but with matching Y axis
+for(cnv in c("DEL", "DUP")){
+  title <- paste("Autosomal singleton ", tolower(sv.names[cnv]), "s", sep="")
+  pdf(paste(args$out_prefix, "singleton", cnv, "burden_by_size_range_and_sex",
+            "pdf", sep="."), height=2.15, width=4.6)
+  plot.cnv.size.bins.supp(ss, cnv.to.unbal.query.map[cnv], title=title)
+  dev.off()
 }
 
 
@@ -1131,7 +1251,7 @@ if(!is.null(args$gene_lists)){
                                      sv.subsets=NULL, all.stats=all.stats,
                                      keep.idx.list=all.idx.list,
                                      out.prefix=paste(args$out_prefix, paste(freq, "disruptive_sv_carrier_rate", sep="_"),
-                                           set.lower, "by_cancer", "no_COSMIC_no_CPG", sep="."),
+                                                      set.lower, "by_cancer", "no_COSMIC_no_CPG", sep="."),
                                      main.title=paste(freq.names[freq], set.name, "disruption"),
                                      barplot.height=barplot.height, barplot.width=barplot.width,
                                      barplot.units="percent")

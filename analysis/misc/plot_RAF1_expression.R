@@ -57,8 +57,8 @@ args <- parser$parse_args()
 # # DEV
 # args <- list("nbl_tpm" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/data/matched_tumor_rnaseq/GMKF.NBL.all_samples.tpm_plus1_log2.tsv",
 #              "os_tpm" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/data/matched_tumor_rnaseq/StJude.OS.dx_samples.tpm_plus1_log2.tsv",
-#              "metadata" = "~/scratch/PedSV.v2.5.3.cohort_metadata.w_control_assignments.tsv.gz",
-#              "outfile" = "~/scratch/RAF1.expression.pdf")
+#              "metadata" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_v2_callset_generation/v2.5.4/PedSV.v2.5.4.cohort_metadata.w_control_assignments.tsv.gz",
+#              "outfile" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_MS/PedSV_figures/other_data/RAF1.expression.pdf")
 
 
 # Load TPMs

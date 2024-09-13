@@ -1,5 +1,9 @@
 ## Change logs for study callset versions
 
+#### Version 2.5.4 (release date TBD)
+- Excluded 1 sample carrying three suspicious large (500kb-6Mb) mosaic deletions on chr11, chr16, and chr17  
+- Upgrade external allele frequencies to the "controls only" subset of gnomAD v4.1  
+
 #### Version 2.5.3 (release date December 21, 2023)
 - Excluded 3 samples carrying suspicious translocations resulting in known oncogenic fusions (BCR-ABL, EWSR1-FLI1, NUP98-PRRX1), one of which was unable to be validated by PCR in blood DNA (EWSR1-FLI1)  
 

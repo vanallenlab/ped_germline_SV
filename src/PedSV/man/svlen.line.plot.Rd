@@ -69,7 +69,7 @@ svlen.line.plot(
 
 \item{ylab}{(Optional) Title for Y axis}
 
-\item{y.title.line}{Value for \code{title.line} passed to \code{\link[=clean.axis]{clean.axis()}} [default: 1]}
+\item{y.title.line}{Value for \code{title.line} passed to \code{\link[RLCtools:clean.axis]{RLCtools::clean.axis()}} [default: 1]}
 
 \item{y.axis.units}{Specify units for Y axis. Options are NULL (for
 numeric) or "percent" [default: NULL]}

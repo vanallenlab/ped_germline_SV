@@ -61,6 +61,10 @@ should be applied to \code{bed}. Recognized filters currently include:
 \item \code{rare} : AF < 1\%
 \item \code{vrare} : AF < 0.1\%
 \item \code{singleton} : AC = 1
+\item \code{lt10kb} : SVLEN <= 10,000
+\item \verb{1kb_to_10kb} : SVLEN > 1,000 & <= 10,000
+\item \verb{10kb_to_100kb} : SVLEN > 10,000 & <= 100,000
+\item \verb{100kb_to_1Mb} : SVLEN > 100,000 & <= 1,000,000
 \item \code{notsmall} : SVLEN > 50,000
 \item \code{large} : SVLEN > 1,000,000
 \item \code{karyotypic} : SVLEN > 5,000,000
@@ -68,12 +72,19 @@ should be applied to \code{bed}. Recognized filters currently include:
 any size-based filters
 \item \code{balanced} : less than 50bp of total genomic imbalance
 \item \code{quasi-balanced} : less than 1kb of total genomic imbalance
+\item \code{copy_loss} : replaces \code{SVLEN} with total copy loss before applying
+any size-based filters
+\item \code{copy_gain} : replaces \code{SVLEN} with total copy gain before applying
+any size-based filters
 \item \code{gene_disruptive} or \code{genes_disrupted} : any SV with predicted LoF, PED, CG, or IED
 \item \code{single_gene_disruptive} : as above, but further restricting to SVs impacting just one gene
 \item \code{lof} : predicted LoF and/or PED consequences
 \item \code{cg} : predicted CG consequence
 \item \code{ied} : predicted IED consequence
 \item \code{cg_and_ied} : predicted CG and/or IED
+\item \code{coding} : SVs with any exonic overlap, irrespective of predicted consequence
+\item \code{intronic} : SVs annotated within a gene's intron that are not \code{coding}
+\item \code{intergenic} : SVs that are not predicted to overlap any genes
 }
 
 If \code{query} is provided as a vector, it should contain any of the above terms.

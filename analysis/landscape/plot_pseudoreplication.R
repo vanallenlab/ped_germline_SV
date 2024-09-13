@@ -73,14 +73,14 @@ get.subpanel.data <- function(cc.ss, trio.ss, hypothesis, cancer, meta, ci.mode=
   rownames(plot.df) <- c("cc", "trio")
   cc.cohort.names <- get.cohort.names(meta, cancer, "case_control")
   trio.cohort.names <- get.cohort.names(meta, cancer, "trio")
-  plot.df$label <- c(paste(cc.cohort.names$case.cohort, " (N=",
+  plot.df$label <- c(paste(cc.cohort.names$case.cohort, " (n=",
                            prettyNum(n.case[1], big.mark=","),
-                           ")\n", cc.cohort.names$control.cohort, " (N=",
+                           ")\n", cc.cohort.names$control.cohort, " (n=",
                            prettyNum(n.control[1], big.mark=","),
                            ")", sep=""),
-                     paste(trio.cohort.names$case.cohort, " (N=",
+                     paste(trio.cohort.names$case.cohort, " (n=",
                            prettyNum(n.case[2], big.mark=","),
-                           ")\n", trio.cohort.names$control.cohort, " (N=",
+                           ")\n", trio.cohort.names$control.cohort, " (n=",
                            prettyNum(n.control[2], big.mark=","),
                            ")", sep=""))
   plot.df[, c("case.value", "case.ci.lower", "case.ci.upper",
@@ -202,7 +202,7 @@ pseudorep.bars(top.data=get.subpanel.data(cc.ss, trio.ss, "large.rare.unbalanced
                bottom.data=get.subpanel.data(cc.ss, trio.ss, "large.rare.unbalanced.autosomal_only.FEMALE_only", "NBL", meta),
                bottom.cancer.types=c("NBL", "NBL"),
                outer.y.axis.labels=c("Male\n(XY)", "Female\n(XX)"),
-               title="Samples w/ rare unbalanced SV >1Mb", top.axis.units="percent")
+               title="Samples w/ rare unbalanced SV >1 Mb", top.axis.units="percent")
 dev.off()
 
 

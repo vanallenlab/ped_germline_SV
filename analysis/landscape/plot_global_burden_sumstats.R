@@ -124,8 +124,8 @@ plot.or.by.freq <- function(plot.stats, title=NULL, connect.cancers=c(),
 args <- commandArgs(trailingOnly=T)
 
 # # DEV:
-# args <- c("/Users/ryan/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_MS/PedSV_figures/PedSV.v2.5.3_analysis_outputs/stats/PedSV.v2.5.3.global_burden_tests.tsv.gz",
-#           "~/scratch/PedSV.v.2.5.3.full_cohort.dev")
+# args <- c("/Users/ryan/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_MS/PedSV_figures/PedSV.v2.5.4_analysis_outputs/stats/PedSV.v2.5.4.global_burden_tests.tsv.gz",
+#           "~/scratch/PedSV.v.2.5.4.full_cohort.dev")
 
 
 # Load sumstats
@@ -150,7 +150,7 @@ sapply(c("", "DEL", "DUP", "INV", "CPX", "unbalanced"), function(suffix){
   pdf(paste(args[2], ".large_", svtype, ".or_by_freq.pdf", sep=""),
       height=lineplot.height, width=lineplot.width)
   plot.or.by.freq(plot.stats,
-                  title=if(suffix == "unbalanced"){"Unbalanced SVs >1Mb"}else{paste("Large (>1Mb)", tolower(sv.name))},
+                  title=if(suffix == "unbalanced"){"Unbalanced SVs >1 Mb"}else{paste("Large (>1 Mb)", tolower(sv.name))},
                   shaded.pancan.ci=T, connect.cancers="pancan")
   dev.off()
 })
@@ -161,7 +161,7 @@ pdf(paste(args[2], ".large_rare_unbal_vs_bal.double_bars.pdf", sep=""),
     height=doublebar.height, width=doublebar.width)
 doublewide.barplot.by.phenotype(plot.df.l=stats2barplotdf(ss[which(ss$hypothesis == "large.rare.unbalanced"), ], ci.mode="binomial"),
                                 plot.df.r=stats2barplotdf(ss[which(ss$hypothesis == "large.rare.balanced"), ], ci.mode="binomial"),
-                                left.axis.units="percent", title="Samples w/rare SV >1Mb",
+                                left.axis.units="percent", title="Samples w/rare SV >1 Mb",
                                 label.l="Unbalanced SVs", label.r="Balanced SVs")
 dev.off()
 
@@ -171,7 +171,7 @@ pdf(paste(args[2], ".large_rare_unbal_auto_vs_allo.double_bars.pdf", sep=""),
     height=doublebar.height, width=doublebar.width)
 doublewide.barplot.by.phenotype(plot.df.l=stats2barplotdf(ss[which(ss$hypothesis == "large.rare.unbalanced.autosomal_only"), ], ci.mode="binomial"),
                                 plot.df.r=stats2barplotdf(ss[which(ss$hypothesis == "large.rare.unbalanced.allosomal_only"), ], ci.mode="binomial"),
-                                left.axis.units="percent", title="Samples w/unbal. SV >1Mb",
+                                left.axis.units="percent", title="Samples w/unbal. SV >1 Mb",
                                 label.l="Autosomal", label.r="Allosomal")
 dev.off()
 
@@ -181,7 +181,7 @@ pdf(paste(args[2], ".large_rare_unbal_male_vs_female.double_bars.pdf", sep=""),
     height=doublebar.height, width=doublebar.width)
 doublewide.barplot.by.phenotype(plot.df.l=stats2barplotdf(ss[which(ss$hypothesis == "large.rare.unbalanced.MALE_only"), ], ci.mode="binomial"),
                                 plot.df.r=stats2barplotdf(ss[which(ss$hypothesis == "large.rare.unbalanced.FEMALE_only"), ], ci.mode="binomial"),
-                                left.axis.units="percent", title="Samples w/unbal. SV >1Mb",
+                                left.axis.units="percent", title="Samples w/unbal. SV >1 Mb",
                                 label.l="Males (XY)", label.r="Females (XX)")
 dev.off()
 
@@ -191,7 +191,7 @@ pdf(paste(args[2], ".large_rare_unbal_male_vs_female.autosomes_only.double_bars.
     height=doublebar.height, width=doublebar.width)
 doublewide.barplot.by.phenotype(plot.df.l=stats2barplotdf(ss[which(ss$hypothesis == "large.rare.unbalanced.autosomal_only.MALE_only"), ], ci.mode="binomial"),
                                 plot.df.r=stats2barplotdf(ss[which(ss$hypothesis == "large.rare.unbalanced.autosomal_only.FEMALE_only"), ], ci.mode="binomial"),
-                                left.axis.units="percent", title="Rare autosomal SV >1Mb",
+                                left.axis.units="percent", title="Rare autosomal SV >1 Mb",
                                 label.l="Males (XY)", label.r="Females (XX)")
 dev.off()
 
@@ -201,7 +201,7 @@ pdf(paste(args[2], ".large_rare_unbal_male_vs_female.autosomes_only.EUR_only.dou
     height=doublebar.height, width=doublebar.width)
 doublewide.barplot.by.phenotype(plot.df.l=stats2barplotdf(ss[which(ss$hypothesis == "large.rare.unbalanced.autosomal_only.EUR_only.MALE_only"), ], ci.mode="binomial"),
                                 plot.df.r=stats2barplotdf(ss[which(ss$hypothesis == "large.rare.unbalanced.autosomal_only.EUR_only.FEMALE_only"), ], ci.mode="binomial"),
-                                left.axis.units="percent", title="Rare autosomal SV >1Mb",
+                                left.axis.units="percent", title="Rare autosomal SV >1 Mb",
                                 label.l="Eur. males (XY)", label.r="Eur. females (XX)")
 dev.off()
 
@@ -211,7 +211,7 @@ pdf(paste(args[2], ".large_rare_unbal_male_vs_female.autosomes_only.no_COSMIC_no
     height=doublebar.height, width=doublebar.width)
 doublewide.barplot.by.phenotype(plot.df.l=stats2barplotdf(ss[which(ss$hypothesis == "large.rare.unbalanced.autosomal_only.no_COSMIC_no_CPG.MALE_only"), ], ci.mode="binomial"),
                                 plot.df.r=stats2barplotdf(ss[which(ss$hypothesis == "large.rare.unbalanced.autosomal_only.no_COSMIC_no_CPG.FEMALE_only"), ], ci.mode="binomial"),
-                                left.axis.units="percent", title="Rare autosomal SV >1Mb",
+                                left.axis.units="percent", title="Rare autosomal SV >1 Mb",
                                 label.l="Males (XY)", label.r="Females (XX)")
 dev.off()
 
@@ -241,7 +241,7 @@ pdf(paste(args[2], ".singleton_lof_vs_cg.double_bars.pdf", sep=""),
 doublewide.barplot.by.phenotype(plot.df.l=stats2barplotdf(ss[which(ss$hypothesis == "singleton.gene_disruptive.singleton_LoF_SVs"), ]),
                                 plot.df.r=stats2barplotdf(ss[which(ss$hypothesis == "singleton.gene_disruptive.singleton_CG_SVs"), ]),
                                 title="Singleton SVs per sample",
-                                label.l="Loss-of-function (LoF)", label.r="Gene copy gain (CG)",
+                                label.l="Loss of function (LoF)", label.r="Gene copy gain (CG)",
                                 group.label.cex=5/6)
 dev.off()
 

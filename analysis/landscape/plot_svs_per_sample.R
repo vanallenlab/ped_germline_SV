@@ -148,7 +148,7 @@ meta <- load.sample.metadata(args$metadata, keep.samples=names(counts),
 
 # Plot waterfall
 pdf(paste(args$out_prefix, "svs_per_sample.pdf", sep="."),
-    height=1.6, width=4.6)
+    height=1.6, width=5)
 plot.waterfall(counts, meta)
 dev.off()
 

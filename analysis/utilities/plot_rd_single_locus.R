@@ -64,8 +64,8 @@ load.coverage <- function(cov_in, medians_in=NULL, keep.samples=NULL){
 ######################
 # Convert x, y pairs into step function
 step.function <- function(x, y){
-  x.step <- c(x[1], PedSV::stretch.vector(x, 2))
-  y.step <- c(y[1], y[1], PedSV::stretch.vector(y, 2))[1:length(x.step)]
+  x.step <- c(x[1], RLCtools::stretch.vector(x, 2))
+  y.step <- c(y[1], y[1], RLCtools::stretch.vector(y, 2))[1:length(x.step)]
   data.frame("x" = x.step, y=y.step)
 }
 

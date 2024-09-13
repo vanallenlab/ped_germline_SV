@@ -68,15 +68,20 @@ workflow PedSvMainAnalysis {
     File case_control_nbl_noncoding_cwas_stats
     File trio_nbl_noncoding_cwas_stats
 
+    File? denovo_sv_tsv
+    File? denovo_analysis_families_list
+    File? control_denovo_counts_tsv
+    File? gnomad_denovo_rates
+
     Array[File]? gene_lists
     Array[String]? gene_list_names
 
     File? genomic_disorder_bed
     Float genomic_disorder_recip_frac = 0.5
 
-    Int? sliding_window_bin_size
-    Int? sliding_window_step_size
-    Int? sliding_window_min_sv_size
+    Int sliding_window_bin_size = 1000000
+    Int sliding_window_step_size = 250000
+    Int sliding_window_min_sv_size = 50000
     
     File? locus_assoc_exclude_regions
     Float? rvas_exclusion_frac_overlap
@@ -215,6 +220,44 @@ workflow PedSvMainAnalysis {
         step_size = sliding_window_step_size,
         min_sv_size = sliding_window_min_sv_size,
         prefix = study_prefix + ".case_control_cohort." + autosome,
+        docker = pedsv_r_docker
+    }
+
+    call SlidingWindowTest as FullCohortSlidingWindowTestSmall {
+      input:
+        sv_bed = full_cohort_bed,
+        sv_bed_idx = full_cohort_bed_idx,
+        ad_matrix = full_cohort_ad_matrix,
+        ad_matrix_idx = full_cohort_ad_matrix_idx,
+        contig = autosome,
+        contig_len = contig_len,
+        exclude_regions = locus_assoc_exclude_regions,
+        exclusion_frac_overlap = sliding_window_exclusion_frac_overlap,
+        sample_metadata_tsv = sample_metadata_tsv,
+        samples_list = all_samples_list,
+        bin_size = ceil(sliding_window_bin_size / 2),
+        step_size = ceil(sliding_window_step_size / 2),
+        min_sv_size = sliding_window_min_sv_size,
+        prefix = study_prefix + ".full_cohort." + autosome + ".small_test",
+        docker = pedsv_r_docker
+    }
+
+    call SlidingWindowTest as FullCohortSlidingWindowTestLarge {
+      input:
+        sv_bed = full_cohort_bed,
+        sv_bed_idx = full_cohort_bed_idx,
+        ad_matrix = full_cohort_ad_matrix,
+        ad_matrix_idx = full_cohort_ad_matrix_idx,
+        contig = autosome,
+        contig_len = contig_len,
+        exclude_regions = locus_assoc_exclude_regions,
+        exclusion_frac_overlap = sliding_window_exclusion_frac_overlap,
+        sample_metadata_tsv = sample_metadata_tsv,
+        samples_list = all_samples_list,
+        bin_size = ceil(sliding_window_bin_size * 2),
+        step_size = ceil(sliding_window_step_size * 2),
+        min_sv_size = sliding_window_min_sv_size,
+        prefix = study_prefix + ".full_cohort." + autosome + ".large_test",
         docker = pedsv_r_docker
     }
   }
@@ -376,6 +419,20 @@ workflow PedSvMainAnalysis {
       docker = pedsv_r_docker
   }
 
+  if(defined(denovo_sv_tsv)){
+    call DeNovoAnalysis {
+      input:
+        bed = full_cohort_bed,
+        sample_metadata_tsv = sample_metadata_tsv,
+        denovo_sv_tsv = select_first([denovo_sv_tsv]),
+        include_families = select_first([denovo_analysis_families_list]),
+        control_counts = select_first([control_denovo_counts_tsv]),
+        gnomad_rates = select_first([gnomad_denovo_rates]),
+        prefix = study_prefix,
+        docker = pedsv_r_docker
+    }
+  }
+
   call PlotSlidingWindowTests as PlotFullCohortSlidingWindows {
     input:
       stats = FullCohortSlidingWindowTest.bin_stats,
@@ -397,6 +454,20 @@ workflow PedSvMainAnalysis {
       docker = pedsv_r_docker
   }
 
+  call PlotSlidingWindowTests as PlotFullCohortSlidingWindowsSmall {
+    input:
+      stats = FullCohortSlidingWindowTestSmall.bin_stats,
+      prefix = study_prefix + ".small_test",
+      docker = pedsv_r_docker
+  }
+
+  call PlotSlidingWindowTests as PlotFullCohortSlidingWindowsLarge {
+    input:
+      stats = FullCohortSlidingWindowTestLarge.bin_stats,
+      prefix = study_prefix + ".large_test",
+      docker = pedsv_r_docker
+  }
+
   call PlotSlidingWindowTests as PlotFullCohortSlidingWindows_MALE {
     input:
       stats = FullCohortSlidingWindowTest.male_bin_stats,
@@ -404,40 +475,12 @@ workflow PedSvMainAnalysis {
       docker = pedsv_r_docker
   }
 
-  # call PlotSlidingWindowTests as PlotTrioCohortSlidingWindows_MALE {
-  #   input:
-  #     stats = TrioCohortSlidingWindowTest.male_bin_stats,
-  #     prefix = study_prefix + ".trio_cohort.MALE_only",
-  #     docker = pedsv_r_docker
-  # }
-
-  # call PlotSlidingWindowTests as PlotCaseControlCohortSlidingWindows_MALE {
-  #   input:
-  #     stats = CaseControlCohortSlidingWindowTest.male_bin_stats,
-  #     prefix = study_prefix + ".case_control_cohort.MALE_only",
-  #     docker = pedsv_r_docker
-  # }
-
   call PlotSlidingWindowTests as PlotFullCohortSlidingWindows_FEMALE {
     input:
       stats = FullCohortSlidingWindowTest.female_bin_stats,
       prefix = study_prefix + ".FEMALE_only",
       docker = pedsv_r_docker
   }
-
-  # call PlotSlidingWindowTests as PlotTrioCohortSlidingWindows_FEMALE {
-  #   input:
-  #     stats = TrioCohortSlidingWindowTest.female_bin_stats,
-  #     prefix = study_prefix + ".trio_cohort.FEMALE_only",
-  #     docker = pedsv_r_docker
-  # }
-
-  # call PlotSlidingWindowTests as PlotCaseControlCohortSlidingWindows_FEMALE {
-  #   input:
-  #     stats = CaseControlCohortSlidingWindowTest.female_bin_stats,
-  #     prefix = study_prefix + ".case_control_cohort.FEMALE_only",
-  #     docker = pedsv_r_docker
-  # }
 
   call Rvas.SvGenicRvas as StudyWideRvas {
     input:
@@ -525,22 +568,25 @@ workflow PedSvMainAnalysis {
 
   call UnifyOutputs {
     input:
-      tarballs = [FullCohortSummaryPlots.plots_tarball,
-                  AnalysisCohortSummaryPlots.plots_tarball,
-                  StudyWideBurdenTests.plots_tarball,
-                  TrioCohortSummaryPlots.plots_tarball,
-                  CaseControlCohortSummaryPlots.plots_tarball,
-                  TrioCohortBurdenTests.plots_tarball,
-                  CaseControlCohortBurdenTests.plots_tarball,
-                  PlotFullCohortSlidingWindows.results_tarball,
-                  PlotTrioCohortSlidingWindows.results_tarball,
-                  PlotCaseControlCohortSlidingWindows.results_tarball,
-                  PlotFullCohortSlidingWindows_MALE.results_tarball,
-                  PlotFullCohortSlidingWindows_FEMALE.results_tarball,
-                  PlotStudyWideRvas.results_tarball,
-                  Pseudorep.results_tarball],
+      tarballs = select_all([FullCohortSummaryPlots.plots_tarball,
+                             AnalysisCohortSummaryPlots.plots_tarball,
+                             StudyWideBurdenTests.plots_tarball,
+                             TrioCohortSummaryPlots.plots_tarball,
+                             CaseControlCohortSummaryPlots.plots_tarball,
+                             TrioCohortBurdenTests.plots_tarball,
+                             CaseControlCohortBurdenTests.plots_tarball,
+                             DeNovoAnalysis.plots_tarball,
+                             PlotFullCohortSlidingWindows.results_tarball,
+                             PlotTrioCohortSlidingWindows.results_tarball,
+                             PlotCaseControlCohortSlidingWindows.results_tarball,
+                             PlotFullCohortSlidingWindows_MALE.results_tarball,
+                             PlotFullCohortSlidingWindows_FEMALE.results_tarball,
+                             PlotFullCohortSlidingWindowsSmall.results_tarball,
+                             PlotFullCohortSlidingWindowsLarge.results_tarball,
+                             PlotStudyWideRvas.results_tarball,
+                             Pseudorep.results_tarball]),
       prefix = study_prefix + "_analysis_outputs",
-      docker = ubuntu_docker,
+      docker = pedsv_r_docker,
       relocate_stats = true
   }
 
@@ -753,9 +799,9 @@ task SlidingWindowTest {
     Float exclusion_frac_overlap = 0.5
     File sample_metadata_tsv
     File samples_list
-    Int bin_size = 1000000
-    Int step_size = 250000
-    Int min_sv_size = 50000
+    Int bin_size
+    Int step_size
+    Int min_sv_size
     String prefix
     String docker
 
@@ -1277,13 +1323,13 @@ task CohortSummaryPlots {
         | paste <( echo $sample ) -
       done < ~{sample_list} \
       | cat <( echo -e "sample\tcount" ) - \
-      > ~{prefix}.SummaryPlots/sv_counts_per_sample.tsv
+      > ~{prefix}.SummaryPlots/~{prefix}.sv_counts_per_sample.tsv
 
       # Plot SVs per sample
       /opt/ped_germline_SV/analysis/landscape/plot_svs_per_sample.R \
         --metadata ~{sample_metadata_tsv} \
         --out-prefix ~{prefix}.SummaryPlots/~{prefix} \
-        ~{prefix}.SummaryPlots/sv_counts_per_sample.tsv
+        ~{prefix}.SummaryPlots/~{prefix}.sv_counts_per_sample.tsv
      fi
 
     # Compress output
@@ -1293,6 +1339,62 @@ task CohortSummaryPlots {
 
   output {
     File plots_tarball = "~{prefix}.SummaryPlots.tar.gz"
+  }
+
+  runtime {
+    docker: docker
+    memory: "15.5 GB"
+    cpu: 4
+    disks: "local-disk " + disk_gb + " HDD"
+    preemptible: 3
+  }
+}
+
+
+# Analysis of predefined de novo SVs
+task DeNovoAnalysis {
+  input {
+    File bed
+    File sample_metadata_tsv
+    File denovo_sv_tsv
+    File include_families
+    File control_counts
+    File gnomad_rates
+    String prefix
+    
+    String af_field = "POPMAX_AF"
+    String ac_field = "AC"
+
+    String docker
+  }
+
+  Int disk_gb = ceil(2 * size([bed, sample_metadata_tsv], "GB")) + 10
+
+  command <<<
+    set -eu -o pipefail
+
+    # Prep output directory
+    mkdir ~{prefix}.DeNovoPlots
+
+    # Plot SV counts and sizes
+    /opt/ped_germline_SV/analysis/landscape/plot_de_novo_properties.R \
+      --bed ~{bed} \
+      --metadata ~{sample_metadata_tsv} \
+      --de-novos ~{denovo_sv_tsv} \
+      --include-families ~{include_families} \
+      --control-counts ~{control_counts} \
+      --gnomad-rates ~{gnomad_rates} \
+      --af-field ~{af_field} \
+      --ac-field ~{ac_field} \
+      --out-prefix ~{prefix}.DeNovoPlots/~{prefix} \
+
+    # Compress output
+    find ~{prefix}.DeNovoPlots/ -name "*.tsv" | xargs -I {} gzip -f {}
+    tar -czvf ~{prefix}.DeNovoPlots.tar.gz ~{prefix}.DeNovoPlots
+  >>>
+
+  output {
+    File plots_tarball = "~{prefix}.DeNovoPlots.tar.gz"
   }
 
   runtime {
@@ -1474,10 +1576,11 @@ task UnifyOutputs {
       find ~{prefix}/ -name "*.bed.gz" | xargs -I {} mv {} ~{prefix}/stats/
     fi
 
-    # Format Table S2
-    /opt/ped_germline_SV/analysis/misc/format_table_s2.R \
-      ~{prefix}/stats/~{prefix}.global_burden_tests.tsv.gz \
-      ~{prefix}/stats/~{prefix}.table_s2.tsv
+    # TODO: debug why this script cant find its input .tsv
+    # # Format Table S2
+    # /opt/ped_germline_SV/analysis/misc/format_table_s2.R \
+    #   ~{prefix}/stats/~{prefix}.global_burden_tests.tsv.gz \
+    #   ~{prefix}/stats/~{prefix}.table_s2.tsv
 
     # Compress output directory
     tar -czvf ~{prefix}.tar.gz ~{prefix}

@@ -49,12 +49,12 @@ parser$add_argument("--out-bed", metavar=".tsv", type="character", required=TRUE
 args <- parser$parse_args()
 
 # # DEV:
-# args <- list("bed" = "~/scratch/PedSV.v2.3.trio_cohort.analysis_samples.sites.bed.gz",
-#              "ad" = "~/scratch/PedSV.v2.3.trio_cohort.analysis_samples.allele_dosages.bed.gz",
+# args <- list("bed" = "~/scratch/PedSV.v2.5.4.trio_cohort.analysis_samples.sites.bed.gz",
+#              "ad" = "~/scratch/PedSV.v2.5.4.trio_cohort.analysis_samples.allele_dosages.bed.gz",
 #              "genes" = "~/scratch/eligible_genes.chr2.bed.gz",
-#              "metadata" = "~/scratch/PedSV.v2.3.cohort_metadata.w_control_assignments.tsv.gz",
-#              "subset_samples" = "~/scratch/PedSV.v2.3.trio_analysis_cohort.samples.list",
-#              "out_bed" = "~/scratch/PedSV.v2.1.case_control.dev.rvas_test.bed")
+#              "metadata" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_v2_callset_generation/v2.5.4/PedSV.v2.5.4.cohort_metadata.w_control_assignments.tsv.gz",
+#              "subset_samples" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_v2_callset_generation/v2.5.4/PedSV.v2.5.4.trio_analysis_cohort.samples.list",
+#              "out_bed" = "~/scratch/PedSV.v2.5.4.trio_cohort.rvas_test.bed")
 
 
 # Load metadata
