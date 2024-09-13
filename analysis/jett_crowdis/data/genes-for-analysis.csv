@@ -1,0 +1,15 @@
+gene,transcript,disease
+EWSR1,EWSR1-206,ewing
+FLI1,FLI1-205,ewing
+MYCN,MYCN-201,neuroblastoma
+TERT,TERT-201,neuroblastoma
+ALK,ALK-201,neuroblastoma
+TP53,TP53-201,osteosarcoma
+RB1,RB1-201,osteosarcoma
+ATRX,ATRX-201,neuroblastoma
+SHANK2,SHANK2-214,neuroblastoma
+BRCA1,BRCA1-203,neuroblastoma
+CDKN2A,CDKN2A-201,ewing
+DLG2,DLG2-203,osteosarcoma
+TP53,TP53-201,neuroblastoma
+TP53,TP53-201,ewing

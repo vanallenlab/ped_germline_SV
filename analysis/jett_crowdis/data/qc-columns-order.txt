@@ -1,0 +1,16 @@
+disease
+gene
+name
+cohort
+#chr
+start
+end
+coef
+p
+p_bonferroni
+AF_cases
+AF_controls
+cases_gt
+controls_gt
+cases_dropped
+controls_dropped
