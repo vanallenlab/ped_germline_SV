@@ -175,7 +175,7 @@ plot.count.bars <- function(counts, greyscale=TRUE, parmar=c(0.25, 5.25, 0.1, 2.
   # Add bars & cap labels
   sapply(1:ncol(counts), function(i){
     x.stops <- c(0, cumsum(counts[, i]))
-    bar.pal <- sv.palettes[[colnames(counts)[i]]]
+    bar.pal <- sv.palettes[["DEL"]] # Not matched to SV type here to ensure consistent greyscale for all SVs
     if(greyscale){
       bar.pal <- hex2grey(bar.pal)
     }

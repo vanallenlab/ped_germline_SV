@@ -31,6 +31,7 @@
 #' @param y.title Title for Y-axis
 #' @param y.title.line Line for axis titles (`title.line` parameter for [RLCtools::clean.axis])
 #' @param ylims Limits for Y-axis
+#' @param ax.tck Tick length for X- and Y-axis \[default: -0.025\]
 #' @param legend.vals Named vector mapping category names to colors \[default: NULL\]
 #' @param legend.labels Optional vector to overwrite names of `legend.vals`
 #' @param cex Character expansion factor for individual points \[default: 0.3\]
@@ -46,7 +47,7 @@
 pc.scatterplot <- function(pcs, pc.X, pc.Y, colors, title=NULL,
                            x.label.line=NULL, x.title=NULL, x.title.line=0.5, xlims=NULL,
                            y.label.line=NULL, y.title=NULL, y.title.line=0.5, ylims=NULL,
-                           legend.vals=NULL, legend.labels=NULL,
+                           ax.tck=-0.025, legend.vals=NULL, legend.labels=NULL,
                            cex=0.3, parmar=c(2.5, 2.5, 1, 1)){
   if(!is.numeric(pc.X)){
     pc.X <- which(colnames(pcs) == pc.X)
@@ -69,12 +70,14 @@ pc.scatterplot <- function(pcs, pc.X, pc.Y, colors, title=NULL,
   if(is.null(x.title)){
     x.title <- paste("Principal component", pc.X)
   }
-  clean.axis(1, title=x.title, infinite=T, label.line=x.label.line, title.line=x.title.line)
+  clean.axis(1, title=x.title, infinite=T, label.line=x.label.line,
+             title.line=x.title.line, tck=ax.tck)
 
   if(is.null(y.title)){
     y.title <- paste("Principal component", pc.Y)
   }
-  clean.axis(2, title=y.title, infinite=T, label.line=y.label.line, title.line=y.title.line)
+  clean.axis(2, title=y.title, infinite=T, label.line=y.label.line,
+             title.line=y.title.line, tck=ax.tck)
 
   points(x, y, pch=19, cex=cex, col=colors, xpd=T)
 

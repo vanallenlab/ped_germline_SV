@@ -18,6 +18,7 @@ pc.scatterplot(
   y.title = NULL,
   y.title.line = 0.5,
   ylims = NULL,
+  ax.tck = -0.025,
   legend.vals = NULL,
   legend.labels = NULL,
   cex = 0.3,
@@ -50,6 +51,8 @@ pc.scatterplot(
 \item{y.title.line}{Line for axis titles (\code{title.line} parameter for \link[RLCtools:clean.axis]{RLCtools::clean.axis})}
 
 \item{ylims}{Limits for Y-axis}
+
+\item{ax.tck}{Tick length for X- and Y-axis [default: -0.025]}
 
 \item{legend.vals}{Named vector mapping category names to colors [default: NULL]}
 
