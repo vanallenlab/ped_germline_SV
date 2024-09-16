@@ -1,0 +1,392 @@
+---
+title: "Untitled"
+author: "Riaz Gillani"
+date: "2023-08-01"
+output: html_document
+---
+
+```{r}
+
+library(MASS)
+library(tidyverse)
+library(useful)
+library(here)
+library(dplyr)
+library(ggplot2)
+library(RColorBrewer)
+library(ggrepel)
+library(VennDiagram)
+library(stringr)
+library(scales)
+library(grid)
+library(exact2x2)
+library(readr)
+library(biomaRt)
+library(sqldf)
+library(gridExtra)
+library(ggbeeswarm)
+library(caret)
+library(vcfR)
+library(bedr)
+library(PedSV)
+library(parallel)
+library(argparse)
+library(qqman)
+library(metafor)
+library(rCNV2)
+library(ggpubr)
+library(ggbeeswarm)
+library(quest)
+PedSV::load.constants("all")
+
+```
+
+#neuroblastoma coding CWAS - enumeration of categories
+```{r}
+CWAS_categories_neuroblastoma_coding <- read_tsv(here::here("data","CWAS_categories_neuroblastoma_coding_8_17_23.txt"))
+
+neuroblastoma_coding_CWAS_sv_type <- CWAS_categories_neuroblastoma_coding %>% filter(!is.na(sv_type)) %>% distinct(sv_type) %>% unlist() %>% unname()
+
+neuroblastoma_coding_CWAS_frequency <- CWAS_categories_neuroblastoma_coding %>% filter(!is.na(frequency)) %>% distinct(frequency) %>% unlist() %>% unname()
+
+neuroblastoma_coding_CWAS_genic_relationship <- CWAS_categories_neuroblastoma_coding %>% filter(!is.na(genic_relationship)) %>% distinct(genic_relationship) %>% unlist() %>% unname()
+
+neuroblastoma_coding_CWAS_constraint <- CWAS_categories_neuroblastoma_coding %>% filter(!is.na(constraint)) %>% distinct(constraint) %>% unlist() %>% unname()
+
+neuroblastoma_coding_CWAS_expression <- CWAS_categories_neuroblastoma_coding %>% filter(!is.na(expression)) %>% distinct(expression) %>% unlist() %>% unname()
+
+neuroblastoma_coding_CWAS_gene_group <- CWAS_categories_neuroblastoma_coding %>% filter(!is.na(gene_group)) %>% distinct(gene_group) %>% unlist() %>% unname()
+
+neuroblastoma_coding_CWAS_enumerated_categories <- tibble(sv_type = NA, frequency = NA, genic_relationship = NA, constraint = NA, expression = NA, gene_group = NA)
+
+count <- 0
+
+for(sv_type in neuroblastoma_coding_CWAS_sv_type){
+  for(frequency in neuroblastoma_coding_CWAS_frequency){
+    for(genic_relationship in neuroblastoma_coding_CWAS_genic_relationship){
+      for(constraint in neuroblastoma_coding_CWAS_constraint){
+        for(expression in neuroblastoma_coding_CWAS_expression){
+          for(gene_group in neuroblastoma_coding_CWAS_gene_group){
+              
+              neuroblastoma_coding_CWAS_enumerated_categories <- add_row(neuroblastoma_coding_CWAS_enumerated_categories, sv_type = sv_type, frequency = frequency, genic_relationship = genic_relationship, constraint = constraint, expression = expression, gene_group = gene_group)
+              
+              count = count + 1
+              print(count)
+              
+              }
+            }  
+          }
+        }
+      }
+    }
+
+neuroblastoma_coding_CWAS_enumerated_categories <- neuroblastoma_coding_CWAS_enumerated_categories[-1,]
+
+neuroblastoma_coding_CWAS_enumerated_categories_unique <- neuroblastoma_coding_CWAS_enumerated_categories %>% distinct()
+
+neuroblastoma_coding_CWAS_enumerated_categories_unique <- neuroblastoma_coding_CWAS_enumerated_categories_unique %>% mutate(unique_category_id = str_c(sv_type,".",frequency,".",genic_relationship,".",constraint,".",expression,".",gene_group))
+
+write_tsv(neuroblastoma_coding_CWAS_enumerated_categories_unique,here::here("data","neuroblastoma_coding_CWAS_enumerated_categories_unique_8_17_23.txt"))
+
+```
+
+#ewing coding CWAS - enumeration of categories
+```{r}
+CWAS_categories_ewing_coding <- read_tsv(here::here("data","CWAS_categories_ewing_coding_8_17_23.txt"))
+
+ewing_coding_CWAS_sv_type <- CWAS_categories_ewing_coding %>% filter(!is.na(sv_type)) %>% distinct(sv_type) %>% unlist() %>% unname()
+
+ewing_coding_CWAS_frequency <- CWAS_categories_ewing_coding %>% filter(!is.na(frequency)) %>% distinct(frequency) %>% unlist() %>% unname()
+
+ewing_coding_CWAS_genic_relationship <- CWAS_categories_ewing_coding %>% filter(!is.na(genic_relationship)) %>% distinct(genic_relationship) %>% unlist() %>% unname()
+
+ewing_coding_CWAS_constraint <- CWAS_categories_ewing_coding %>% filter(!is.na(constraint)) %>% distinct(constraint) %>% unlist() %>% unname()
+
+ewing_coding_CWAS_expression <- CWAS_categories_ewing_coding %>% filter(!is.na(expression)) %>% distinct(expression) %>% unlist() %>% unname()
+
+ewing_coding_CWAS_gene_group <- CWAS_categories_ewing_coding %>% filter(!is.na(gene_group)) %>% distinct(gene_group) %>% unlist() %>% unname()
+
+ewing_coding_CWAS_enumerated_categories <- tibble(sv_type = NA, frequency = NA, genic_relationship = NA, constraint = NA, expression = NA, gene_group = NA)
+
+count <- 0
+
+for(sv_type in ewing_coding_CWAS_sv_type){
+  for(frequency in ewing_coding_CWAS_frequency){
+    for(genic_relationship in ewing_coding_CWAS_genic_relationship){
+      for(constraint in ewing_coding_CWAS_constraint){
+        for(expression in ewing_coding_CWAS_expression){
+          for(gene_group in ewing_coding_CWAS_gene_group){
+              
+              ewing_coding_CWAS_enumerated_categories <- add_row(ewing_coding_CWAS_enumerated_categories, sv_type = sv_type, frequency = frequency, genic_relationship = genic_relationship, constraint = constraint, expression = expression, gene_group = gene_group)
+              
+              count = count + 1
+              print(count)
+              
+              }
+            }  
+          }
+        }
+      }
+    }
+
+ewing_coding_CWAS_enumerated_categories <- ewing_coding_CWAS_enumerated_categories[-1,]
+
+ewing_coding_CWAS_enumerated_categories_unique <- ewing_coding_CWAS_enumerated_categories %>% distinct()
+
+ewing_coding_CWAS_enumerated_categories_unique <- ewing_coding_CWAS_enumerated_categories_unique %>% mutate(unique_category_id = str_c(sv_type,".",frequency,".",genic_relationship,".",constraint,".",expression,".",gene_group))
+
+write_tsv(ewing_coding_CWAS_enumerated_categories_unique,here::here("data","ewing_coding_CWAS_enumerated_categories_unique_8_17_23.txt"))
+
+```
+
+#Load and filter bed files, gene lists, and write SV assignment to coding category function
+```{r}
+
+#Load in and filter discovery samples bed file
+
+case_control_BED_file_col_names <- read_tsv("~/gatk_sv_pediatric_cancer_analysis_samples_bed_files_12_26_23/PedSV.v2.5.3.case_control_cohort.analysis_samples.sites.bed.gz") %>% colnames()
+
+case_control_BED <- read.table("~/gatk_sv_pediatric_cancer_analysis_samples_bed_files_12_26_23/PedSV.v2.5.3.case_control_cohort.analysis_samples.sites.bed.gz", col.names = case_control_BED_file_col_names) %>% filter(FILTER == "PASS") %>% dplyr::rename(chrom = "X.chrom")
+
+svtypes_for_inclusion <- c("DUP","DEL","INS","CPX","INS:ME","INS:ME:ALU","INS:ME:LINE1","INS:ME:SVA","INV","CTX")
+
+case_control_BED_filtered_for_coding_CWAS <- case_control_BED %>% filter(svtype %in% svtypes_for_inclusion & (!is.na(PREDICTED_COPY_GAIN) | !is.na(PREDICTED_DUP_PARTIAL) | !is.na(PREDICTED_INTRAGENIC_EXON_DUP) | !is.na(PREDICTED_LOF) | !is.na(PREDICTED_PARTIAL_EXON_DUP) | !is.na(PREDICTED_TSS_DUP)) & FILTER == "PASS" & !(chrom %in% c("chrX","chrY")))
+
+case_control_BED_filtered_for_coding_CWAS_duplicated_columns_removed <- case_control_BED_filtered_for_coding_CWAS %>% dplyr::select(-c(END,SVTYPE))
+
+case_control_BED_filtered_for_coding_CWAS_coordinate_lookup_table <- case_control_BED_filtered_for_coding_CWAS_duplicated_columns_removed %>% dplyr::select(name,`chrom`,start,end) %>% tibble::column_to_rownames("name")
+
+#Load in and filter trio samples bed file
+
+trio_BED_file_col_names <- read_tsv("~/gatk_sv_pediatric_cancer_analysis_samples_bed_files_12_26_23/PedSV.v2.5.3.trio_cohort.analysis_samples.sites.bed.gz") %>% colnames()
+
+trio_BED <- read.table("~/gatk_sv_pediatric_cancer_analysis_samples_bed_files_12_26_23/PedSV.v2.5.3.trio_cohort.analysis_samples.sites.bed.gz", col.names = trio_BED_file_col_names) %>% filter(FILTER == "PASS") %>% dplyr::rename(chrom = "X.chrom")
+
+svtypes_for_inclusion <- c("DUP","DEL","INS","CPX","INS:ME","INS:ME:ALU","INS:ME:LINE1","INS:ME:SVA","INV","CTX")
+
+trio_BED_filtered_for_coding_CWAS <- trio_BED %>% filter(svtype %in% svtypes_for_inclusion & (!is.na(PREDICTED_COPY_GAIN) | !is.na(PREDICTED_DUP_PARTIAL) | !is.na(PREDICTED_INTRAGENIC_EXON_DUP) | !is.na(PREDICTED_LOF) | !is.na(PREDICTED_PARTIAL_EXON_DUP) | !is.na(PREDICTED_TSS_DUP)) & FILTER == "PASS" & !(chrom %in% c("chrX","chrY")))
+
+trio_BED_filtered_for_coding_CWAS_duplicated_columns_removed <- trio_BED_filtered_for_coding_CWAS %>% dplyr::select(-c(END,SVTYPE))
+
+trio_BED_filtered_for_coding_CWAS_coordinate_lookup_table <- trio_BED_filtered_for_coding_CWAS_duplicated_columns_removed %>% dplyr::select(name,`chrom`,start,end) %>% tibble::column_to_rownames("name")
+
+#Load in and filter all samples bed file
+
+all_BED_file_col_names <- read_tsv("~/gatk_sv_pediatric_cancer_analysis_samples_bed_files_12_26_23/PedSV.v2.5.3.full_cohort.analysis_samples.sites.bed.gz") %>% colnames()
+
+all_BED <- read.table("~/gatk_sv_pediatric_cancer_analysis_samples_bed_files_12_26_23/PedSV.v2.5.3.full_cohort.analysis_samples.sites.bed.gz", col.names = all_BED_file_col_names) %>% filter(FILTER == "PASS") %>% dplyr::rename(chrom = "X.chrom")
+
+svtypes_for_inclusion <- c("DUP","DEL","INS","CPX","INS:ME","INS:ME:ALU","INS:ME:LINE1","INS:ME:SVA","INV","CTX")
+
+all_BED_filtered_for_coding_CWAS <- all_BED %>% filter(svtype %in% svtypes_for_inclusion & (!is.na(PREDICTED_COPY_GAIN) | !is.na(PREDICTED_DUP_PARTIAL) | !is.na(PREDICTED_INTRAGENIC_EXON_DUP) | !is.na(PREDICTED_LOF) | !is.na(PREDICTED_PARTIAL_EXON_DUP) | !is.na(PREDICTED_TSS_DUP)) & FILTER == "PASS" & !(chrom %in% c("chrX","chrY")))
+
+all_BED_filtered_for_coding_CWAS_duplicated_columns_removed <- all_BED_filtered_for_coding_CWAS %>% dplyr::select(-c(END,SVTYPE))
+
+all_BED_filtered_for_coding_CWAS_coordinate_lookup_table <- all_BED_filtered_for_coding_CWAS_duplicated_columns_removed %>% dplyr::select(name,`chrom`,start,end) %>% tibble::column_to_rownames("name")
+
+#Define gene lists (match naming of CWAS genic categories)
+
+protein_coding <- read_tsv(here::here("data","gencode_hg38_protein_coding_genes_for_annotation_7_31_23.txt")) %>% dplyr::select(value) %>% unlist() %>% unname()
+
+lof_constrained <- read_tsv(here::here("data","lof_constrained_genes_7_31_23.txt")) %>% dplyr::select(value) %>% unlist() %>% unname()
+
+missense_constrained <- read_tsv(here::here("data","missense_constrained_genes_7_31_23.txt")) %>% dplyr::select(value) %>% unlist() %>% unname()
+
+unconstrained <- read_tsv(here::here("data","unconstrained_genes_7_31_23.txt")) %>% dplyr::select(value) %>% unlist() %>% unname()
+
+cosmic_cancer_genes <- read_tsv(here::here("data","cosmic_cancer_genes_tier_one_7_31_23.txt")) %>% dplyr::select(value) %>% unlist() %>% unname()
+
+germline_CPGs <- read_tsv(here::here("data","germline_CPGs_7_31_23.txt")) %>% dplyr::select(value) %>% unlist() %>% unname()
+
+base_excision_repair_genes <- read_tsv(here::here("data","reactome_base_excision_repair_gene_set_2_6_23.txt")) %>% distinct(Gene) %>% unlist() %>% unname() %>% intersect(protein_coding)
+
+chromatin_organization_genes <- read_tsv(here::here("data","reactome_chromatin_organization_gene_set_8_16_23.txt")) %>% distinct(Gene) %>% unlist() %>% unname() %>% intersect(protein_coding)
+
+dna_damage_bypass_genes <- read_tsv(here::here("data","reactome_dna_damage_bypass_gene_set_2_6_23.txt")) %>% distinct(Gene) %>% unlist() %>% unname() %>% intersect(protein_coding)
+
+dna_damage_reversal_genes <- read_tsv(here::here("data","reactome_dna_damage_reversal_gene_set_2_6_23.txt")) %>% distinct(Gene) %>% unlist() %>% unname() %>% intersect(protein_coding)
+
+dna_DSB_repair_genes <- read_tsv(here::here("data","reactome_dna_DSB_repair_gene_set_2_6_23.txt")) %>% distinct(Gene) %>% unlist() %>% unname() %>% intersect(protein_coding)
+
+dna_DSB_response_genes <- read_tsv(here::here("data","reactome_dna_DSB_response_gene_set_2_6_23.txt")) %>% distinct(Gene) %>% unlist() %>% unname() %>% intersect(protein_coding)
+
+dna_repair_genes <- read_tsv(here::here("data","reactome_dna_repair_gene_set_2_6_23.txt")) %>% distinct(Gene) %>% unlist() %>% unname() %>% intersect(protein_coding)
+
+fanconi_genes <- read_tsv(here::here("data","reactome_fanconi_gene_set_2_6_23.txt")) %>% distinct(Gene) %>% unlist() %>% unname() %>% intersect(protein_coding)
+
+mismatch_repair_genes <- read_tsv(here::here("data","reactome_mismatch_repair_gene_set_2_6_23.txt")) %>% distinct(Gene) %>% unlist() %>% unname() %>% intersect(protein_coding)
+
+nucleotide_excision_repair_genes <- read_tsv(here::here("data","reactome_nucleotide_excision_repair_gene_set_2_6_23.txt")) %>% distinct(Gene) %>% unlist() %>% unname() %>% intersect(protein_coding)
+
+oncogenic_MAPK_signaling_genes <- read_tsv(here::here("data","reactome_oncogenic_MAPK_signaling_gene_set_8_16_23.txt")) %>% distinct(Gene) %>% unlist() %>% unname() %>% intersect(protein_coding)
+
+signaling_transduction_by_receptor_tyrosine_kinases_genes <- read_tsv(here::here("data","reactome_signaling_transduction_by_receptor_tyrosine_kinases_gene_set_8_16_23.txt")) %>% distinct(Gene) %>% unlist() %>% unname() %>% intersect(protein_coding)
+
+expressed_in_adrenal_gland <- read_tsv(here::here("data","top_expressed_in_adrenal_gland_7_31_23.txt")) %>% dplyr::select(value) %>% unlist() %>% unname()
+
+expressed_in_muscle_skeletal <- read_tsv(here::here("data","top_expressed_in_muscle_skeletal_7_31_23.txt")) %>% dplyr::select(value) %>% unlist() %>% unname()
+
+#Define function to return structural variant names by
+
+return_structural_variant_by_category_function <- function(category_name,coding_CWAS_enumerated_categories_unique_with_row_names,BED_filtered_for_coding_CWAS_duplicated_columns_removed,BED_filtered_for_coding_CWAS_coordinate_lookup_table){
+  
+  sv_type <- coding_CWAS_enumerated_categories_unique_with_row_names[category_name,"sv_type"]
+  frequency <- coding_CWAS_enumerated_categories_unique_with_row_names[category_name,"frequency"]
+  genic_relationship <- coding_CWAS_enumerated_categories_unique_with_row_names[category_name,"genic_relationship"]
+  gene_group <- coding_CWAS_enumerated_categories_unique_with_row_names[category_name,"gene_group"]
+  expression <- coding_CWAS_enumerated_categories_unique_with_row_names[category_name,"expression"]
+  constraint <- coding_CWAS_enumerated_categories_unique_with_row_names[category_name,"constraint"]
+  
+  gene_group_evaluated <- eval(as.symbol(gene_group))
+  expression_evaluated <- if(!expression == "ANY"){eval(as.symbol(expression))}else{eval(as.symbol(gene_group))}
+  constraint_evaluated <- if(!constraint == "ANY"){eval(as.symbol(constraint))}else{eval(as.symbol(gene_group))}
+  gene_group_evaluated_filtered_for_expression <- Reduce(intersect, list(gene_group_evaluated,expression_evaluated,constraint_evaluated))
+  
+  if(length(gene_group_evaluated_filtered_for_expression) == 0){
+  
+  list_of_SVs_meeting_sv_type_frequency_genic_criteria <- c()
+   
+  }
+  
+  else{
+  gene_group_only_collapsed <- stringr::str_c(stringr::str_c("^",gene_group_evaluated_filtered_for_expression,"$"), collapse = "|")
+  gene_group_start_collapsed <- stringr::str_c(stringr::str_c("^",gene_group_evaluated_filtered_for_expression,"(?=,)"), collapse = "|")
+  gene_group_middle_collapsed <- stringr::str_c(stringr::str_c("(?<=,)",gene_group_evaluated_filtered_for_expression,"(?=,)"), collapse = "|")
+  gene_group_end_collapsed <- stringr::str_c(stringr::str_c("(?<=,)",gene_group_evaluated_filtered_for_expression,"$"), collapse = "|")
+  
+  #SVs meeting sv_type criteria
+  
+  if(sv_type == "ANY"){
+    
+    SVs_meeting_sv_type_criteria <- BED_filtered_for_coding_CWAS_duplicated_columns_removed
+    
+  }
+  else if(sv_type == "INS_ALL"){
+    
+    SVs_meeting_sv_type_criteria <- BED_filtered_for_coding_CWAS_duplicated_columns_removed[BED_filtered_for_coding_CWAS_duplicated_columns_removed$svtype %in% c("INS","INS:ME:SVA","INS:ME:ALU","INS:ME","INS:ME:LINE1"),]
+    
+  }
+  else if(sv_type == "CPX_or_INV"){
+    
+    SVs_meeting_sv_type_criteria <- BED_filtered_for_coding_CWAS_duplicated_columns_removed[BED_filtered_for_coding_CWAS_duplicated_columns_removed$svtype %in% c("CPX","INV"),]
+    
+  }
+  else{
+    
+    SVs_meeting_sv_type_criteria <- BED_filtered_for_coding_CWAS_duplicated_columns_removed[BED_filtered_for_coding_CWAS_duplicated_columns_removed$svtype == sv_type,]
+  }
+  
+  #SVs meeting frequency criteria
+  
+  if(frequency == "RARE"){
+    
+    SVs_meeting_sv_type_frequency_criteria <- SVs_meeting_sv_type_criteria[SVs_meeting_sv_type_criteria$POPMAX_AF < .01 & (SVs_meeting_sv_type_criteria$gnomad_v3.1_sv_POPMAX_AF < .01 | is.na(SVs_meeting_sv_type_criteria$gnomad_v3.1_sv_POPMAX_AF)),]
+    
+  }
+  else if(frequency == "SINGLETON"){
+    
+    SVs_meeting_sv_type_frequency_criteria <- SVs_meeting_sv_type_criteria[SVs_meeting_sv_type_criteria$AC == 1 & (SVs_meeting_sv_type_criteria$gnomad_v3.1_sv_POPMAX_AF < .01 | is.na(SVs_meeting_sv_type_criteria$gnomad_v3.1_sv_POPMAX_AF)),]
+    
+  }
+  
+#SVs meeting genic criteria
+
+if(genic_relationship == "PREDICTED_COPY_GAIN"){
+
+SVs_meeting_sv_type_frequency_genic_criteria <- SVs_meeting_sv_type_frequency_criteria[!is.na(SVs_meeting_sv_type_frequency_criteria$PREDICTED_COPY_GAIN) & str_detect(SVs_meeting_sv_type_frequency_criteria$PREDICTED_COPY_GAIN,paste0(gene_group_only_collapsed,"|",gene_group_start_collapsed,"|",gene_group_middle_collapsed,"|",gene_group_end_collapsed)),]
+  
+}
+else if(genic_relationship == "PREDICTED_INTRAGENIC_EXON_DUP"){
+
+SVs_meeting_sv_type_frequency_genic_criteria <- SVs_meeting_sv_type_frequency_criteria[!is.na(SVs_meeting_sv_type_frequency_criteria$PREDICTED_INTRAGENIC_EXON_DUP) & str_detect(SVs_meeting_sv_type_frequency_criteria$PREDICTED_INTRAGENIC_EXON_DUP,paste0(gene_group_only_collapsed,"|",gene_group_start_collapsed,"|",gene_group_middle_collapsed,"|",gene_group_end_collapsed)),]  
+  
+}
+else if(genic_relationship == "PREDICTED_LOF_or_PREDICTED_PARTIAL_EXON_DUP"){
+
+SVs_meeting_sv_type_frequency_genic_criteria <- SVs_meeting_sv_type_frequency_criteria[(!is.na(SVs_meeting_sv_type_frequency_criteria$PREDICTED_LOF) & str_detect(SVs_meeting_sv_type_frequency_criteria$PREDICTED_LOF,paste0(gene_group_only_collapsed,"|",gene_group_start_collapsed,"|",gene_group_middle_collapsed,"|",gene_group_end_collapsed))) | (!is.na(SVs_meeting_sv_type_frequency_criteria$PREDICTED_PARTIAL_EXON_DUP) & str_detect(SVs_meeting_sv_type_frequency_criteria$PREDICTED_PARTIAL_EXON_DUP,paste0(gene_group_only_collapsed,"|",gene_group_start_collapsed,"|",gene_group_middle_collapsed,"|",gene_group_end_collapsed))),]  
+  
+}
+else if(genic_relationship == "ANY"){
+
+SVs_meeting_sv_type_frequency_genic_criteria <- SVs_meeting_sv_type_frequency_criteria[(!is.na(SVs_meeting_sv_type_frequency_criteria$PREDICTED_COPY_GAIN) & str_detect(SVs_meeting_sv_type_frequency_criteria$PREDICTED_COPY_GAIN,paste0(gene_group_only_collapsed,"|",gene_group_start_collapsed,"|",gene_group_middle_collapsed,"|",gene_group_end_collapsed))) | (!is.na(SVs_meeting_sv_type_frequency_criteria$PREDICTED_INTRAGENIC_EXON_DUP) & str_detect(SVs_meeting_sv_type_frequency_criteria$PREDICTED_INTRAGENIC_EXON_DUP,paste0(gene_group_only_collapsed,"|",gene_group_start_collapsed,"|",gene_group_middle_collapsed,"|",gene_group_end_collapsed))) | (!is.na(SVs_meeting_sv_type_frequency_criteria$PREDICTED_LOF) & str_detect(SVs_meeting_sv_type_frequency_criteria$PREDICTED_LOF,paste0(gene_group_only_collapsed,"|",gene_group_start_collapsed,"|",gene_group_middle_collapsed,"|",gene_group_end_collapsed))) | (!is.na(SVs_meeting_sv_type_frequency_criteria$PREDICTED_PARTIAL_EXON_DUP) & str_detect(SVs_meeting_sv_type_frequency_criteria$PREDICTED_PARTIAL_EXON_DUP,paste0(gene_group_only_collapsed,"|",gene_group_start_collapsed,"|",gene_group_middle_collapsed,"|",gene_group_end_collapsed))),]
+  
+}
+  
+list_of_SVs_meeting_sv_type_frequency_genic_criteria <- SVs_meeting_sv_type_frequency_genic_criteria$name  
+  
+}
+  #Return
+  
+  return(BED_filtered_for_coding_CWAS_coordinate_lookup_table[list_of_SVs_meeting_sv_type_frequency_genic_criteria,] %>% tibble::rownames_to_column("SV") %>% mutate(category = category_name))
+  
+}
+
+```
+
+#Identify SVs falling into each category (memory intensive but can be done locally)
+```{r}
+
+#Neuroblastoma all
+
+neuroblastoma_coding_CWAS_enumerated_categories_unique_with_row_names <- read_tsv(here::here("data","neuroblastoma_coding_CWAS_enumerated_categories_unique_8_17_23.txt")) %>% column_to_rownames("unique_category_id")
+
+neuroblastoma_all_SVs_in_each_category_list <- mclapply(row.names(neuroblastoma_coding_CWAS_enumerated_categories_unique_with_row_names), return_structural_variant_by_category_function, coding_CWAS_enumerated_categories_unique_with_row_names = neuroblastoma_coding_CWAS_enumerated_categories_unique_with_row_names, BED_filtered_for_coding_CWAS_duplicated_columns_removed = all_BED_filtered_for_coding_CWAS_duplicated_columns_removed, BED_filtered_for_coding_CWAS_coordinate_lookup_table = all_BED_filtered_for_coding_CWAS_coordinate_lookup_table)
+
+neuroblastoma_all_SVs_in_each_category_list_combined <- bind_rows(neuroblastoma_all_SVs_in_each_category_list)
+
+write_tsv(neuroblastoma_all_SVs_in_each_category_list_combined,here::here("data","neuroblastoma_all_coding_SVs_in_each_category_list_combined_8_9_24.txt"))
+
+#Ewing all
+
+ewing_coding_CWAS_enumerated_categories_unique_with_row_names <- read_tsv(here::here("data","ewing_coding_CWAS_enumerated_categories_unique_8_17_23.txt")) %>% column_to_rownames("unique_category_id")
+
+ewing_all_SVs_in_each_category_list <- mclapply(row.names(ewing_coding_CWAS_enumerated_categories_unique_with_row_names), return_structural_variant_by_category_function, coding_CWAS_enumerated_categories_unique_with_row_names = ewing_coding_CWAS_enumerated_categories_unique_with_row_names, BED_filtered_for_coding_CWAS_duplicated_columns_removed = all_BED_filtered_for_coding_CWAS_duplicated_columns_removed, BED_filtered_for_coding_CWAS_coordinate_lookup_table = all_BED_filtered_for_coding_CWAS_coordinate_lookup_table)
+
+ewing_all_SVs_in_each_category_list_combined <- bind_rows(ewing_all_SVs_in_each_category_list)
+
+write_tsv(ewing_all_SVs_in_each_category_list_combined,here::here("data","ewing_all_coding_SVs_in_each_category_list_combined_8_9_24.txt"))
+
+
+##Parallelizing burden testing by creating shards of categories
+
+#Neuroblastoma all
+
+neuroblastoma_all_SVs_in_each_category_list_combined <- read_tsv(here::here("data","neuroblastoma_all_coding_SVs_in_each_category_list_combined_8_9_24.txt"))
+
+neuroblastoma_all_unique_list_of_categories <- unique(neuroblastoma_all_SVs_in_each_category_list_combined$category)
+
+neuroblastoma_all_unique_list_of_categories_list <- split(neuroblastoma_all_unique_list_of_categories,ceiling(seq_along(neuroblastoma_all_unique_list_of_categories)/10))
+
+count <- 0
+
+for(index in 1:length(neuroblastoma_all_unique_list_of_categories_list)){
+
+write_tsv(neuroblastoma_all_unique_list_of_categories_list[[index]] %>% as_tibble(),here::here("data/neuroblastoma_all_coding_CWAS_category_shards_BURDEN_TESTING_8_9_24",str_c("neuroblastoma_all_coding_shard_",index,".txt")), col_names = FALSE)
+  
+count <- count + 1  
+
+print(count)
+
+}
+
+#Ewing all
+
+ewing_all_SVs_in_each_category_list_combined <- read_tsv(here::here("data","ewing_all_coding_SVs_in_each_category_list_combined_8_9_24.txt"))
+
+ewing_all_unique_list_of_categories <- unique(ewing_all_SVs_in_each_category_list_combined$category)
+
+ewing_all_unique_list_of_categories_list <- split(ewing_all_unique_list_of_categories,ceiling(seq_along(ewing_all_unique_list_of_categories)/10))
+
+count <- 0
+
+for(index in 1:length(ewing_all_unique_list_of_categories_list)){
+
+write_tsv(ewing_all_unique_list_of_categories_list[[index]] %>% as_tibble(),here::here("data/ewing_all_coding_CWAS_category_shards_BURDEN_TESTING_8_9_24",str_c("ewing_all_coding_shard_",index,".txt")), col_names = FALSE)
+  
+count <- count + 1  
+
+print(count)
+
+}
+
+```
