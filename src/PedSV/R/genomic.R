@@ -93,7 +93,13 @@ filter.bed <- function(bed, query, af.field="POPMAX_AF", ac.field="AC",
   }else{
     query.parts <- query
   }
+
+  # Check for gnomAD frequency annotations
   has.gnomad <- gnomad.column %in% colnames(bed)
+  if(!has.gnomad & length(intersect(query.parts, c("rare", "vrare", "singleton")))){
+    warning(paste("gnomAD column `", gnomad.column, "` not detected; ",
+                  "filtering exclusively using in-cohort frequencies", sep=""))
+  }
 
   # Replace SVLEN with total genomic imbalance, if optioned
   if("unbalanced" %in% query.parts){

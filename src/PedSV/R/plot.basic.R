@@ -58,10 +58,10 @@ pc.scatterplot <- function(pcs, pc.X, pc.Y, colors, title=NULL,
   x <- pcs[, pc.X]
   y <- pcs[, pc.Y]
   if(is.null(xlims)){
-    xlims <- range(x)
+    xlims <- range(x, na.rm=T)
   }
   if(is.null(ylims)){
-    ylims <- range(y)
+    ylims <- range(y, na.rm=T)
   }
 
   prep.plot.area(xlims, ylims, parmar=parmar, xaxs="r", yaxs="r")

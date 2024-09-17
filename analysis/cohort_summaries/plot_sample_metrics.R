@@ -39,9 +39,9 @@ args <- parser$parse_args()
 # args <- list("metadata" = "~/scratch/PedSV.v2.5.3.cohort_metadata.w_control_assignments.tsv.gz",
 #              "subset_samples" = "~/scratch/PedSV.v2.5.3.final_analysis_cohort.samples.list",
 #              "out_prefix" = "~/scratch/PedSV.v2.5.3.dev")
-# args <- list("metadata" = "/Users/ryan/Desktop/Collins/VanAllen/jackie_younglung/younglung_metadata/YL.SV.v1.1.analysis_metadata.tsv.gz",
-#              "subset_samples" = "/Users/ryan/Desktop/Collins/VanAllen/jackie_younglung/YL_analysis/YL.analysis_samples.list",
-#              "out_prefix" = "~/scratch/YL.SV.v1.1")
+# args <- list("metadata" = "/Users/ryan/Desktop/Collins/VanAllen/jackie_younglung/younglung_metadata/YL.SV.v1.2.analysis_metadata.tsv.gz",
+#              "subset_samples" = "~/Desktop/Collins/VanAllen/jackie_younglung/data/ancestry_and_relatedness/YL.SV.v1.2.analysis.samples.list",
+#              "out_prefix" = "~/scratch/YL.SV.v1.2")
 
 # Load metadata
 keepers <- NULL

@@ -395,12 +395,13 @@ args <- parser$parse_args()
 #              "ac_field" = "AC",
 #              "out_prefix" = "~/scratch/PedSV.v2.5.4.full_cohort_w_relatives")
 # args <- list("bed" = "~/scratch/YL-gatsv-v1-allBatches.annotated.samples_excluded.bed.gz",
-#              "metadata" = "/Users/ryan/Desktop/Collins/VanAllen/jackie_younglung/younglung_metadata/YL.SV.v1.1.analysis_metadata.tsv.gz",
-#              "subset_samples" = "/Users/ryan/Desktop/Collins/VanAllen/jackie_younglung/YL_analysis/YL.analysis_samples.list",
+#              "metadata" = "/Users/ryan/Desktop/Collins/VanAllen/jackie_younglung/younglung_metadata/YL.SV.v1.2.analysis_metadata.tsv.gz",
+#              "subset_samples" = "~/Desktop/Collins/VanAllen/jackie_younglung/data/ancestry_and_relatedness/YL.SV.v1.2.analysis.samples.list",
 #              "cohort_prefix" = "",
 #              "af_field" = "POPMAX_AF",
 #              "ac_field" = "AC",
-#              "out_prefix" = "~/scratch/YL.v1.1")
+#              "out_prefix" = "~/scratch/YL.v1.2")
+
 
 # Infer frequency columns to use
 if(is.null(args$af_field)){

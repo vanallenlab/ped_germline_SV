@@ -34,11 +34,12 @@ gnomad.pop.map <- c("AFR" = "AFR",
 ######################
 # Plot AF correlation vs. gnomAD for a single population
 plot.af.comparison <- function(bed, pop, cohort, square.mins=TRUE, pt.cex=0.1,
-                               bandwidth=2, alpha=1, annotate.void=FALSE){
+                               bandwidth=2, alpha=1, annotate.void=FALSE,
+                               gnomad.column="gnomad_v3.1_sv"){
   # Get plot data
   bed <- filter.bed(bed, query="", autosomal=TRUE, pass.only=TRUE)
   x <- bed[, gsub("^_", "", paste(cohort, pop, "AF", sep="_"))]
-  y <- bed[, paste("gnomad_v3.1_sv", gnomad.pop.map[pop], "AF", sep="_")]
+  y <- bed[, paste(gnomad.column, gnomad.pop.map[pop], "AF", sep="_")]
   keepers <- which(!is.na(x) & !is.na(y) & x > 0)
   x <- log10(x[keepers]); y <- log10(y[keepers])
   x.min <- min(x)
@@ -89,14 +90,21 @@ parser$add_argument("bed", metavar=".tsv", type="character",
                     help="SV sites .bed")
 parser$add_argument("--cohort-prefix", default="", metavar="string", type="character",
                     help="String prefix to append to frequency columns")
+parser$add_argument("--gnomad-af-column", default="gnomad_v3.1_sv", metavar="string",
+                    type="character", help="Column header for gnomAD frequencies")
 parser$add_argument("--out-prefix", metavar="path", type="character", required=TRUE,
                     help="Path/prefix for all output files")
 args <- parser$parse_args()
-#
+
 # # DEV:
 # args <- list("bed" = "~/scratch/PedSV.v2.5.3.full_cohort.analysis_samples.sites.bed.gz",
 #              "cohort_prefix" = "",
+#              "gnomad_af_column" = "gnomad_v3.1_sv",
 #              "out_prefix" = "~/scratch/PedSV.v2.5.3.dev.full_cohort")
+# args <- list("bed" = "~/scratch/YL-gatsv-v1-allBatches.annotated.samples_excluded.bed.gz",
+#              "cohort_prefix" = "",
+#              "gnomad_af_column" = "gnomad_v4.1_sv",
+#              "out_prefix" = "~/scratch/YL.SV.v1.2")
 
 
 # Infer frequency columns to use
@@ -128,7 +136,8 @@ for(pop in intersect(names(pop.colors), pops.in.bed)){
     tiff(paste(args$out_prefix, pop, "vs_gnomad.tiff", sep="."),
          height=1300, width=1300, res=400)
     par(family="Arial")
-    cor.stats <- plot.af.comparison(bed, pop, args$cohort_prefix)
+    cor.stats <- plot.af.comparison(bed, pop, args$cohort_prefix,
+                                    gnomad.column=args$gnomad_af_column)
     dev.off()
     cat(paste("R2 =", cor.stats$estimate^2, "\nP =", cor.stats$p.value, "\n"))
   }
