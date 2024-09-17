@@ -1,6 +1,6 @@
 ## Change logs for study callset versions
 
-#### Version 2.5.4 (release date TBD)
+#### Version 2.5.4 (release date August 8, 2024)
 - Excluded 1 sample carrying three suspicious large (500kb-6Mb) mosaic deletions on chr11, chr16, and chr17  
 - Upgrade external allele frequencies to the "controls only" subset of gnomAD v4.1  
 
