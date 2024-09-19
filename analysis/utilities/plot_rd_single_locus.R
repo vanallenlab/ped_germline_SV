@@ -29,7 +29,7 @@ PedSV::load.constants("all")
 # Load coverage data and normalize by sample median
 load.coverage <- function(cov_in, medians_in=NULL, keep.samples=NULL){
   # Read matrix
-  cov <- read.table(cov_in, sep="\t", comment.char="", header=T)
+  cov <- read.table(cov_in, sep="\t", comment.char="", header=T, check.names=F)
   cov[, 2:ncol(cov)] <- apply(cov[, 2:ncol(cov)], 2, as.numeric)
   colnames(cov)[1:3] <- c("chrom", "start", "end")
 
