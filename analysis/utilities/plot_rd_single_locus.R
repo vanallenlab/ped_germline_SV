@@ -158,17 +158,17 @@ args <- parser$parse_args()
 #              "no_parents" = TRUE,
 #              "no_idiogram" = FALSE,
 #              "outfile" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_MS/PedSV_figures/other_data/RAF1_TMEM40.DUP.rdviz.pdf")
-# args <- list("bincov" = "~/scratch/YL_SV_v1.2_DUP_chr1_398.chr1_13139719_14997051.rd.bed.gz",
+# args <- list("bincov" = "~/scratch/YL_SV_v1.2_DUP_chr1_1376.chr1_144833951_146729681.rd.bed.gz",
 #              "cov_medians" = "~/scratch/YL.SV.v1.2.median_coverage.tsv.gz",
 #              "metadata" = "~/scratch/YL.SV.v1.2.analysis_metadata.tsv.gz",
-#              "sample_id" = c("TPMCCDG14110", "DFLC0032"),
+#              "sample_id" = c("TPMCCDG12268", "NSLC-0233"),
 #              "subset_samples" = "~/scratch/YL.SV.v1.2.analysis.samples.list",
-#              "sv_interval" = "chr1:13670385-14466385",
-#              "sv_label" = "796 kb duplication",
+#              "sv_interval" = "chr1:145375588-146188044",
+#              "sv_label" = "812 kb duplication",
 #              "highlight_gene_features" = NULL,
 #              "highlight_gene_label" = NULL,
 #              "background_gene_features" = NULL,
-#              "no_parents" = FALSE,
+#              "no_parents" = TRUE,
 #              "no_idiogram" = FALSE,
 #              "outfile" = "~/scratch/YL.SV.dev.rdviz.pdf")
 
@@ -180,7 +180,7 @@ meta <- load.sample.metadata(args$metadata)
 cov <- load.coverage(args$bincov, args$cov_medians)
 
 # Check if both parents are present; if so, prepend these to args$sample_id
-samples.to.plot <- args$sample_id
+samples.to.plot <- intersect(args$sample_id, colnames(cov))
 sample.colors <- sapply(cancer.palettes[metadata.cancer.label.map[meta[samples.to.plot, "disease"]]],
                         function(p){p["dark1"]})
 if(!args$no_parents & "family_id" %in% colnames(meta)){
