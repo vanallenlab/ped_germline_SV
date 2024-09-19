@@ -158,6 +158,19 @@ args <- parser$parse_args()
 #              "no_parents" = TRUE,
 #              "no_idiogram" = FALSE,
 #              "outfile" = "~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/PedSV_MS/PedSV_figures/other_data/RAF1_TMEM40.DUP.rdviz.pdf")
+# args <- list("bincov" = "~/scratch/YL_SV_v1.2_DUP_chr1_398.chr1_13139719_14997051.rd.bed.gz",
+#              "cov_medians" = "~/scratch/YL.SV.v1.2.median_coverage.tsv.gz",
+#              "metadata" = "~/scratch/YL.SV.v1.2.analysis_metadata.tsv.gz",
+#              "sample_id" = c("TPMCCDG14110", "DFLC0032"),
+#              "subset_samples" = "~/scratch/YL.SV.v1.2.analysis.samples.list",
+#              "sv_interval" = "chr1:13670385-14466385",
+#              "sv_label" = "796 kb duplication",
+#              "highlight_gene_features" = NULL,
+#              "highlight_gene_label" = NULL,
+#              "background_gene_features" = NULL,
+#              "no_parents" = FALSE,
+#              "no_idiogram" = FALSE,
+#              "outfile" = "~/scratch/YL.SV.dev.rdviz.pdf")
 
 
 # Load sample metadata
@@ -170,7 +183,7 @@ cov <- load.coverage(args$bincov, args$cov_medians)
 samples.to.plot <- args$sample_id
 sample.colors <- sapply(cancer.palettes[metadata.cancer.label.map[meta[samples.to.plot, "disease"]]],
                         function(p){p["dark1"]})
-if(!args$no_parents){
+if(!args$no_parents & "family_id" %in% colnames(meta)){
   for(sid in args$sample_id){
     fam.id <- meta[sid, "family_id"]
     if(is.na(fam.id)){
@@ -193,7 +206,7 @@ if(!is.null(args$subset_samples)){
     keep.samples <- read.table(args$subset_samples, header=F)[, 1]
   }
   cov <- cov[, c("chrom", "start", "end",
-                 union(keep.samples, samples.to.plot))]
+                 intersect(colnames(cov), union(keep.samples, samples.to.plot)))]
 }
 
 # If region is on sex chromosome and all --sample-id are the same sex,
