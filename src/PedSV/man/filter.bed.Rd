@@ -61,6 +61,7 @@ should be applied to \code{bed}. Recognized filters currently include:
 \item \code{rare} : AF < 1\%
 \item \code{vrare} : AF < 0.1\%
 \item \code{singleton} : AC = 1
+\item \code{doubleton} : AC <= 2
 \item \code{lt10kb} : SVLEN <= 10,000
 \item \verb{1kb_to_10kb} : SVLEN > 1,000 & <= 10,000
 \item \verb{10kb_to_100kb} : SVLEN > 10,000 & <= 100,000

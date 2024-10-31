@@ -32,6 +32,8 @@ workflow PlotRdPanels {
     Boolean plot_genes = true
     Boolean add_idiogram = true
 
+    Int? max_plot_filename_length
+
     String gatk_sv_pipeline_docker
     String linux_docker
     String pedsv_r_docker
@@ -79,6 +81,7 @@ workflow PlotRdPanels {
         plot_genes = plot_genes,
         add_idiogram = add_idiogram,
         prefix = prefix,
+        max_plot_filename_length = max_plot_filename_length,
         docker = pedsv_r_docker
     }
   }
@@ -275,6 +278,8 @@ task PlotPanel {
     Boolean plot_genes = true
     Boolean add_idiogram = true
 
+    Int max_plot_filename_length = 150
+
     String prefix
     String docker
   }
@@ -283,9 +288,17 @@ task PlotPanel {
   String sv_coords = chrom + ":" + sv_start + "-" + sv_end
   String outfile = prefix + "." + svid + "." + plot_sample_ids + ".rd_viz.pdf"
   Int disk_gb = ceil(3 * size([bincov], "GB")) + 20
+  Int max_fname_length_prefix = max_plot_filename_length - 11
 
   command <<<
     set -eu -o pipefail
+
+    # Correct outfile name s/t it never exceeds max_plot_filename_length characters
+    if [ $( echo "~{outfile}" | wc -c ) -gt ~{max_plot_filename_length} ]; then
+      pdf_out="$( echo "~{outfile}" | cut -c 1-~{max_fname_length_prefix} ).rd_viz.pdf"
+    else
+      pdf_out="~{outfile}"
+    fi
 
     # Prep gene features
     if [ ~{plot_genes} == "true" ]; then
@@ -324,13 +337,13 @@ task PlotPanel {
     if [ ~{add_idiogram} == "false" ]; then
       cmd="$cmd --no-idiogram"
     fi
-    cmd="$cmd --outfile \"~{outfile}\""
+    cmd="$cmd --outfile \"$pdf_out\""
     echo -e "Now plotting with the following command:\n$cmd"
     eval $cmd
   >>>
 
   output {
-    File plot = outfile
+    File plot = select_first(glob("*.pdf"))
   }
 
   runtime {

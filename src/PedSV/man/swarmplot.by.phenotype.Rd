@@ -19,10 +19,12 @@ swarmplot.by.phenotype(
   parse.labels = TRUE,
   cancer.name.xadj = 0.1,
   shorten.cancer.names = FALSE,
+  custom.group.names = NULL,
   add.sample.size = FALSE,
   sample.size.mirror.buffer = 0.2,
   scale.swarms = TRUE,
   median.labels = FALSE,
+  median.label.nsmall = 1,
   gutter.width = 0.1,
   pt.cex = NULL,
   shade = "main",
@@ -60,6 +62,10 @@ of these limits will be Winsorized. [default: use full range of all values]}
 
 \item{shorten.cancer.names}{Should cancer names be shortened as much as possible? [default: FALSE]}
 
+\item{custom.group.names}{Manual override of cancer names for groups to be
+labeled on the bottom X axis. Must be provided as a named vector mapping cancer
+types to desired label.}
+
 \item{add.sample.size}{Should sample size be added to cancer names? [default: FALSE]}
 
 \item{sample.size.mirror.buffer}{Space in user units that cancer label and sample size should be separated [default: 0.2]}
@@ -68,6 +74,8 @@ of these limits will be Winsorized. [default: use full range of all values]}
 to the square root of its sample size? [default: TRUE]}
 
 \item{median.labels}{Should text labels for medians per group be plotted? [default: FALSE]}
+
+\item{median.label.nsmall}{Number of decimal places for rounding \code{medial.labels} [default: 1]}
 
 \item{gutter.width}{Relative width of gutter between swarms [default: 0.1]}
 

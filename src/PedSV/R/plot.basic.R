@@ -434,11 +434,15 @@ svlen.line.plot <- function(x.svlen, y.value, colors, ci.lower=NULL, ci.upper=NU
 #' @param parse.labels Value of `parse.labels` passed to [PedSV::clean.axis()] \[default: TRUE\]
 #' @param cancer.name.xadj Horizontal adjustment factor for cancer labels on X axis \[default: 0.1\]
 #' @param shorten.cancer.names Should cancer names be shortened as much as possible? \[default: FALSE\]
+#' @param custom.group.names Manual override of cancer names for groups to be
+#' labeled on the bottom X axis. Must be provided as a named vector mapping cancer
+#' types to desired label.
 #' @param add.sample.size Should sample size be added to cancer names? \[default: FALSE\]
 #' @param sample.size.mirror.buffer Space in user units that cancer label and sample size should be separated \[default: 0.2\]
 #' @param scale.swarms Should the width of each swarm be scaled proportional
 #' to the square root of its sample size? \[default: TRUE\]
 #' @param median.labels Should text labels for medians per group be plotted? \[default: FALSE\]
+#' @param median.label.nsmall Number of decimal places for rounding `medial.labels` \[default: 1\]
 #' @param gutter.width Relative width of gutter between swarms \[default: 0.1\]
 #' @param pt.cex Value of `cex` passed to [beeswarm::beeswarm()]
 #' @param shade Shade of phenotype color to use \[default: 'main'\]
@@ -459,9 +463,11 @@ swarmplot.by.phenotype <- function(plot.vals, meta, title=NULL, title.line=0,
                                    y.axis.title="Value", y.title.line=0.5,
                                    y.ticks=NULL, y.tick.labels=NULL, parse.labels=TRUE,
                                    cancer.name.xadj=0.1, shorten.cancer.names=FALSE,
-                                   add.sample.size=FALSE, sample.size.mirror.buffer=0.2, scale.swarms=TRUE,
-                                   median.labels=FALSE, gutter.width=0.1, pt.cex=NULL,
-                                   shade="main", return.swarm.df=FALSE,
+                                   custom.group.names=NULL,
+                                   add.sample.size=FALSE, sample.size.mirror.buffer=0.2,
+                                   scale.swarms=TRUE, median.labels=FALSE,
+                                   median.label.nsmall=1, gutter.width=0.1,
+                                   pt.cex=NULL, shade="main", return.swarm.df=FALSE,
                                    parmar=c(3, 2.5, 0.3, 0.3)){
   # Ensure beeswarm & vioplot are loaded
   require(beeswarm, quietly=T)
@@ -551,7 +557,9 @@ swarmplot.by.phenotype <- function(plot.vals, meta, title=NULL, title.line=0,
 
   # Annotate each swarm per cancer type
   sapply(1:n.cancers, function(i){
-    if(shorten.cancer.names){
+    if(!is.null(custom.group.names)){
+      x.label <- custom.group.names[plot.cancers[i]]
+    }else if(shorten.cancer.names){
       x.label <- cancer.names.vshort[plot.cancers[i]]
     }else{
       x.label <- cancer.names.short[plot.cancers[i]]
@@ -571,7 +579,7 @@ swarmplot.by.phenotype <- function(plot.vals, meta, title=NULL, title.line=0,
     if(median.labels){
       text(x=swarm.at[i] + tick.widths[i] + (0.01*diff(par("usr")[1:2])),
            y=cancer.meds[i], adj=c(0, 0.45),
-           labels=round(cancer.meds[i], 1), xpd=T, cex=5/6,
+           labels=round(cancer.meds[i], median.label.nsmall), xpd=T, cex=5/6,
            col=cancer.palettes[[plot.cancers[i]]]["dark2"])
     }
   })

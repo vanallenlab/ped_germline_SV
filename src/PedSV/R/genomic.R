@@ -41,6 +41,7 @@
 #' * `rare` : AF < 1%
 #' * `vrare` : AF < 0.1%
 #' * `singleton` : AC = 1
+#' * `doubleton` : AC <= 2
 #' * `lt10kb` : SVLEN <= 10,000
 #' * `1kb_to_10kb` : SVLEN > 1,000 & <= 10,000
 #' * `10kb_to_100kb` : SVLEN > 10,000 & <= 100,000
@@ -135,6 +136,9 @@ filter.bed <- function(bed, query, af.field="POPMAX_AF", ac.field="AC",
   }
   if("vrare" %in% query.parts){
     keep.idx <- intersect(keep.idx, which(bed[, af.field] < 0.001 & bed$SVTYPE != "CNV"))
+  }
+  if("doubleton" %in% query.parts){
+    keep.idx <- intersect(keep.idx, which(bed[, ac.field] <= 2 & bed$SVTYPE != "CNV"))
   }
   if("singleton" %in% query.parts){
     keep.idx <- intersect(keep.idx, which(bed[, ac.field] <= 1 & bed$SVTYPE != "CNV"))
