@@ -86,7 +86,7 @@ parser$add_argument("--plot-cex", default=0.3, metavar="float", type="double",
 args <- parser$parse_args()
 
 # # DEV
-# setwd("/Users/collins/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/data/ancestry_and_relatedness")
+# setwd("~/Desktop/Collins/VanAllen/pediatric/riaz_pediatric_SV_collab/data/ancestry_and_relatedness")
 # args <- list("PCs" = "PedSV.merged.PCs.tsv.gz",
 #           "training_labels" = "1000G_HGDP_MESA_training_labels.tsv.gz",
 #           "testing_labels" = "PedSV.SNV_ancestry_labels.tsv.gz",
@@ -146,7 +146,8 @@ if(args$plot){
     pc.scatterplot(pcs, pc.idxs[1], pc.idxs[2],
                    colors=pop.colors[pred.labels[rownames(pcs)]],
                    title="All Samples w/Predicted Labels",
-                   legend.vals=pop.colors, cex=args$plot_cex)
+                   legend.vals=pop.colors, cex=args$plot_cex,
+                   x.label.line=-0.7, y.label.line=-0.6)
     dev.off()
 
     # Training samples colored by training labels
@@ -155,7 +156,8 @@ if(args$plot){
         width=png.dim*300)
     pc.scatterplot(train, pc.idxs[1], pc.idxs[2], colors=pop.colors[train$pop],
                    title="Training Samples w/Training Labels",
-                   legend.vals=pop.colors, cex=args$plot_cex)
+                   legend.vals=pop.colors, cex=args$plot_cex,
+                   x.label.line=-0.7, y.label.line=-0.6)
     dev.off()
 
     # Non-training samples with inferred labels
@@ -166,7 +168,8 @@ if(args$plot){
     pc.scatterplot(non.train, pc.idxs[1], pc.idxs[2],
                    colors=pop.colors[pred.labels[rownames(non.train)]],
                    title="New Samples w/Predicted Labels",
-                   legend.vals=pop.colors, cex=args$plot_cex)
+                   legend.vals=pop.colors, cex=args$plot_cex,
+                   x.label.line=-0.7, y.label.line=-0.6)
     dev.off()
   })
 }
