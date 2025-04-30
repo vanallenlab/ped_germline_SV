@@ -442,7 +442,7 @@ dev.off()
 # Ridgeplot of SV sizes
 pdf(paste(args$out_prefix, "sv_size_distribs.pdf", sep="."),
     height=1.7, width=2.2)
-ridgeplot(get.svlen.densities(bed), xlims=log10(c(10, 5000000)), x.axis=FALSE,
+ridgeplot(get.svlen.densities(bed), xlims=log10(c(10, 5000000)), x.axis.side=NA,
           fill=hex2grey(DEL.colors[["light2"]]),
           border=hex2grey(DEL.colors[["dark1"]]), border.lwd=1.25,
           parmar=c(2.2, 3.5, 0.1, 0.1))
@@ -483,5 +483,3 @@ for(pop in intersect(names(pop.colors), pops.in.bed)){
 pdf(paste(args$out_prefix, "large_rare_SV_table.pdf", sep="."), height=2.5, width=4.3)
 plot.large.sv.summary(bed, args$ad_matrix, meta)
 dev.off()
-
-
